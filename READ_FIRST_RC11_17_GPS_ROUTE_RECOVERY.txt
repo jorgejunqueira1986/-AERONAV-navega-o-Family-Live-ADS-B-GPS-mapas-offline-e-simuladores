@@ -1,0 +1,16 @@
+AERONAV RC11.17 — GPS + ROUTE RECOVERY
+
+Base: RC11.16 MSFS 2024 + SimConnect. Nenhuma funcionalidade anterior foi removida.
+
+CORREÇÕES
+1. Primeiro fix GPS em contexto de VOO abre o mapa e centra automaticamente a posição.
+2. Se existir PMTiles aeronáutico offline que cubra a posição, ele passa a ser usado automaticamente.
+3. GPS iPad reforçado: HTTPS check, warm-up getCurrentPosition + watchPosition de alta precisão, timeout maior, mensagens específicas e reconexão ao voltar à app.
+4. Rota em curso persistida em IndexedDB e recuperada no novo arranque.
+5. Persistência durante GPS, reroute, background e pagehide.
+6. Botão FECHAR ROTA no planeamento e em Minha Viagem.
+7. Fecho automático no destino após permanência curta dentro do raio de chegada e velocidade baixa.
+8. Rota concluída fica guardada em Rotas com status completed/completedAt.
+
+NOTA iPAD
+A aplicação web usa a localização fornecida pelo iPadOS. A versão publicada deve ser aberta por HTTPS e a permissão de Localização Precisa deve estar ativa.

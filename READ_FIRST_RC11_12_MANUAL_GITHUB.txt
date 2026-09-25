@@ -1,0 +1,18 @@
+AERONAV RC11.13 — PUBLICAÇÃO MANUAL NO GITHUB
+
+1. Extraia este ZIP.
+2. No repositório que publica a AERONAV, substitua os ficheiros/pastas pelos conteúdos extraídos.
+3. Preserve a estrutura: index.html na raiz, family/index.html em /family/, assets/ e sw.js na raiz.
+4. Faça Commit changes. Se GitHub Pages já estiver ativo nesse branch, o deploy é automático.
+5. No iPhone/iPad, feche e reabra a PWA. Se necessário, recarregue uma vez para o novo Service Worker assumir.
+
+RC11.13 acrescenta:
+- Avatar oficial Toyota Yaris LD-37-23-FM em assets/vehicles/.
+- Avatar do Yaris como marcador no mapa em modo CARRO.
+- Cartão Meu carro no Planeamento terrestre.
+- Botão “Carro abastecido”: regista apenas data/hora e litros.
+- Histórico local dos últimos abastecimentos.
+- Sem preço/litro, quilometragem, despesas ou observações nesta versão.
+- Nome de dispositivo Family separado da identidade da pessoa.
+- Em iPad novo, o nome sugerido é “iPad de Jorge”; a identidade continua “Jorge”.
+- Mantém a entrada numa Família existente apenas com o Código da Família.

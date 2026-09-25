@@ -1,0 +1,43 @@
+AERONAV RC11.19 — RELATÓRIO DE AUDITORIA FUNCIONAL
+Data: 2026-09-25
+
+RESULTADO GERAL
+- PASS: integridade dos ficheiros e sintaxe JavaScript.
+- PASS: rotas ativas persistem em IndexedDB e têm fecho manual/automático.
+- PASS: GPS do dispositivo usa getCurrentPosition + watchPosition, HTTPS e retry.
+- PASS: mapa aeronáutico PMTiles offline pode ser usado mantendo dados online ativos após a correção RC11.19.
+- PASS: frontend ADS-B usa apenas o proxy Railway (/adsb/nearby e /adsb/callsign).
+- PASS: METAR oficial usa proxy Railway (/weather/metar).
+- PASS: endpoints Family usados pelo frontend existem no backend Railway auditado.
+- PASS: PWA Family /family/ tem start_url e ícones válidos após RC11.19.
+- PASS: service worker devolve Family index correto para navegação offline em /family/.
+- PASS: conflito extractPdfText removido; Crew/General Declaration PDF usa extrator próprio.
+
+CORREÇÕES FEITAS NESTA AUDITORIA
+1. Corrigido conflito entre mapa offline e ADS-B/METAR/Family online. A RC11.18 colocava state.net=offline ao selecionar automaticamente PMTiles.
+2. Corrigido family/family-manifest.json: start_url e caminhos dos ícones.
+3. Corrigido fallback de navegação do service worker para /family/.
+4. Sincronizado family-viewer.html com o Family Viewer mais recente do pacote.
+5. Corrigida colisão de duas funções extractPdfText que podia impedir leitura de General Declaration em PDF.
+6. Cache/version bump para RC11.19.
+
+LIMITAÇÕES / ITENS QUE EXIGEM TESTE REAL
+- Backend público: o ambiente local desta auditoria não resolve DNS externo Railway; o estado do deployment foi confirmado separadamente como SUCCESS, mas HTTP público real precisa ser testado no iPad/GitHub Pages.
+- GPS real: depende de permissões iPadOS/Safari e precisa de teste físico no iPad.
+- ADS-B real: precisa de Internet e aeronaves visíveis pelos provedores na área de teste.
+- Family Live/Supabase: o fluxo de código/QR/endpoints está presente; a experiência completa exige os dois aparelhos e a configuração Supabase já existente.
+- Cockpit Audio/Family Call: código LiveKit e endpoint /token estão presentes; microfone/reprodução precisam de gesto/permissão e teste em aparelhos reais.
+- MSFS 2024: o source do Bridge está incluído, mas o ambiente de auditoria não possui .NET/MSFS SDK para compilar e executar SimConnect.
+- X-Plane 12: a interface/cliente WSS está presente, mas o companion bridge X-Plane não está incluído neste ZIP; não é possível validar end-to-end só com este pacote.
+- Bateria Family: navigator.getBattery não é disponibilizado pelo Safari/iOS; em iPhone/iPad essa leitura deve ser considerada indisponível numa PWA web pura.
+- AISWEB/OSRM/Nominatim/Open-Meteo/Overpass/TomTom dependem de serviços externos; o código tem tratamento de erro, mas disponibilidade/CORS/rate limits só podem ser confirmados online.
+- Satellite endpoint e URLs de download PMTiles são configuráveis e aparecem como placeholders enquanto o utilizador não fornecer um fornecedor/endereço real.
+
+index.html: ids=118, duplicate_ids=0, functions=503, duplicate_functions=0
+family-viewer.html: ids=47, duplicate_ids=0, functions=107, duplicate_functions=0
+family/index.html: ids=47, duplicate_ids=0, functions=107, duplicate_functions=0
+
+PLACEHOLDERS INTENCIONAIS DETETADOS
+- https://seu-backend.example/satellite/latest
+- https://fornecedor/.../brasil.pmtiles
+- https://fornecedor/.../sao-paulo.pmtiles

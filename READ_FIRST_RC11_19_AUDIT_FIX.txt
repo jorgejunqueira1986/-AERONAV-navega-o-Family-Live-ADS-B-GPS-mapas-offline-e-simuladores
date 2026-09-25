@@ -1,0 +1,11 @@
+AERONAV RC11.19 — AUDIT FIX
+
+Correções após auditoria minuciosa da RC11.18:
+1. Mapa PMTiles offline pode permanecer ativo sem colocar a aplicação globalmente Offline; ADS-B, METAR, Family e meteorologia continuam online quando existe Internet.
+2. Family PWA /family/ corrigida: manifest aponta para ./index.html e ícones ../icons/*.png.
+3. Service Worker offline reconhece /family/ e devolve ./family/index.html em vez da aplicação principal.
+4. family-viewer.html sincronizado com a versão Family mais recente do pacote.
+5. General Declaration PDF: removido conflito de nome extractPdfText; importação Crew usa extractCrewPdfText.
+6. Cache/version bump RC11.19.
+
+Backend Railway permanece RC11.18 e não precisa de nova alteração para estas correções de frontend.

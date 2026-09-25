@@ -1,0 +1,15 @@
+AERONAV RC11.16 — MICROSOFT FLIGHT SIMULATOR 2024 (DRAFT)
+
+NÃO PUBLICADO.
+Base: RC11.15.
+
+Adicionado:
+- novo módulo MSFS 2024 no menu VOO e em Mais;
+- nova fonte de posição simulada MSFS 2024 em GPS / Simuladores;
+- nova página Microsoft Flight Simulator 2024 · Cockpit Link;
+- telemetria prevista: LAT/LON, GS, IAS, TAS, ALT MSL, HDG, V/S, Mach, pitch, roll e aeronave;
+- integração do avatar da aeronave com o mapa AERONAV;
+- proteção Family: telemetria do simulador não é publicada como localização física;
+- companion project Windows em /msfs2024-bridge usando SimConnect oficial.
+
+Para ativação real no PC é necessário compilar o bridge com o MSFS 2024 SDK instalado.

@@ -1,0 +1,49 @@
+AERONAV RC11.20 — TEST REPORT
+Date: 2026-09-25
+
+Scope
+- Family automatic flight handover GPS -> ADS-B -> GPS
+- Physical takeoff/landing event detection
+- Mathia Family Viewer messages/notifications
+- Existing RC11.19 audit fixes preserved
+
+Implemented behavior
+1. Before takeoff: Family Viewer prefers fresh device GPS.
+2. Takeoff is no longer inferred merely from selecting VOO or starting a flight route.
+3. With an active flight route, physical takeoff requires GPS groundspeed plus evidence of climb/relative altitude gain, sustained across samples.
+   - Designed to cover light aircraft such as C152 as well as airline aircraft.
+4. Once TAKEOFF is confirmed:
+   - event includes flightPhase=airborne and callsign;
+   - Mathia sees "Jorge acabou de descolar";
+   - Family Viewer immediately prefers ADS-B for the matching flight/callsign;
+   - if ADS-B is not yet available, GPS stays visible until ADS-B appears.
+5. In flight, later Journey events carry flightPhase=airborne so a newly opened Family Viewer can recover the handover state.
+6. Landing is confirmed only after sustained low groundspeed while previously airborne.
+7. Once LANDED is confirmed:
+   - event includes flightPhase=ground;
+   - Mathia sees "Jorge acabou de aterrar";
+   - Family Viewer immediately returns to GPS preference;
+   - ADS-B remains available as stale-GPS fallback.
+8. TAKEOFF/LANDED events are treated as fundamental Family flight events even if optional Journey timeline sharing is toggled off.
+9. Failed TAKEOFF/LANDED event delivery is queued locally and retried when connectivity returns while GPS continues updating.
+10. Service-worker notification display is used when notification permission exists, with a fallback to Notification constructor.
+
+Detection guardrails
+- Takeoff: active flight route + real device GPS + finite speed; candidate requires >=42 kt with climb/relative altitude gain (or a stronger high-speed+climb condition), sustained for >=3 seconds and >=3 samples.
+- Landing: only after flightPhase=airborne; <=35 kt sustained for >=8 seconds and >=4 samples.
+- This deliberately delays the landing message slightly to reduce false alerts during approach.
+
+Static validation
+- index.html inline JavaScript: PASS (node --check)
+- family-viewer.html inline JavaScript: PASS (node --check)
+- family/index.html inline JavaScript: PASS (node --check)
+- duplicate named JavaScript functions: none detected in the three main HTML apps
+- frontend direct api.adsb.lol / api.airplanes.live calls: none detected
+- ADS-B frontend endpoints point to Railway proxy: PASS
+- service worker cache version bumped to RC11.20
+- Family PWA manifest paths from RC11.19 retained
+- Railway aeronav-cockpit-token-server latest deployment status checked: SUCCESS
+
+Important runtime limitation
+- A guaranteed notification when Mathia's PWA is fully terminated is NOT implemented in this build. iOS Web Push for a fully closed Home Screen PWA requires Push API subscription + VAPID/server push infrastructure. The RC11.20 banners and notifications work while the Family Viewer is active/able to poll, and service-worker showNotification is used when permitted.
+- Final GPS/ADS-B handover must still be flight-tested on the real iPad/phone and with a real broadcast callsign/ADS-B provider coverage.

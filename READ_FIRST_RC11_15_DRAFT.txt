@@ -1,0 +1,12 @@
+AERONAV RC11.15 — DRAFT — NÃO PUBLICADO
+
+Alterações:
+- Rotas novas ficam em modo rascunho: calcular -> guardar/editar -> Abrir no mapa.
+- Limite de velocidade manual obrigatório ao criar rota terrestre.
+- Aviso quando ultrapassa o limite definido para a rota.
+- Botão Ir até à Mathia no planeamento terrestre.
+- Ao tocar no avatar de outro membro Family, opção Ir até <nome>.
+- Navegação até membro usa a posição Family mais recente e mantém recálculo automático.
+- RC11.14 Smart Auto-Reroute preservado.
+
+NÃO PUBLICAR ainda.

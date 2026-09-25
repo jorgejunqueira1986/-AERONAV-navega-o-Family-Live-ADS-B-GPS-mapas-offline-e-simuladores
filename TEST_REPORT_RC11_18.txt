@@ -1,0 +1,17 @@
+AERONAV RC11.18 — ADS-B PROXY FIX — TEST REPORT
+Date: 2026-09-25
+
+PASS — Frontend main app no longer calls api.adsb.lol or api.airplanes.live directly.
+PASS — Family Viewer no longer calls ADS-B providers directly.
+PASS — Family PWA no longer calls ADS-B providers directly.
+PASS — Nearby traffic uses Railway /adsb/nearby.
+PASS — Callsign fallback uses Railway /adsb/callsign/:callsign.
+PASS — JavaScript syntax check: index.html.
+PASS — JavaScript syntax check: family-viewer.html.
+PASS — JavaScript syntax check: family/index.html.
+PASS — Service Worker cache bumped to RC11.18.
+PASS — Railway service aeronav-cockpit-token-server deployment status: SUCCESS.
+PASS — Backend source/config inspected: health advertises version RC11.18 and adsb_proxy:true.
+PASS — Backend source/config inspected: ADSB.lol primary + Airplanes.live fallback, timeout and input validation.
+
+NOTE — The current execution environment cannot resolve the public Railway hostname, so a direct end-to-end HTTP GET from this environment could not be completed. The Railway deployment itself started successfully and the deployed source/config was verified through Railway.

@@ -1,0 +1,15 @@
+AERONAV RC11.14 — DRAFT — NÃO PUBLICAR AINDA
+
+Base: RC11.13.
+
+Alteração desta versão:
+- Recalculo automático real no modo CARRO quando o veículo sai da rota.
+- Tolerância dinâmica mínima de 80 m, ajustada pela precisão GPS.
+- O desvio precisa persistir ~6 s antes do recálculo.
+- Cooldown de 20 s entre recálculos para evitar loops.
+- GPS com precisão pior que 75 m não dispara recálculo.
+- Mantém destino original, preferências de rota, limite configurado e atualiza ETA/distância.
+- Family Journey recebe a rota recalculada para o outro membro acompanhar.
+- Se estiver sem Internet, a app preserva a rota e informa que o recálculo aguarda Internet; não inventa uma rota rodoviária offline.
+
+Esta versão é apenas de trabalho. Não foi publicada.

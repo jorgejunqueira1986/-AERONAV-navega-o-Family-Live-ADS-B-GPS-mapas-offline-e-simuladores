@@ -1,0 +1,18 @@
+AERONAV RC11.18 — ADS-B PROXY + FALLBACK
+
+Base: RC11.17. Nenhuma funcionalidade anterior removida.
+
+CORREÇÕES ADS-B
+- A aplicação principal deixou de chamar api.adsb.lol diretamente no Safari/PWA.
+- O Family Viewer e family/index também deixaram de chamar o feed ADS-B diretamente.
+- Todos os pedidos passam agora pelo backend Railway existente:
+  https://aeronav-cockpit-token-server-production.up.railway.app
+- Endpoints usados:
+  /adsb/nearby?lat=...&lon=...&radius_nm=...
+  /adsb/callsign/:callsign
+- Backend: ADSB.lol principal + Airplanes.live fallback.
+- CORS é resolvido pelo backend AERONAV.
+- Service Worker atualizado para novo cache RC11.18 para impedir que o iPad mantenha index antigo.
+
+IMPORTANTE
+ADS-B público é auxiliar e não substitui ATC, TCAS/ACAS ou vigilância visual.

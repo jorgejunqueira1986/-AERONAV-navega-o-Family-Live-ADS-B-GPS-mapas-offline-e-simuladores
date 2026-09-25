@@ -1,0 +1,21 @@
+AERONAV RC11.17 — TEST REPORT
+Date: 2026-09-25
+
+Base preserved
+- RC11.16 MSFS 2024 + SimConnect used as source.
+- Existing assets, Family, Cockpit Audio, X-Plane and MSFS bridge files preserved.
+
+Implemented checks
+- JavaScript syntax: PASS for all three inline runtime scripts (node --check).
+- Service-worker cache version bumped to RC11.17 and old AERONAV caches remain eligible for cleanup on activation.
+- New active-route session key present: active-route-session-v1.
+- Route recovery runs before GPS startup.
+- Active route is persisted on start/open-map, GPS updates, reroute, app background and pagehide.
+- Manual close control present in Route and Minha Viagem.
+- Arrival auto-close logic present for flight and road routes with distance + low-speed hold.
+- GPS startup uses high-accuracy warm-up + continuous watch, HTTPS check, retry and foreground reacquisition.
+- First flight-context GPS fix requests map screen, follows ownship and prefers an aviation PMTiles package covering the current position.
+- Active flight route locks automatic transport detection to VOO until route completion.
+
+Environment note
+- A full headless-browser end-to-end run against a local URL could not be completed because the execution environment blocks browser access to localhost/file URLs. Static syntax and integration checks passed. Final GPS behavior must still be verified on the real iPad because browser geolocation ultimately depends on iPadOS permissions and hardware/location services.

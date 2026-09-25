@@ -1,0 +1,14 @@
+AERONAV RC11.20 — FAMILY FLIGHT HANDOVER
+
+Mudanças:
+- Deteção física de descolagem separada do simples modo VOO/rota ativa.
+- Evento TAKEOFF confirmado por velocidade + subida/ganho de altitude (ou alta velocidade sustentada).
+- Evento LANDED confirmado apenas após velocidade baixa sustentada, reduzindo falsos alertas em aproximação.
+- Mathia recebe mensagem: “Jorge acabou de descolar” e “Jorge acabou de aterrar”.
+- Após TAKEOFF, Family Viewer prefere ADS-B automaticamente pelo callsign; se ADS-B ainda não estiver disponível, mantém GPS até aparecer.
+- Após LANDED, Family Viewer volta imediatamente a preferir GPS; ADS-B permanece apenas como fallback se o GPS ficar antigo.
+- Estado de handover persiste localmente e é propagado em todos os eventos Journey subsequentes.
+- TAKEOFF/LANDED são eventos Family fundamentais e não dependem do toggle opcional da timeline.
+
+Nota sobre iPhone/iPad:
+As mensagens dentro da PWA e notificações locais funcionam enquanto o Family Viewer está ativo. Uma notificação garantida com a PWA totalmente encerrada exige Web Push (Push API + VAPID + subscription backend), que não está implementado nesta build.

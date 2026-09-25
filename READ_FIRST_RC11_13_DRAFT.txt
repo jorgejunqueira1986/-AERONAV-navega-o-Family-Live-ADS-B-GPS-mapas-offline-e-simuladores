@@ -1,0 +1,15 @@
+AERONAV RC11.13 — DRAFT / NÃO PUBLICAR AINDA
+
+Alterações desta versão:
+- APM Crew removido da navegação; passa a chamar-se Crew.
+- Planeamento de rota aérea ganhou botão General Declaration.
+- General Declaration em PDF com texto, CSV ou JSON é lida localmente.
+- Extração tentativa de voo, matrícula, origem, destino, data e tripulação; campos não legíveis não são inventados.
+- General Declaration e Crew ficam associados à rota aérea ativa.
+- Fotos/scans ficam preparados para OCR futuro; nesta versão não há OCR nativo offline no iOS.
+- Avatar de membro no Family abre cartão de informação.
+- Bateria é mostrada quando o navegador disponibiliza Battery Status API.
+- Entre 10% e 30%, se não estiver a carregar, o outro membro recebe aviso (com intervalo para evitar spam).
+- iPhone/iPad Safari pode não expor percentagem de bateria à PWA; nesse caso aparece 'Bateria indisponível'.
+
+Estado: pacote de desenvolvimento. Não substituir a versão publicada até validação final.
