@@ -1,0 +1,14 @@
+TEST REPORT — AERONAV RC11.22
+
+[OK] index.html JavaScript validado com node --check.
+[OK] sw.js JavaScript validado com node --check.
+[OK] Toyota Yaris embutido como data URI; não depende do caminho /assets/vehicles.
+[OK] Avatares de aeronaves próprias embutidos como data URI.
+[OK] Avatar ADS-B genérico embutido como data URI.
+[OK] Fallback visual (emoji) previsto se uma imagem falhar.
+[OK] Seleção de aeronave atualiza o marcador de posição no modo VOO.
+[OK] Boeing 777-300ER adicionado às opções de aeronave.
+[OK] RC11.21 manual VOO lock preservado.
+[OK] ADS-B tap target/popup preservado.
+
+Nota: a validação sintática e de empacotamento não substitui o teste visual final no iPhone/GitHub Pages.

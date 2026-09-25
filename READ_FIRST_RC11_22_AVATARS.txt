@@ -1,0 +1,35 @@
+AERONAV RC11.22 — AVATARES EMBUTIDOS NO MAPA
+
+Correções desta versão
+- O avatar do Toyota Yaris passa a estar embutido diretamente no index.html.
+- O avatar da aeronave própria passa a usar a aeronave selecionada na aplicação.
+- Foram incluídos avatares para C152/C172, Q400, A220-300, B777-300ER, B787-9 e B787-10.
+- B737-700 usa um ícone aeronáutico genérico enquanto não existir asset dedicado.
+- Os avatares críticos já NÃO dependem de /assets/... para aparecer no mapa.
+  Isso evita o problema de uploads pelo iPhone/GitHub que perdem pastas aninhadas.
+- O avatar ADS-B genérico também está embutido.
+- Ao mudar a aeronave preferida ou a aeronave da rota, o marcador no mapa é atualizado.
+- Mantida a correção RC11.21: VOO selecionado manualmente não volta sozinho para CARRO.
+- Mantidas as interações ADS-B: tocar no alvo mostra informação detalhada.
+
+Upload no GitHub
+1. Use o ZIP PATCH.
+2. Extraia o ZIP no iPhone.
+3. Carregue os ficheiros extraídos na RAIZ do repositório.
+4. Confirme substituição de index.html, sw.js e VERSION.txt.
+5. Aguarde o GitHub Pages terminar o deploy.
+6. No Safari, feche e reabra a AERONAV. Se necessário, atualize uma vez para receber o novo Service Worker.
+
+Teste mínimo
+CARRO:
+- Selecionar CARRO.
+- Confirmar Toyota Yaris visível sobre a posição GPS.
+
+VOO:
+- Selecionar VOO.
+- Em Mais > Add-ons/Aeronave preferida, escolher a aeronave.
+- Voltar ao mapa e confirmar o avatar selecionado.
+
+ADS-B:
+- Mais > Tráfego > Atualizar tráfego > Ver no mapa.
+- Confirmar ícones de aeronaves e tocar num alvo para abrir os detalhes.

@@ -1,0 +1,10 @@
+AERONAV RC11.23 — DEVICE FIT + READABLE MESSAGES
+
+Correções desta versão:
+- Mensagens/toasts ficam sempre acima da navegação inferior e da safe area do iPhone/iPad.
+- Mensagens longas quebram linha e permanecem legíveis; fundo escuro/alto contraste.
+- Layout principal limitado à largura real do aparelho, sem overflow horizontal.
+- Barra inferior usa colunas minmax(0,1fr) e rótulos protegidos contra overflow.
+- Altura do mapa passa a usar o visualViewport real, inclusive em aparelhos pequenos e rotação.
+- Popups do mapa/ADS-B não podem exceder a largura disponível.
+- Mantém RC11.22: Toyota Yaris, aeronave selecionada, ADS-B interativo e lock de VOO manual.

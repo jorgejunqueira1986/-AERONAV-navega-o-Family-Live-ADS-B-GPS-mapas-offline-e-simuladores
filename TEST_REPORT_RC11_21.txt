@@ -1,0 +1,19 @@
+AERONAV RC11.21 — TEST REPORT
+
+Static validation:
+- Inline JavaScript parsed successfully with node --check.
+- sw.js parsed successfully with node --check.
+- ADS-B traffic avatar asset exists and is included in Service Worker local cache.
+- ADS-B map includes dedicated 40 px touch target, aircraft avatar layer, heading rotation and popup interaction.
+- Popup includes callsign, registration, aircraft type, distance, altitude, GS, track, vertical rate, squawk and ICAO hex when supplied by the public feed.
+- Manual mode selection disables automatic transport switching until AUTO is re-enabled in Family settings.
+
+Regression intent:
+- GPS logic unchanged.
+- Active-route recovery logic unchanged.
+- Railway endpoints unchanged.
+- Cockpit Audio unchanged.
+- ADS-B fetch endpoint unchanged.
+
+Operational note:
+ADS-B public feeds are advisory and incomplete; this feature does not replace ATC, TCAS/ACAS or visual lookout.

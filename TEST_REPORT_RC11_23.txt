@@ -1,0 +1,14 @@
+AERONAV RC11.23 — TEST REPORT
+
+PASS — index.html inline JavaScript syntax (node --check)
+PASS — sw.js JavaScript syntax (node --check)
+PASS — viewport meta includes viewport-fit=cover
+PASS — toast has role=status + aria-live=polite
+PASS — toast z-index is above the fixed bottom navigation
+PASS — toast bottom offset uses measured --bottom-nav-h + safe area
+PASS — long messages wrap and receive adaptive display time (2.6–7.0 s)
+PASS — mobile bottom navigation uses minmax(0,1fr) columns
+PASS — mobile map no longer enforces a 330px minimum that can overflow small devices
+PASS — RC11.22 embedded car/aircraft avatars and ADS-B interaction retained
+
+Scope: responsive/device-fit and message visibility patch; no Railway/Supabase/LiveKit credentials changed.

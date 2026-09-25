@@ -1,0 +1,11 @@
+AERONAV RC11.21 — ADS-B INTERACTIVE MAP
+
+Mudanças principais:
+1. Alvos ADS-B no mapa usam avatar genérico de aeronave orientado pelo track.
+2. Cada alvo possui área de toque ampliada para iPhone/iPad.
+3. Ao tocar no alvo abre popup com callsign, matrícula, tipo, distância, altitude, GS, track, V/S, squawk e ICAO hex.
+4. Voo seguido mantém destaque visual.
+5. Escolha manual VOO/CARRO/A PÉ desliga a deteção automática para impedir VOO → CARRO enquanto parado/taxiando. O AUTO pode ser reativado em Família.
+6. GPS, recuperação de rota, Cockpit Audio, Railway e ADS-B backend permanecem inalterados.
+
+Publicação GitHub Pages: substituir os ficheiros da raiz pelo conteúdo deste pacote e aguardar novo deploy.
