@@ -1,0 +1,8 @@
+AERONAV RC11.52 — QR Membership Reset
+
+- Mathia deixa de existir como membro por defeito no ecrã Família.
+- Membros visíveis são limitados aos dispositivos atualmente autorizados por QR.
+- A remoção de um membro revoga dispositivos e limpa presença/localizações antigas do servidor.
+- Atualização faz uma limpeza única da ligação Mathia existente para permitir novo emparelhamento por QR.
+- Registo de viagem da Mathia só aparece quando Mathia está novamente emparelhada.
+- Wendler continua isolado da Mathia conforme RC11.51.

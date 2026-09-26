@@ -1,0 +1,18 @@
+AERONAV RC11.52 — TEST REPORT
+Date: 26/09/2026
+
+PASS — index.html JavaScript syntax
+PASS — Mathia no longer rendered as a default Family member
+PASS — stale Family rows are filtered against active QR-authorized devices
+PASS — removing a member calls /family/member/remove with fallback to legacy revoke
+PASS — local Mathia member/location/history state is purged immediately
+PASS — Mathia travel-history card is hidden until Mathia is paired again
+PASS — one-time RC11.52 migration requests removal of the existing Mathia pairing, then requires a new QR
+PASS — Wendler privacy isolation from RC11.51 preserved
+PASS — main PWA cache/version bumped to RC11.52
+PASS — Wendler PWA cache/version bumped to RC11.52
+PASS — Railway backend RC11.52 deployment SUCCESS with /family/member/remove endpoint
+
+Expected result after publishing and reopening the app:
+- Mathia disappears from Family members and old presence/history.
+- Add Mathia again only with a newly generated one-time QR/link.

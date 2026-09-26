@@ -6,4 +6,4 @@ Base: RC11.48 Jorge TAAG Flight Avatar
 - Service Worker principal e Wendler com cache RC11.49.
 - Painel de automação passa a consultar /home/status para distinguir backend pronto de ligação externa pendente.
 
-RC11.50 — Wendler Live Root Fix — 26/09/2026
+RC11.52 — QR Membership Reset — 26/09/2026

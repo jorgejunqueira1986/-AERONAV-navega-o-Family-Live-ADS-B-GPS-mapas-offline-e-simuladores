@@ -759,7 +759,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.50 RC11.50 · Wendler Live Root Fix';
+  const APP_VERSION = '7.52 RC11.52 · QR Membership Reset';
 
   const AIRLINE_DIRECTORY = [
     ['TAAG Angola Airlines','DT','DTA','Angola'],['TAP Air Portugal','TP','TAP','Portugal'],['Azores Airlines','S4','RZO','Portugal'],['SATA Air Açores','SP','SAT','Portugal'],
@@ -1039,6 +1039,8 @@ body{min-height:var(--app-vh);margin:0}
       flightNumber: localStorage.getItem('aeronav.family.flight') || '',
       flightEta: localStorage.getItem('aeronav.family.eta') || '',
       members: [],
+      authorizedMemberNames: null,
+      authorizedMembersLastAt: 0,
       markers: new Map(),
       familyHash: '',
       lastPushAt: 0,
@@ -3109,6 +3111,48 @@ body{min-height:var(--app-vh);margin:0}
     if(body!==null)init.body=JSON.stringify(body);
     const r=await fetch(FAMILY_BOOTSTRAP_SERVER+path,init);let j={};try{j=await r.json()}catch(_){}if(!r.ok)throw new Error(j?.error||`Family HTTP ${r.status}`);return j;
   }
+  function familyCanonicalName(v=''){return String(v||'').trim().toLowerCase();}
+  function familyDisplayIncludesName(displayName,target){
+    const t=familyCanonicalName(target);if(!t)return false;
+    return String(displayName||'').split(/\s*·\s*/).map(familyCanonicalName).includes(t);
+  }
+  async function refreshAuthorizedFamilyMembers(force=false){
+    const f=state.family;if(!f.familyKey)return null;
+    if(!force&&f.authorizedMemberNames instanceof Set&&Date.now()-Number(f.authorizedMembersLastAt||0)<15000)return f.authorizedMemberNames;
+    try{
+      const j=await familyAuthorizedApi('/family/devices',{method:'GET'}),set=new Set();
+      for(const d of Array.isArray(j?.devices)?j.devices:[]){if(d?.revoked_at)continue;const n=familyCanonicalName(d?.display_name);if(n)set.add(n)}
+      f.authorizedMemberNames=set;f.authorizedMembersLastAt=Date.now();return set;
+    }catch(_){return null}
+  }
+  function familyRowAuthorized(row,authorizedNames){
+    if(authorizedNames===null)return true;
+    const id=String(row?.member_id||''),self=String(state.family.memberId||'');
+    if(self&&(id===self||id.startsWith(self+'__')))return true;
+    for(const name of authorizedNames)if(familyDisplayIncludesName(row?.display_name,name))return true;
+    return false;
+  }
+  function purgeLocalFamilyMember(displayName){
+    const f=state.family,name=familyCanonicalName(displayName);
+    const removedIds=(f.members||[]).filter(x=>familyDisplayIncludesName(x?.display_name,name)).map(x=>String(x?.member_id||''));
+    f.members=(f.members||[]).filter(x=>!familyDisplayIncludesName(x?.display_name,name));
+    f.stayHistory=(f.stayHistory||[]).filter(x=>!familyDisplayIncludesName(x?.display_name,name));
+    if(f.authorizedMemberNames instanceof Set)f.authorizedMemberNames.delete(name);
+    f.authorizedMembersLastAt=0;
+    for(const id of removedIds){const m=f.markers?.get?.(id);try{m?.remove?.()}catch(_){}f.markers?.delete?.(id);if(f.batteryByMember)delete f.batteryByMember[id]}
+    updateFamilyMarkers();
+  }
+  async function rc1152ResetMathiaPairingOnce(){
+    const key='aeronav.rc1152.mathiaQrResetDone';if(localStorage.getItem(key)==='1'||!familyConfigured())return;
+    try{
+      const authorized=await refreshAuthorizedFamilyMembers(true);
+      const hasActive=authorized instanceof Set&&authorized.has('mathia');
+      const hasRow=(state.family.members||[]).some(x=>familyDisplayIncludesName(x?.display_name,'mathia'));
+      if(hasActive||hasRow){await familyAuthorizedApi('/family/member/remove',{body:{display_name:'Mathia'}});purgeLocalFamilyMember('Mathia');toast('Mathia removida. Gere um novo QR para voltar a emparelhar.');}
+      localStorage.setItem(key,'1');
+      if(state.activeTab==='family')renderFamilyScreen();
+    }catch(e){console.warn('RC11.52 Mathia reset pendente',e)}
+  }
   function familyPairPublicBase(client='mathia'){const rel=client==='wendler'?'./wendler.html':'./family/';try{return new URL(rel,location.href).href}catch(_){return location.origin+location.pathname.replace(/[^/]*$/,'')+rel.replace('./','')}}
   async function createFamilyPairLink(label='Mathia',client='mathia'){
     const j=await familyAuthorizedApi('/family/pair-link/create',{body:{label}});const token=String(j?.pair_token||'').trim();if(!token)throw new Error('Servidor não devolveu token de emparelhamento.');
@@ -3132,10 +3176,11 @@ body{min-height:var(--app-vh);margin:0}
   }
   async function revokeFamilyMemberDevices(devices=[],displayName='Membro'){
     const active=(devices||[]).filter(d=>!d.revoked_at&&d.id);
-    if(!active.length){toast(`${displayName}: nenhum dispositivo ativo.`);return true;}
+    if(!active.length){purgeLocalFamilyMember(displayName);toast(`${displayName}: nenhum dispositivo ativo. Presença antiga removida.`);return true;}
     if(!confirm(`Remover ${displayName} da Família? ${active.length>1?`Serão revogados ${active.length} dispositivos.`:'O dispositivo terá de ser adicionado novamente por QR.'}`))return false;
-    for(const d of active)await familyAuthorizedApi('/family/device/revoke',{body:{device_id:d.id}});
-    toast(`${displayName} removido da Família.`);return true;
+    try{await familyAuthorizedApi('/family/member/remove',{body:{display_name:displayName}})}catch(e){for(const d of active)await familyAuthorizedApi('/family/device/revoke',{body:{device_id:d.id}})}
+    purgeLocalFamilyMember(displayName);await pullFamilyLocations(true).catch(()=>{});await pullFamilyStayHistory(true).catch(()=>{});
+    toast(`${displayName} removido. Para voltar a entrar, gere um novo QR.`);return true;
   }
   async function showFamilyMemberManager(){
     try{
@@ -3468,7 +3513,8 @@ body{min-height:var(--app-vh);margin:0}
     try{
       const q=`aeronav_locations?room_hash=eq.${encodeURIComponent(f.familyHash)}&select=member_id,display_name,sharing,lat,lon,accuracy,altitude,speed,heading,transport,flight_number,flight_eta,updated_at`;
       const r=await fetch(familyRest(q),{headers:familyHeaders()}); if(!r.ok) throw new Error(`servidor ${r.status}`);
-      f.members=await r.json(); await resolveFamilyFallbacks(f.members.filter(m=>!isFamilySystemRow(m))); checkFamilySosAlerts(f.members); checkFamilyCalls(f.members); checkFamilyJourneyAlerts(f.members); checkFamilyBatteryAlerts(f.members); f.lastPullAt=Date.now(); if(f.status!=='gps') f.status='ligado'; updateFamilyMarkers(); checkSavedPlaceArrivals();
+      const raw=await r.json(),authorized=await refreshAuthorizedFamilyMembers(force);f.members=authorized===null?raw:raw.filter(m=>familyRowAuthorized(m,authorized));
+      await resolveFamilyFallbacks(f.members.filter(m=>!isFamilySystemRow(m))); checkFamilySosAlerts(f.members); checkFamilyCalls(f.members); checkFamilyJourneyAlerts(f.members); checkFamilyBatteryAlerts(f.members); f.lastPullAt=Date.now(); if(f.status!=='gps') f.status='ligado'; updateFamilyMarkers(); checkSavedPlaceArrivals();
     }catch(e){f.status='erro'; if(force) toast('Family: '+(e.message||e));}
     finally{f.syncing=false; if(state.activeTab==='family') maybeRenderFamilyScreen();}
   }
@@ -3476,7 +3522,7 @@ body{min-height:var(--app-vh);margin:0}
   function familyStayClock(ts){return ts?new Date(ts).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}):'—'}
   function familyStayDate(ts){return ts?new Date(ts).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'}
   function familyStayHistoryHTML(){const f=state.family,rows=(f.stayHistory||[]).filter(x=>x.member_id!==f.memberId),now=Date.now(),sum=rows.reduce((a,x)=>a+Math.max(0,Number(x.duration_seconds)||((x.left_at?new Date(x.left_at).getTime():now)-new Date(x.arrived_at).getTime())/1000),0),ongoing=rows.find(x=>!x.left_at);if(!rows.length)return `<div class="family-history-summary"><div class="family-history-kpi"><span>LOCAIS</span><strong>0</strong></div><div class="family-history-kpi"><span>TEMPO REGISTADO</span><strong>—</strong></div><div class="family-history-kpi"><span>AGORA</span><strong>Sem permanência</strong></div></div><div class="family-history-empty">Ainda não existem permanências da Mathia neste período.</div>`;return `<div class="family-history-summary"><div class="family-history-kpi"><span>LOCAIS</span><strong>${rows.length}</strong></div><div class="family-history-kpi"><span>TEMPO REGISTADO</span><strong>${familyStayDuration(sum)}</strong></div><div class="family-history-kpi"><span>AGORA</span><strong>${esc(ongoing?.place_label||'Em deslocação')}</strong></div></div>${rows.map(x=>{const sec=x.left_at?Number(x.duration_seconds)||0:Math.max(Number(x.duration_seconds)||0,(Date.now()-new Date(x.arrived_at).getTime())/1000),end=x.left_at?familyStayClock(x.left_at):'Agora';return `<div class="family-history-item ${x.left_at?'':'current'}"><strong>${esc(x.place_label||x.city||'Local')}</strong><small>${esc(x.display_name||'Mathia')} · ${familyStayDate(x.arrived_at)} · ${familyStayClock(x.arrived_at)} → ${end}<br>${esc(x.city||x.municipality||'')}${x.province?' · '+esc(x.province):''}${x.country?' · '+esc(x.country):''}</small><span class="family-history-badge">${x.transport==='walk'?'🚶 A PÉ':'🚗 CARRO'} · ${familyStayDuration(sec)}</span></div>`}).join('')}`}
-  async function pullFamilyStayHistory(force=false){const f=state.family;if(!familyConfigured()||!navigator.onLine)return;if(!force&&Date.now()-f.stayHistoryLastPull<45000)return;await ensureFamilyHash();const since=new Date(Date.now()-f.stayHistoryDays*86400000).toISOString(),q=`aeronav_family_stays?room_hash=eq.${encodeURIComponent(f.familyHash)}&arrived_at=gte.${encodeURIComponent(since)}&select=id,member_id,display_name,place_label,city,municipality,province,country,lat,lon,arrived_at,left_at,duration_seconds,transport,updated_at&order=arrived_at.desc&limit=100`;try{const r=await fetch(familyRest(q),{headers:familyHeaders(),cache:'no-store'});if(!r.ok)throw new Error(`histórico ${r.status}`);f.stayHistory=await r.json();f.stayHistoryLastPull=Date.now();if(state.activeTab==='family')maybeRenderFamilyScreen()}catch(e){if(force)toast('Registo de viagem: '+(e.message||e))}}
+  async function pullFamilyStayHistory(force=false){const f=state.family;if(!familyConfigured()||!navigator.onLine)return;if(!force&&Date.now()-f.stayHistoryLastPull<45000)return;await ensureFamilyHash();const since=new Date(Date.now()-f.stayHistoryDays*86400000).toISOString(),q=`aeronav_family_stays?room_hash=eq.${encodeURIComponent(f.familyHash)}&arrived_at=gte.${encodeURIComponent(since)}&select=id,member_id,display_name,place_label,city,municipality,province,country,lat,lon,arrived_at,left_at,duration_seconds,transport,updated_at&order=arrived_at.desc&limit=100`;try{const r=await fetch(familyRest(q),{headers:familyHeaders(),cache:'no-store'});if(!r.ok)throw new Error(`histórico ${r.status}`);const rows=await r.json();f.stayHistory=(rows||[]).filter(x=>familyDisplayIncludesName(x?.display_name,'mathia'));f.stayHistoryLastPull=Date.now();if(state.activeTab==='family')maybeRenderFamilyScreen()}catch(e){if(force)toast('Registo de viagem: '+(e.message||e))}}
   async function familySyncCycle(){ if(!familyConfigured()) return; await pushFamilyLocation(false); await pushFamilyBattery(false); await pullFamilyLocations(false); await pullFamilyStayHistory(false); }
   function startFamilySync(){
     clearInterval(state.family.syncTimer); state.family.syncTimer=null;
@@ -3556,6 +3602,8 @@ body{min-height:var(--app-vh);margin:0}
     const gpsFresh=!!(state.positionSource==='device'&&state.currentPosition?.at&&Date.now()-Number(state.currentPosition.at)<=30000);
     const configured=!!(f.supabaseUrl&&f.anonKey&&f.familyKey); const status= !f.enabled?'DESLIGADO':!navigator.onLine?'SEM INTERNET':f.status==='ligado'?'SINCRONIZADO':f.status==='gps'?'GPS REAL AGUARDANDO':f.status==='erro'?'ERRO':configured?'A LIGAR':'CONFIGURAR';
     const members=(f.members||[]).filter(m=>m.member_id!==f.memberId&&!isFamilySystemRow(m));
+    const mathiaPaired=members.some(m=>familyDisplayIncludesName(m?.display_name,'mathia'));
+    const mathiaHistoryBlock=mathiaPaired?`<div class="family-card" style="margin-top:12px"><h3>◷ Registo de viagem da Mathia</h3><p class="source-note">Mostra onde permaneceu, chegada, saída e duração. O registo só existe enquanto ela mantém a partilha de localização ativa.</p><div class="family-history-toolbar"><button class="soft-btn ${f.stayHistoryDays===1?'active':''}" id="familyHistoryToday">Hoje</button><button class="soft-btn ${f.stayHistoryDays===7?'active':''}" id="familyHistory7">7 dias</button><button class="soft-btn" id="familyHistoryRefresh">↻ Atualizar</button></div><div id="familyStayHistory">${familyStayHistoryHTML()}</div><div class="family-history-note">Uma permanência é criada após cerca de 5 minutos no mesmo local, reduzindo falsos registos causados por semáforos e pequenas paragens.</div></div>`:'';
     const incomingSos=activeFamilySosRows(f.members).filter(m=>m.member_id!==familySosMemberId(f.memberId));
     host.innerHTML=`<div class="panel-page"><div class="page-head"><div><h2>Family Airborne</h2><p>GPS real + última posição + fallback do voo por ADS-B + conector satélite opcional, sempre com consentimento.</p></div><span class="badge ${status==='SINCRONIZADO'?'ok':status==='DESLIGADO'?'warn':'warn'}">${status}</span></div>
       <div class="bridge-grid" style="margin-bottom:14px"><div class="bridge-kpi"><span>1 · GPS REAL</span><strong>${gpsFresh?'PRONTO':'AGUARDANDO'}</strong></div><div class="bridge-kpi"><span>2 · SATÉLITE</span><strong>${f.satelliteEndpoint?'CONFIGURADO':'OPCIONAL'}</strong></div><div class="bridge-kpi"><span>3 · ADS-B</span><strong>${f.adsbFallback?'ATIVO':'DESLIGADO'}</strong></div><div class="bridge-kpi"><span>ROTA LOCAL</span><strong>${f.trackCount||0} PONTOS</strong></div></div>
@@ -3567,7 +3615,7 @@ body{min-height:var(--app-vh);margin:0}
           <div class="auto-mode-banner"><div><strong>${transportLabel(state.detectedTransport)}</strong><span>Confiança aproximada ${Math.round((state.transportConfidence||0)*100)}%</span></div><span>${state.currentPosition?formattedSpeed().value:'GPS aguardando'}</span></div>
         </div>
         <div class="family-card" style="margin-top:12px;border-color:${f.sosActive?'#ff5268':'#68323d'}"><h3>🚨 Family SOS</h3><p class="source-note">Para uma situação real de perigo. Mantenha pressionado durante 2 segundos para evitar disparos acidentais.</p><div class="family-actions"><button id="familySosBtn" class="primary-btn" style="background:#c92840;border-color:#ff6578;color:#fff;min-width:180px">🚨 MANTER PARA SOS</button>${f.sosActive?'<button id="familySosCancel" class="secondary-btn">✓ Estou seguro · Cancelar SOS</button>':''}<button id="familySosAlerts" class="secondary-btn">${f.sosAlertEnabled?'🔊 Alertas SOS ativos':'🔔 Ativar alertas SOS'}</button></div>${incomingSos.length?`<div class="notice warn" style="margin-top:10px"><strong>🚨 ${incomingSos.length} SOS ativo(s)</strong><br>${incomingSos.map(x=>esc(sosDisplayName(x))+' · '+fmtFamilyAge(x.updated_at)).join('<br>')}</div>`:''}<div class="source-note" style="margin-top:9px">Requer Internet para chegar ao outro aparelho. Não substitui chamada para serviços oficiais de emergência.</div></div>
-        <div class="family-card" style="margin-top:12px"><h3>🧭 Family Journey & Geofences</h3><p class="source-note">Partilha rota/ETA e avisa ao cruzar país, província/região, município e a cada 3 km dentro da mesma cidade; inclui descolagem, aterragem e chegada.</p><div class="family-switch-row"><div><strong>Partilhar progresso da viagem</strong></div><input id="familyJourneyEnabled" type="checkbox" ${f.journeyEnabled?'checked':''}></div><div class="family-actions"><button class="secondary-btn" id="familyJourneyShare">Partilhar rota/status agora</button><button class="secondary-btn" id="familyJourneyNotify">🔔 Ativar notificações</button></div></div><div class="family-card" style="margin-top:12px"><h3>Membros da família</h3>${members.length?members.map(memberFamilyHTML).join(''):'<div class="empty">Nenhum outro membro recebido. Instale/configure o mesmo Family Client no telefone da sua esposa usando a mesma Chave da Família.</div>'}</div><div class="family-card" style="margin-top:12px"><h3>◷ Registo de viagem da Mathia</h3><p class="source-note">Mostra onde permaneceu, chegada, saída e duração. O registo só existe enquanto ela mantém a partilha de localização ativa.</p><div class="family-history-toolbar"><button class="soft-btn ${f.stayHistoryDays===1?'active':''}" id="familyHistoryToday">Hoje</button><button class="soft-btn ${f.stayHistoryDays===7?'active':''}" id="familyHistory7">7 dias</button><button class="soft-btn" id="familyHistoryRefresh">↻ Atualizar</button></div><div id="familyStayHistory">${familyStayHistoryHTML()}</div><div class="family-history-note">Uma permanência é criada após cerca de 5 minutos no mesmo local, reduzindo falsos registos causados por semáforos e pequenas paragens.</div></div>
+        <div class="family-card" style="margin-top:12px"><h3>🧭 Family Journey & Geofences</h3><p class="source-note">Partilha rota/ETA e avisa ao cruzar país, província/região, município e a cada 3 km dentro da mesma cidade; inclui descolagem, aterragem e chegada.</p><div class="family-switch-row"><div><strong>Partilhar progresso da viagem</strong></div><input id="familyJourneyEnabled" type="checkbox" ${f.journeyEnabled?'checked':''}></div><div class="family-actions"><button class="secondary-btn" id="familyJourneyShare">Partilhar rota/status agora</button><button class="secondary-btn" id="familyJourneyNotify">🔔 Ativar notificações</button></div></div><div class="family-card" style="margin-top:12px"><h3>Membros da família</h3>${members.length?members.map(memberFamilyHTML).join(''):'<div class="empty">Nenhum membro emparelhado. Use “Adicionar Mathia por QR” ou “Adicionar Wendler por QR”.</div>'}</div>${mathiaHistoryBlock}
         <div class="family-card" style="margin-top:12px"><h3>📞 Family Call</h3><p class="source-note">Chamada de voz privada pela Internet. O outro aparelho recebe Atender/Recusar.</p><div class="family-actions"><button class="primary-btn" id="familyCallStart">📞 Ligar para ${esc(f.callPeer||familyCallPeerName())}</button>${f.callId?'<button class="secondary-btn" id="familyCallEnd">Desligar chamada</button>':''}</div><div id="familyCallAudioPanel"></div></div><div id="cockpitAudioPanel"></div>
       </div><div>
         <div class="family-card"><h3>Ligação segura</h3><div class="family-form">
@@ -5925,7 +5973,7 @@ body{min-height:var(--app-vh);margin:0}
 
   const restoredActiveRoute=await restoreActiveRouteSession();
   if(state.manualWalk&&!restoredActiveRoute){state.mode='drive';state.layer='street';state.detectedTransport='walk';}
-  preloadCriticalAvatars().catch(()=>{}); syncSegments(); renderTabs(); initPremiumShell(); renderHomeScreen(); hydrateCountryBoundaries(); loadWindCache().then(()=>updateLiveNavigation()); loadAirportWeatherCache(); loadCrewData(); initFamilyBattery(); startPositionSource(); startFamilySync();
+  preloadCriticalAvatars().catch(()=>{}); syncSegments(); renderTabs(); initPremiumShell(); renderHomeScreen(); hydrateCountryBoundaries(); loadWindCache().then(()=>updateLiveNavigation()); loadAirportWeatherCache(); loadCrewData(); initFamilyBattery(); startPositionSource(); startFamilySync(); setTimeout(()=>rc1152ResetMathiaPairingOnce(),4200);
   if(restoredActiveRoute){toast('Rota em curso recuperada. O GPS vai reposicionar o mapa automaticamente.');}
   setTimeout(()=>showFirstRunOnboarding(),250);
 })();

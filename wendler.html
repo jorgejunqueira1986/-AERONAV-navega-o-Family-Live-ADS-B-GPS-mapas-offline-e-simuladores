@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#031d32">
+<link rel="manifest" href="./wendler/manifest.json">
 <title>AERONAV Family · Wendler</title>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#03111f}
@@ -41,6 +42,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#03111f}
   }
   f.addEventListener('load',()=>{brand();setTimeout(brand,250);setTimeout(brand,900)});
   window.addEventListener('hashchange',()=>{const u=new URL(f.src);u.hash=location.hash;f.src=u.href});
+  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(()=>{}));
 })();
 </script>
 </body></html>

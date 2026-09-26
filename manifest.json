@@ -1,6 +1,6 @@
 {
-  "name": "AERONAV RC11.49 · Audit & Home Integration Fix",
-  "short_name": "AERONAV RC11.49",
+  "name": "AERONAV RC11.52 · QR Membership Reset",
+  "short_name": "AERONAV RC11.52",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
