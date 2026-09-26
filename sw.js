@@ -1,11 +1,11 @@
-/* AERONAV — RC11.46 Generic 3D ADS-B Avatars
+/* AERONAV — RC11.49 Audit & Home Integration Fix
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_46-generic-adsb-avatars-20260926-1';
+const CACHE='aeronav-RC11_49-audit-home-fix-20260926-1';
 const LOCAL=[
   './',
   './index.html',

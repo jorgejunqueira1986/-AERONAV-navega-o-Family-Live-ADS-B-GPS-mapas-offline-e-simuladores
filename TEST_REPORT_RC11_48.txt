@@ -1,0 +1,18 @@
+AERONAV RC11.48 — TEST REPORT
+
+Base: RC11.47 GPS + ADS-B fix.
+
+Aplicado:
+1. Jorge em voo TAAG usa avião TAAG + avatar pessoal de Jorge no mesmo marcador.
+2. Callsign/ICAO TAAG (DTA) impede fallback visual para Cessna.
+3. O aircraftId enviado ao Family passa a ser o avatar TAAG efetivo.
+4. Mathia e Wendler mostram Jorge com avião + avatar pessoal durante voo.
+5. ADS-B TAAG usa avatar TAAG vermelho; tráfego não-TAAG mantém avatar preto genérico.
+6. Mantidas correções GPS e proxy ADS-B da RC11.47.
+
+Validação:
+- Sintaxe JavaScript index.html: OK
+- Sintaxe JavaScript family-viewer.html: OK
+- Sintaxe JavaScript wendler/index.html: OK
+- Service Worker principal: cache RC11.48
+- Service Worker Wendler: cache RC11.48

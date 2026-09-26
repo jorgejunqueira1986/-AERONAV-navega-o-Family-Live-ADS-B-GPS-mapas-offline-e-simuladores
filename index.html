@@ -63,6 +63,15 @@ main{max-width:1120px;margin:0 auto}.screen{display:none;min-height:calc(100dvh 
  .position-marker.drive img{width:54px;height:54px;object-fit:contain;display:block;filter:drop-shadow(0 4px 7px #000b)}
 .position-marker.walk{width:65px;height:65px;display:grid;place-items:center;background:transparent;border:0;border-radius:0;filter:drop-shadow(0 7px 8px #000a);overflow:visible}.position-marker.walk img{width:100%;height:100%;object-fit:contain;display:block;border-radius:0;background:transparent;transform:rotate(0deg);transform-origin:50% 50%}.family-marker.transport-walk img{transform:rotate(0deg);transform-origin:50% 50%}
 .position-marker .avatar-fallback{font-size:30px;line-height:1}
+/* RC11.48 · Jorge em voo TAAG: avião TAAG + avatar pessoal na mesma posição */
+.position-marker.flight.jorge-taag-ownship{width:174px;height:108px;overflow:visible!important;position:relative;filter:drop-shadow(0 7px 9px #0009)}
+.position-marker.flight.jorge-taag-ownship:after{left:12%;right:28%;bottom:4px;height:10px}
+.position-marker.flight.jorge-taag-ownship .ownship-aircraft{position:absolute;left:0;bottom:8px;width:142px!important;height:88px!important;object-fit:contain!important;filter:drop-shadow(0 6px 5px #000b) saturate(1.12) contrast(1.05)!important;z-index:2}
+.position-marker.flight.jorge-taag-ownship .ownship-jorge-chip{position:absolute;right:0;top:0;z-index:5;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none}
+.position-marker.flight.jorge-taag-ownship .ownship-jorge-avatar{width:48px!important;height:48px!important;border-radius:50%!important;object-fit:cover!important;border:3px solid #24b9ff;background:#071725;box-shadow:0 0 0 2px #dff7ff,0 5px 12px #000b;filter:none!important}
+.position-marker.flight.jorge-taag-ownship .ownship-jorge-name{font-size:10px;line-height:1;font-weight:950;color:#fff;background:#0755a7;border:1px solid #56cfff;border-radius:999px;padding:4px 7px;box-shadow:0 4px 10px #000a;white-space:nowrap}
+.position-marker.flight.jorge-taag-ownship .ownship-flight-call{position:absolute;left:50%;bottom:-8px;transform:translateX(-55%);z-index:6;font-size:9px;line-height:1;font-weight:950;color:#fff;background:#071725ed;border:1px solid #d92735;border-radius:999px;padding:4px 7px;white-space:nowrap;box-shadow:0 4px 10px #0008}
+
 .decea-legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
 .legend-chip{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid #21495f;border-radius:11px;background:#071925;color:#c9dce7;font-size:12px}
 .legend-swatch{width:14px;height:14px;border-radius:4px;background:#2fd1ff}.legend-swatch.rea{background:#62e6ff}.legend-swatch.reh{background:#ffca63}.legend-swatch.space{background:#b981ff}.legend-swatch.nav{background:#57e6b4}
@@ -750,7 +759,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.46 RC11.46 · Generic 3D ADS-B Avatars';
+  const APP_VERSION = '7.49 RC11.49 · Audit & Home Integration Fix';
 
   const AIRLINE_DIRECTORY = [
     ['TAAG Angola Airlines','DT','DTA','Angola'],['TAP Air Portugal','TP','TAP','Portugal'],['Azores Airlines','S4','RZO','Portugal'],['SATA Air Açores','SP','SAT','Portugal'],
@@ -791,27 +800,29 @@ body{min-height:var(--app-vh);margin:0}
     const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 150"><defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".55" stop-color="${l.body}"/><stop offset="1" stop-color="#8a9cac"/></linearGradient><linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#9cadbc"/></linearGradient><filter id="s" x="-30%" y="-30%" width="170%" height="190%"><feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000" flood-opacity=".55"/></filter></defs><g filter="url(#s)" transform="translate(130 74) rotate(-8) translate(-130 -74)"><path d="M25 77 L106 62 L121 19 Q126 7 133 19 L147 60 L236 69 Q252 72 237 79 L151 88 L139 130 Q134 143 128 130 L116 90 L30 88 Q8 85 25 77Z" fill="url(#w)" stroke="#526778" stroke-width="2"/><path d="M112 66 Q128 49 148 65 L163 78 L148 91 Q128 105 111 87Z" fill="url(#f)"/><path d="M128 38 L134 15 L143 61 L135 65Z" fill="${l.tail}"/><path d="M45 78 L111 67 L116 87 L46 86Z" fill="${l.accent}" opacity=".94"/><path d="M166 71 L219 70 L227 76 L166 82Z" fill="${l.accent2}" opacity=".9"/><ellipse cx="137" cy="73" rx="11" ry="5" fill="#173a5d"/><path d="M236 69 L254 74 L237 79Z" fill="#f7fafc"/><text x="142" y="78" font-family="Arial,sans-serif" font-size="12" font-weight="900" fill="${l.tail}" text-anchor="middle">${c}</text></g><title>${safeName}</title></svg>`;
     return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg);
   }
+  function taagTrafficAircraftId(a={}){
+    const t=String(a?.t||a?.type||'').trim().toUpperCase();
+    if(/DH8D|Q400/.test(t))return 'q400';
+    if(/BCS3|A223|A220/.test(t))return 'a2203';
+    if(/B77W|B773|B777/.test(t))return 'b777300';
+    if(/B78X|B781/.test(t))return 'b78710';
+    if(/B789|B788|B787/.test(t))return 'b7879';
+    return 'b7879';
+  }
   function airlineAvatarForTraffic(a={}){
     const al=adsbAirlineFor(a),code=String(al?.icao||'UNK').toUpperCase(),key='airline-avatar-'+code;
-    if(code && code!=='DTA'){
+    if(code==='DTA'){
+      const taagAvatar=aircraftAvatarFor(taagTrafficAircraftId(a));
+      state.traffic.airlineAvatarCache.set(code,taagAvatar);
+      Promise.resolve(dbPut('aerodata',{id:key,icao:code,name:al?.name||'TAAG Angola Airlines',dataUri:taagAvatar,updatedAt:Date.now(),source:'RC11.48 TAAG red aircraft avatar'})).catch(()=>{});
+      return taagAvatar;
+    }
+    if(code){
       state.traffic.airlineAvatarCache.set(code,ADSB_GENERIC_NON_TAAG_AVATAR);
-      Promise.resolve(dbPut('aerodata',{id:key,icao:code,name:al?.name||code,dataUri:ADSB_GENERIC_NON_TAAG_AVATAR,updatedAt:Date.now(),source:'RC11.46 generic non-TAAG ADS-B avatar'})).catch(()=>{});
+      Promise.resolve(dbPut('aerodata',{id:key,icao:code,name:al?.name||code,dataUri:ADSB_GENERIC_NON_TAAG_AVATAR,updatedAt:Date.now(),source:'RC11.48 generic non-TAAG black ADS-B avatar'})).catch(()=>{});
       return ADSB_GENERIC_NON_TAAG_AVATAR;
     }
-    if(state.traffic?.airlineAvatarCache?.has(code))return state.traffic.airlineAvatarCache.get(code);
-    // RC11.46: TAAG remains operator-specific; non-TAAG traffic now uses the unified 3D black aircraft icon.
-    const immediate=airlineAvatarSvg(code,al?.name||code);state.traffic.airlineAvatarCache.set(code,immediate);
-    Promise.resolve(dbGet('aerodata',key)).then(rec=>{
-      if(rec?.dataUri){
-        if(rec.dataUri!==state.traffic.airlineAvatarCache.get(code)){
-          state.traffic.airlineAvatarCache.set(code,rec.dataUri);
-          if(state.activeTab==='map')scheduleMapAvatarRender('airline-cache-hydrated');
-        }
-      }else{
-        return dbPut('aerodata',{id:key,icao:code,name:al?.name||code,dataUri:immediate,updatedAt:Date.now(),source:'RC11.46 TAAG generated 3D livery cache'});
-      }
-    }).catch(()=>{});
-    return immediate;
+    return ADSB_GENERIC_NON_TAAG_AVATAR;
   }
   const FAMILY_BOOTSTRAP_SERVER='https://aeronav-cockpit-token-server-production.up.railway.app';
   const OPENFREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
@@ -908,6 +919,24 @@ body{min-height:var(--app-vh);margin:0}
   }
   function currentAircraftAvatar(){
     return aircraftAvatarFor(state?.aircraftPref || 'c152');
+  }
+  function currentFlightCallsignForAvatar(){
+    const routeCall=String(state?.currentRoute?.trackingCallsign||'').trim();
+    return normalizeFlightCallsign(routeCall||state?.family?.flightCallsign||state?.family?.flightNumber||'');
+  }
+  function currentFlightIsTaag(){
+    const call=currentFlightCallsignForAvatar(),icao=String(state?.family?.flightAirlineIcao||'').trim().toUpperCase();
+    return icao==='DTA'||call.startsWith('DTA');
+  }
+  function taagOwnshipAircraftId(){
+    const id=String(state?.aircraftPref||'');
+    return ['q400','b7377','a2203','b777300','b7879','b78710'].includes(id)?id:'b7879';
+  }
+  function ownshipFlightAircraftId(){
+    return currentFlightIsTaag()?taagOwnshipAircraftId():(state?.aircraftPref||'c152');
+  }
+  function ownshipFlightAvatar(){
+    return aircraftAvatarFor(ownshipFlightAircraftId());
   }
 
   function safeJsonParse(raw, fallback){
@@ -2346,8 +2375,18 @@ body{min-height:var(--app-vh);margin:0}
     for(const place of state.savedPlaces||[]){if(!place.automation)continue;for(const m of members){if(!m.sharing&&String(m.member_id)!==String(state.family.memberId))continue;const pos=arrivalMemberPosition(m);if(!pos)continue;const km=haversine(pos,{lat:place.lat,lon:place.lon})/1000,key=`${m.member_id}:${place.id}`,now=km<=Number(place.radiusKm||5),was=!!inside[key];inside[key]=now;if(now&&!was){const ev=recordArrivalEvent(m,place);dispatchArrivalAutomation(m,place,ev,pos);}}}
     state.arrivalAutomation.lastInside=inside;localStorage.setItem('aeronav.arrivalAutomation.lastInside',JSON.stringify(inside));
   }
-  function configureArrivalWebhook(){
-    toast('Por segurança, a automação de chegada é configurada no Railway e validada no servidor. Use HOME_AUTOMATION_WEBHOOK_URL e HOME_AUTOMATION_SECRET.');
+  async function configureArrivalWebhook(){
+    try{
+      const r=await fetch(`${FAMILY_BOOTSTRAP_SERVER}/home/status`,{cache:'no-store',credentials:'omit'});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok){
+        const alexa=j.alexa_backend?'Alexa: backend pronto':'Alexa: configuração externa pendente';
+        const google=j.google_home_bridge?'Google Home: bridge configurado':'Google Home: ligue um webhook/Home Assistant/automação compatível';
+        toast(`${alexa} · ${google}`);
+        return;
+      }
+    }catch(_){ }
+    toast('Automação de chegada pronta na AERONAV. Alexa/Google Home exigem ligação externa no Railway para controlar dispositivos físicos.');
   }
   async function refreshAllOnlineData(){
     if(!navigator.onLine||state.net==='offline'){toast('Sem Internet: mantidos os dados offline já guardados.');return;}
@@ -2899,21 +2938,56 @@ body{min-height:var(--app-vh);margin:0}
     }
     return normalizeFlightCallsign(f.flightCallsign||f.flightNumber||'')||String(f.flightNumber||'').trim();
   }
+  async function fetchJsonWithTimeout(url,timeoutMs=9000){
+    const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),timeoutMs);
+    try{
+      const r=await fetch(url,{cache:'no-store',signal:ctrl.signal});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      return await r.json();
+    }finally{clearTimeout(timer)}
+  }
+  function normalizeAdsbPayload(j={}){
+    if(Array.isArray(j?.ac))return {...j,ac:j.ac};
+    if(Array.isArray(j?.aircraft))return {...j,ac:j.aircraft};
+    return {...j,ac:[]};
+  }
+  async function fetchAdsbNearbyResilient(lat,lon,radius){
+    const sources=[
+      `${FAMILY_BOOTSTRAP_SERVER}/adsb/nearby?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&radius_nm=${radius}`,
+      `https://api.adsb.lol/v2/point/${encodeURIComponent(lat)}/${encodeURIComponent(lon)}/${radius}`,
+      `https://api.airplanes.live/v2/point/${encodeURIComponent(lat)}/${encodeURIComponent(lon)}/${radius}`,
+      `https://opendata.adsb.fi/api/v2/lat/${encodeURIComponent(lat)}/lon/${encodeURIComponent(lon)}/dist/${radius}`
+    ];
+    let lastErr=null;
+    for(const url of sources){
+      for(let attempt=0;attempt<2;attempt++){
+        try{const j=normalizeAdsbPayload(await fetchJsonWithTimeout(url,attempt?11000:8000));return j}
+        catch(e){lastErr=e;if(attempt===0)await new Promise(r=>setTimeout(r,350));}
+      }
+    }
+    throw lastErr||new Error('ADS-B indisponível');
+  }
+  async function fetchAdsbCallsignResilient(call){
+    const c=encodeURIComponent(normalizeFlightCallsign(call));
+    const sources=[
+      `${FAMILY_BOOTSTRAP_SERVER}/adsb/callsign/${c}`,
+      `https://api.adsb.lol/v2/callsign/${c}`,
+      `https://api.airplanes.live/v2/callsign/${c}`,
+      `https://api.adsb.one/v2/callsign/${c}`
+    ];
+    let lastErr=null;
+    for(const url of sources){
+      try{return normalizeAdsbPayload(await fetchJsonWithTimeout(url,9000))}catch(e){lastErr=e}
+    }
+    throw lastErr||new Error('ADS-B callsign indisponível');
+  }
   async function refreshAdsbPickerTraffic(){
     const p=state.currentPosition||state.currentRoute?.from;if(!p||!Number.isFinite(+p.lat)||!Number.isFinite(+p.lon))throw new Error('Ative o GPS ou abra uma rota para procurar aeronaves ADS-B.');
     const radius=Math.max(25,Math.min(100,Number(state.traffic.radiusNm)||100));
-    let lastErr=null;
-    for(let attempt=0;attempt<3;attempt++){
-      try{
-        const r=await fetch(`${FAMILY_BOOTSTRAP_SERVER}/adsb/nearby?lat=${encodeURIComponent(+p.lat)}&lon=${encodeURIComponent(+p.lon)}&radius_nm=${radius}`,{cache:'no-store'});
-        if(!r.ok)throw new Error('HTTP '+r.status);
-        const j=await r.json();
-        const ownAlt=Number.isFinite(state.currentPosition?.altitude)?state.currentPosition.altitude*3.28084:null;
-        state.traffic.aircraft=(j.ac||[]).map(a=>{const lat=+a.lat,lon=+a.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;const d=haversine({lat:+p.lat,lon:+p.lon},{lat,lon})/1852;const alt=typeof a.alt_baro==='number'?a.alt_baro:(typeof a.alt_geom==='number'?a.alt_geom:null);const urgent=d<5&&ownAlt!==null&&alt!==null&&Math.abs(alt-ownAlt)<1500;return {...a,distanceNm:d,displayAlt:alt,urgent};}).filter(Boolean).sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,100);
-        state.traffic.updatedAt=Date.now();return state.traffic.aircraft;
-      }catch(e){lastErr=e;if(attempt<2)await new Promise(res=>setTimeout(res,650*(attempt+1)));}
-    }
-    throw lastErr||new Error('ADS-B indisponível.');
+    const j=await fetchAdsbNearbyResilient(+p.lat,+p.lon,radius);
+    const ownAlt=Number.isFinite(state.currentPosition?.altitude)?state.currentPosition.altitude*3.28084:null;
+    state.traffic.aircraft=(j.ac||[]).map(a=>{const lat=+a.lat,lon=+a.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;const d=haversine({lat:+p.lat,lon:+p.lon},{lat,lon})/1852;const alt=typeof a.alt_baro==='number'?a.alt_baro:(typeof a.alt_geom==='number'?a.alt_geom:null);const urgent=d<5&&ownAlt!==null&&alt!==null&&Math.abs(alt-ownAlt)<1500;return {...a,distanceNm:d,displayAlt:alt,urgent};}).filter(Boolean).sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,100);
+    state.traffic.updatedAt=Date.now();return state.traffic.aircraft;
   }
   function selectedAirlineLabel(){const f=state.family;if(!f.flightAirlineName&&!f.flightAirlineIcao)return 'Todas as companhias';return `${f.flightAirlineName||f.flightAirlineIcao}${f.flightAirlineIata?` · ${f.flightAirlineIata}`:''}${f.flightAirlineIcao?` / ${f.flightAirlineIcao}`:''}`;}
   async function openAirlinePicker(onSelect=null){
@@ -2943,8 +3017,7 @@ body{min-height:var(--app-vh);margin:0}
     const call=normalizeFlightCallsign(explicitCallsign||flightNumber); if(!call) return null;
     const cache=state.family.adsbCache.get(call); if(cache && Date.now()-cache.at<20000) return cache.data;
     try{
-      const r=await fetch(`${FAMILY_BOOTSTRAP_SERVER}/adsb/callsign/${encodeURIComponent(call)}`,{cache:'no-store'}); if(!r.ok)throw new Error('ADS-B '+r.status);
-      const j=await r.json(); const ac=(j.ac||[]).filter(x=>Number.isFinite(Number(x.lat))&&Number.isFinite(Number(x.lon))).sort((a,b)=>(Number(a.seen)||999)-(Number(b.seen)||999))[0]; if(!ac)return null;
+      const j=await fetchAdsbCallsignResilient(call); const ac=(j.ac||[]).filter(x=>Number.isFinite(Number(x.lat))&&Number.isFinite(Number(x.lon))).sort((a,b)=>(Number(a.seen)||999)-(Number(b.seen)||999))[0]; if(!ac)return null;
       const age=Math.max(0,Number(ac.seen)||0); const data={lat:Number(ac.lat),lon:Number(ac.lon),altitude:Number.isFinite(Number(ac.alt_baro))?Number(ac.alt_baro)*0.3048:null,speed:Number.isFinite(Number(ac.gs))?Number(ac.gs)/1.943844492:null,heading:Number.isFinite(Number(ac.track))?Number(ac.track):null,updatedAt:new Date(Date.now()-age*1000).toISOString(),callsign:call};
       state.family.adsbCache.set(call,{at:Date.now(),data}); return data;
     }catch(e){return null;}
@@ -3381,7 +3454,7 @@ body{min-height:var(--app-vh);margin:0}
     try{
       const body={room_hash:f.familyHash,member_id:f.memberId,display_name:f.displayName||'Membro',sharing:!!f.sharing,
         lat:f.sharing&&realGps?p.lat:null,lon:f.sharing&&realGps?p.lon:null,accuracy:f.sharing&&realGps?p.accuracy:null,altitude:f.sharing&&realGps?p.altitude:null,
-        speed:f.sharing&&realGps?p.speed:null,heading:f.sharing&&realGps?p.heading:null,transport:state.detectedTransport==='flight'?`flight:${state.aircraftPref||'c152'}`:state.detectedTransport,
+        speed:f.sharing&&realGps?p.speed:null,heading:f.sharing&&realGps?p.heading:null,transport:state.detectedTransport==='flight'?`flight:${ownshipFlightAircraftId()}`:state.detectedTransport,
         flight_number:familyTrackingFlightId()||null,flight_eta:f.flightEta?new Date(f.flightEta).toISOString():null,updated_at:new Date().toISOString()};
       const r=await fetch(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
       if(!r.ok) throw new Error(`servidor ${r.status}`); f.lastPushAt=Date.now(); f.status='ligado';
@@ -3593,18 +3666,19 @@ body{min-height:var(--app-vh);margin:0}
       if(!Number.isFinite(p.lat)||!Number.isFinite(p.lon))return;state.gpsLastFixAt=Date.now();applyPositionUpdate(p,'device');
     };
     const onError=err=>{
-      const code=Number(err?.code)||0;let msg=err?.message||'erro desconhecido';
-      if(code===1)msg='Permissão de localização bloqueada. No iPad: Definições › Privacidade e Segurança › Serviços de Localização › Safari/AERONAV › Ao usar + Localização Precisa.';
-      else if(code===2)msg='Posição indisponível. Confirme Serviços de Localização, Localização Precisa e tente junto a uma janela/céu aberto.';
-      else if(code===3)msg='O GPS demorou demasiado a responder; a AERONAV vai tentar novamente.';
-      updateSourceHeader(false,'GPS do iPad indisponível');
-      if(code!==1 && document.visibilityState!=='hidden'){clearTimeout(state.gpsRetryTimer);state.gpsRetryTimer=setTimeout(()=>{if(state.positionSource==='device')startGPS()},7000)}
-      toast(`GPS: ${msg}`);
+      const code=Number(err?.code)||0,age=state.currentPosition?.at?Date.now()-Number(state.currentPosition.at):Infinity,recent=Number.isFinite(age)&&age<=120000;
+      let msg=err?.message||'erro desconhecido';
+      if(code===1)msg='Permissão de localização bloqueada. No iPhone/iPad: Definições › Privacidade e Segurança › Serviços de Localização › Safari/AERONAV › Ao usar.';
+      else if(code===2)msg='Posição temporariamente indisponível. A AERONAV vai continuar a tentar.';
+      else if(code===3)msg='O GPS demorou a responder; a AERONAV continua a usar a última posição válida enquanto tenta novamente.';
+      if(recent&&code!==1){updateSourceHeader(true,`GPS ligado · última posição ${Math.round(age/1000)} s`);}else updateSourceHeader(false,'GPS do iPad a reconectar…');
+      if(code!==1 && document.visibilityState!=='hidden'){clearTimeout(state.gpsRetryTimer);state.gpsRetryTimer=setTimeout(()=>{if(state.positionSource==='device')startGPS()},5000)}
+      if(code===1||!recent)toast(`GPS: ${msg}`);
     };
-    // iPadOS is more reliable when a one-shot high-accuracy fix warms Core Location before watchPosition.
-    try{navigator.geolocation.getCurrentPosition(onFix,()=>{}, {enableHighAccuracy:true,maximumAge:0,timeout:30000})}catch(_){}
+    // On iOS/iPadOS a recent cached fix is useful while Core Location warms up.
+    try{navigator.geolocation.getCurrentPosition(onFix,()=>{}, {enableHighAccuracy:true,maximumAge:15000,timeout:15000})}catch(_){}
     try{
-      state.watchId=navigator.geolocation.watchPosition(onFix,onError,{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+      state.watchId=navigator.geolocation.watchPosition(onFix,onError,{enableHighAccuracy:true,maximumAge:10000,timeout:20000});
     }catch(e){onError({code:2,message:e?.message||String(e)})}
   }
   function pointInsideBounds(p,b){
@@ -3613,26 +3687,19 @@ body{min-height:var(--app-vh);margin:0}
     const lonOK=w<=e?(p.lon>=w&&p.lon<=e):(p.lon>=w||p.lon<=e);
     return lonOK&&p.lat>=s&&p.lat<=n;
   }
-  function freshDevicePosition(timeout=15000,targetAccuracy=25){
+  function freshDevicePosition(timeout=15000,targetAccuracy=35){
     return new Promise((resolve,reject)=>{
       if(!navigator.geolocation){reject(new Error('Geolocalização não disponível'));return;}
-      let best=null, watch=null, finished=false;
+      const cur=state.currentPosition,curAge=cur?.at?Date.now()-Number(cur.at):Infinity;
+      if(cur&&Number.isFinite(+cur.lat)&&Number.isFinite(+cur.lon)&&curAge<=15000&&(!Number.isFinite(+cur.accuracy)||+cur.accuracy<=80)){resolve(cur);return;}
+      let best=(cur&&Number.isFinite(+cur.lat)&&Number.isFinite(+cur.lon)&&curAge<=180000)?cur:null,watch=null,finished=false;
       const started=Date.now();
-      const finish=(value,err)=>{
-        if(finished)return; finished=true;
-        if(watch!==null){try{navigator.geolocation.clearWatch(watch)}catch(_){}}
-        clearTimeout(timer);
-        if(value) resolve(value); else reject(err||new Error('Não foi possível obter uma posição GPS precisa.'));
-      };
+      const finish=(value,err)=>{if(finished)return;finished=true;if(watch!==null){try{navigator.geolocation.clearWatch(watch)}catch(_){}}clearTimeout(timer);if(value)resolve(value);else reject(err||new Error('Não foi possível obter uma posição GPS.'));};
+      const accept=pos=>{const c=pos.coords,candidate={lat:Number(c.latitude),lon:Number(c.longitude),accuracy:Number(c.accuracy),altitudeAccuracy:c.altitudeAccuracy==null?null:Number(c.altitudeAccuracy),altitude:c.altitude==null?null:Number(c.altitude),speed:c.speed==null?null:Number(c.speed),heading:c.heading==null?null:Number(c.heading),at:Number(pos.timestamp)||Date.now()};if(!Number.isFinite(candidate.lat)||!Number.isFinite(candidate.lon))return;if(!best||!Number.isFinite(+best.accuracy)||(Number.isFinite(candidate.accuracy)&&candidate.accuracy<Number(best.accuracy)))best=candidate;if(Number.isFinite(candidate.accuracy)&&candidate.accuracy<=targetAccuracy)finish(candidate);else if(Date.now()-started>4500&&best&&(!Number.isFinite(+best.accuracy)||+best.accuracy<=100))finish(best);};
+      const fail=err=>{if(best)finish(best);else if(err?.code===1)finish(null,err);};
       const timer=setTimeout(()=>finish(best,best?null:new Error('Tempo esgotado ao obter GPS.')),timeout);
-      watch=navigator.geolocation.watchPosition(pos=>{
-        const c=pos.coords;
-        const candidate={lat:Number(c.latitude),lon:Number(c.longitude),accuracy:Number(c.accuracy),altitudeAccuracy:Number(c.altitudeAccuracy),altitude:c.altitude==null?null:Number(c.altitude),speed:c.speed==null?null:Number(c.speed),heading:c.heading==null?null:Number(c.heading),at:Number(pos.timestamp)||Date.now()};
-        if(!Number.isFinite(candidate.lat)||!Number.isFinite(candidate.lon))return;
-        if(!best || !Number.isFinite(best.accuracy) || (Number.isFinite(candidate.accuracy)&&candidate.accuracy<best.accuracy)) best=candidate;
-        if(Number.isFinite(candidate.accuracy)&&candidate.accuracy<=targetAccuracy) finish(candidate);
-        else if(Date.now()-started>5000 && best && Number.isFinite(best.accuracy)&&best.accuracy<=50) finish(best);
-      },err=>{ if(best)finish(best); else finish(null,err); },{enableHighAccuracy:true,maximumAge:0,timeout});
+      try{navigator.geolocation.getCurrentPosition(accept,fail,{enableHighAccuracy:true,maximumAge:15000,timeout:Math.min(timeout,10000)})}catch(_){}
+      try{watch=navigator.geolocation.watchPosition(accept,fail,{enableHighAccuracy:true,maximumAge:10000,timeout})}catch(e){finish(best,e)}
     });
   }
   function forceCenterOnPosition(p){
@@ -3658,32 +3725,27 @@ body{min-height:var(--app-vh);margin:0}
     return true;
   }
   async function centerOnMe(){
-    let fresh=null;
-    try{
-      if(state.positionSource!=='xplane'&&state.positionSource!=='msfs'){
-        toast('A obter localização GPS precisa…');
-        fresh=await freshDevicePosition(15000,25);
-        applyPositionUpdate(fresh,'device');
-      }else if(!state.currentPosition){
-        startPositionSource(); toast(state.positionSource==='msfs'?'A ligar ao MSFS 2024…':'A ligar ao X-Plane…'); return;
+    let p=null;
+    if(state.positionSource!=='xplane'&&state.positionSource!=='msfs'){
+      const cur=state.currentPosition,age=cur?.at?Date.now()-Number(cur.at):Infinity,valid=cur&&Number.isFinite(+cur.lat)&&Number.isFinite(+cur.lon);
+      if(valid&&age<=300000){
+        p=cur;
+        // Do not block map centering while iOS warms a fresh GPS fix. Refine in background.
+        freshDevicePosition(12000,35).then(fresh=>{applyPositionUpdate(fresh,'device');if(state.followOwnship&&state.activeTab==='map')forceCenterOnPosition(fresh)}).catch(()=>{});
+        if(age>120000)toast(`A usar a última posição GPS (${Math.round(age/1000)} s) enquanto atualiza.`);
+      }else{
+        try{toast('A obter localização GPS…');p=await freshDevicePosition(15000,35);applyPositionUpdate(p,'device');}
+        catch(e){startPositionSource();const denied=Number(e?.code)===1;toast(denied?'Permissão de localização bloqueada no iPhone/iPad.':'GPS a reconectar. Assim que houver uma posição válida, o mapa será centrado automaticamente.');return;}
       }
-    }catch(e){
-      const age=state.currentPosition?.at?Date.now()-state.currentPosition.at:Infinity;
-      if(!state.currentPosition||age>30000){startPositionSource();toast('Não foi possível obter uma posição GPS atual. Verifique Localização Precisa no iPhone/iPad.');return;}
-      toast(`GPS novo indisponível; a usar a última posição recente (${Math.round(age/1000)} s).`);
+    }else{
+      if(!state.currentPosition){startPositionSource();toast(state.positionSource==='msfs'?'A ligar ao MSFS 2024…':'A ligar ao X-Plane…');return;}
+      p=state.currentPosition;
     }
-    const p=fresh||state.currentPosition; if(!p)return;
+    if(!p)return;
     state.followOwnship=true;
-    if(Number.isFinite(p.accuracy)&&p.accuracy>500){
-      toast(`Localização aproximada (±${Math.round(p.accuracy)} m). No iPhone/iPad, ative Definições › Privacidade e Segurança › Serviços de Localização › Safari/AERONAV › Localização Precisa.`);
-    }else if(Number.isFinite(p.accuracy)&&p.accuracy>80){
-      toast(`GPS com precisão limitada: ±${Math.round(p.accuracy)} m. Aguarde céu aberto ou confirme Localização Precisa.`);
-    }
-    if(state.map){
-      if(!state.mapReady){await new Promise(r=>setTimeout(r,350));}
-      if(!(await ensureMapCoversPosition(p)))return;
-      forceCenterOnPosition(p);
-    }else toast(`Posição GPS: ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)} · ±${Math.round(p.accuracy||0)} m`);
+    if(Number.isFinite(p.accuracy)&&p.accuracy>500)toast(`Localização aproximada (±${Math.round(p.accuracy)} m). Ative Localização Precisa se estiver desativada.`);
+    else if(Number.isFinite(p.accuracy)&&p.accuracy>100)toast(`GPS com precisão limitada: ±${Math.round(p.accuracy)} m.`);
+    if(state.map){if(!state.mapReady)await new Promise(r=>setTimeout(r,250));if(!(await ensureMapCoversPosition(p)))return;forceCenterOnPosition(p);}else toast(`Posição GPS: ${p.lat.toFixed(6)}, ${p.lon.toFixed(6)} · ±${Math.round(p.accuracy||0)} m`);
   }
 
 
@@ -3692,11 +3754,17 @@ body{min-height:var(--app-vh);margin:0}
     const d=document.createElement('div');
     const ground=groundTransport();
     const flight=state.mode==='flight';
-    d.className=`position-marker ${flight?'flight':ground}`;
+    const taagFlight=flight&&currentFlightIsTaag();
+    d.className=`position-marker ${flight?'flight':ground}${taagFlight?' jorge-taag-ownship':''}`;
     if(flight){
-      const ac=AIRCRAFT.find(x=>x.id===state.aircraftPref)||AIRCRAFT[0];
-      d.innerHTML=`<img src="${aircraftAvatarFor(ac.id)}" alt="${esc(ac.name)}" draggable="false">`;
-      d.setAttribute('aria-label',ac.name);
+      const acId=ownshipFlightAircraftId(),ac=AIRCRAFT.find(x=>x.id===acId)||AIRCRAFT[0],call=currentFlightCallsignForAvatar();
+      if(taagFlight){
+        d.innerHTML=`<img class="ownship-aircraft" src="${ownshipFlightAvatar()}" alt="TAAG ${esc(ac.name)}" draggable="false"><span class="ownship-jorge-chip"><img class="ownship-jorge-avatar" src="${EMBEDDED_JORGE_AVATAR}" alt="Jorge" draggable="false"><b class="ownship-jorge-name">JORGE</b></span><span class="ownship-flight-call">${esc(call||'TAAG')}</span>`;
+        d.setAttribute('aria-label',`Jorge em voo TAAG ${call||''}`.trim());
+      }else{
+        d.innerHTML=`<img class="ownship-aircraft" src="${aircraftAvatarFor(ac.id)}" alt="${esc(ac.name)}" draggable="false">`;
+        d.setAttribute('aria-label',ac.name);
+      }
     }else if(ground==='walk'){
       const person=currentDevicePersonName(),avatar=currentDevicePersonAvatar();
       d.innerHTML=`<img src="${avatar}" alt="${esc(person)} a pé" draggable="false">`;d.setAttribute('aria-label',`${person} a pé`);
@@ -3704,14 +3772,14 @@ body{min-height:var(--app-vh);margin:0}
       d.innerHTML=`<img src="${EMBEDDED_VEHICLE_AVATAR}" alt="Toyota Yaris LD-37-23-FM" draggable="false">`;
       d.setAttribute('aria-label','Toyota Yaris LD-37-23-FM');
     }
-    const img=d.querySelector('img');
-    if(img)img.onerror=()=>{if(flight)d.innerHTML=`<img src="${EMBEDDED_3D_PLANE_AVATAR}" alt="Aeronave 3D" draggable="false">`;else d.innerHTML=`<span class="avatar-fallback">🚗</span>`;};
+    const img=d.querySelector(flight?'img.ownship-aircraft':'img');
+    if(img)img.onerror=()=>{if(flight){img.onerror=null;img.src=EMBEDDED_3D_PLANE_AVATAR;}else d.innerHTML=`<span class="avatar-fallback">🚗</span>`;};
     return d;
   }
 
   function updatePositionMarker(){
     if(!state.map || !state.mapReady || !state.currentPosition || typeof maplibregl==='undefined') return;
-    const kind=state.mode==='flight'?'flight':groundTransport();
+    const kind=state.mode==='flight'?`flight:${currentFlightIsTaag()?'taag':ownshipFlightAircraftId()}`:groundTransport();
     if(!state.positionMarker || state.positionMarkerMode!==kind){
       if(state.positionMarker){try{state.positionMarker.remove();}catch(_){} }
       const el=markerElement();
@@ -4147,19 +4215,8 @@ body{min-height:var(--app-vh);margin:0}
     if(!manual&&Date.now()-state.traffic.updatedAt<20000)return;
     state.traffic.loading=true;
     try{
-      const url=`${FAMILY_BOOTSTRAP_SERVER}/adsb/nearby?lat=${encodeURIComponent(p.lat)}&lon=${encodeURIComponent(p.lon)}&radius_nm=${Math.max(1,Math.min(100,state.traffic.radiusNm))}`;
-      let r=null,lastErr=null;
-      for(let attempt=0;attempt<3;attempt++){
-        try{
-          r=await fetch(url,{cache:'no-store'});
-          if(r.ok)break;
-          lastErr=new Error('HTTP '+r.status);
-          if(![429,502,503,504].includes(r.status))break;
-        }catch(e){lastErr=e;}
-        await new Promise(res=>setTimeout(res,attempt===0?450:1100));
-      }
-      if(!r||!r.ok)throw (lastErr||new Error('Falha no feed ADS-B'));
-      const j=await r.json();
+      const radius=Math.max(1,Math.min(100,state.traffic.radiusNm));
+      const j=await fetchAdsbNearbyResilient(p.lat,p.lon,radius);
       const ownAlt=Number.isFinite(p.altitude)?p.altitude*3.28084:null;
       const dedup=new Map();
       for(const a of (j.ac||[])){

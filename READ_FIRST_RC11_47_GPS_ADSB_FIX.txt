@@ -1,0 +1,8 @@
+AERONAV RC11.47 — GPS + ADS-B Resilience
+
+Correções:
+- GPS iPhone/iPad passa a centrar imediatamente com a última posição válida e atualiza a precisão em background.
+- Timeouts do Core Location deixam de ser tratados como ausência total de GPS quando há posição recente.
+- getCurrentPosition + watchPosition trabalham em conjunto com maximumAge tolerante ao iOS.
+- ADS-B usa proxy Railway corrigido e fallback direto para ADSB.lol, airplanes.live e adsb.fi.
+- Callsign ADS-B ganha fallback adicional via adsb.one.

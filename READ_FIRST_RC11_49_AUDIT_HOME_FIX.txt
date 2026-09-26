@@ -1,0 +1,9 @@
+AERONAV RC11.49 — AUDIT & HOME INTEGRATION FIX
+
+Corrige os itens vermelhos da auditoria que pertencem ao código da aplicação:
+1) Manifest principal atualizado.
+2) Manifest Mathia atualizado.
+3) Manifest /family legado corrigido para caminhos válidos.
+4) Manifest Wendler sincronizado.
+5) Cache PWA incrementado para forçar a atualização instalada.
+6) Estado Alexa/Google Home separado entre backend AERONAV e ligação externa de dispositivos.

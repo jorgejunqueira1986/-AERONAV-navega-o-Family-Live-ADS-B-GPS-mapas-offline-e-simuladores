@@ -1,7 +1,8 @@
 {
-  "name": "AERONAV RC11.45 · Instant Avatar Map Render",
-  "short_name": "AERONAV RC11.45",
+  "name": "AERONAV RC11.49 · Audit & Home Integration Fix",
+  "short_name": "AERONAV RC11.49",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#06131f",
   "theme_color": "#071725",

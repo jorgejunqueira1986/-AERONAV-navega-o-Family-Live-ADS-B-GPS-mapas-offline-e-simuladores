@@ -1,0 +1,10 @@
+TEST REPORT RC11.47
+
+PASS — JavaScript inline syntax checked with Node.js 22.16.0.
+PASS — manifest.json, family-manifest.json and wendler/manifest.json parse as valid JSON.
+PASS — GPS recent-fix immediate centering enabled.
+PASS — GPS background high-accuracy refinement enabled.
+PASS — ADS-B Railway proxy primary + direct fallback chain present.
+PASS — ADSB.lol nearby endpoint uses /v2/point/{lat}/{lon}/{radius}.
+PASS — adsb.fi and adsb.one fallbacks present.
+PASS — Railway aeronav-cockpit-token-server deployment f39eecc6-dabe-4a72-8294-5a887cb1c428 reported SUCCESS.

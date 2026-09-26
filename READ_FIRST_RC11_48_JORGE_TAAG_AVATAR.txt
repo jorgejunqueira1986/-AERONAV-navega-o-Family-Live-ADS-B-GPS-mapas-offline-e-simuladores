@@ -1,0 +1,9 @@
+AERONAV RC11.48 — Jorge TAAG Flight Avatar
+
+Aplicado sobre RC11.47.
+
+- Em voo TAAG, Jorge usa avião TAAG vermelho, nunca Cessna por preferência antiga.
+- O avatar pessoal de Jorge aparece associado ao avião na mesma posição.
+- ADS-B TAAG mantém identidade TAAG; outros operadores permanecem com avatar preto genérico.
+- Mathia e Wendler recebem o aircraftId efetivo TAAG e mostram avião + avatar de Jorge em voo.
+- Mantidas as correções GPS e ADS-B da RC11.47.
