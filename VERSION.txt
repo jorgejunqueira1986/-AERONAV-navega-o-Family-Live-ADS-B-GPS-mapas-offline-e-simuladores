@@ -21,4 +21,10 @@ RC11.48 PATCH
 - Novo dispositivo administrador Jorge requer confirmação no outro dispositivo Jorge já ligado antes de sincronizar rota/localização ou gerir membros.
 - iPhone/iPad mantêm a rota recebida em cache local; se ficarem offline, reabrem a rota com o mapa offline instalado (ou fallback offline interno quando não existir pacote PMTiles local).
 - Cartões de rota de Mathia e Wendler identificam explicitamente ROTA DE AVIÃO ou ROTA DE CARRO.
-
+RC11.49 PATCH
+- Corrige a mensagem bruta “ADS-B: HTTP 502”.
+- Seletor ADS-B: até 4 tentativas automáticas para falhas temporárias 429/502/503/504/rede.
+- Cache local da última lista ADS-B válida durante até 5 minutos.
+- O seletor permanece aberto se o feed falhar; o callsign manual continua utilizável e a rota não é bloqueada.
+- Rastreamento por callsign: até 3 tentativas e cache local de 2 minutos.
+- Tráfego do mapa usa a última lista válida quando o feed está temporariamente indisponível.

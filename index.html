@@ -751,7 +751,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.48 RC11.48 · Strict Route Modes + Family Privacy + Offline Admin Sync';
+  const APP_VERSION = '7.49 RC11.49 · ADS-B Resilience Hotfix';
 
   const AIRLINE_DIRECTORY = [
     ['TAAG Angola Airlines','DT','DTA','Angola'],['TAP Air Portugal','TP','TAP','Portugal'],['Azores Airlines','S4','RZO','Portugal'],['SATA Air Açores','SP','SAT','Portugal'],
@@ -995,8 +995,7 @@ body{min-height:var(--app-vh);margin:0}
       memberId: localStorage.getItem('aeronav.family.memberId') || (crypto.randomUUID ? crypto.randomUUID() : 'member-'+Math.random().toString(36).slice(2)),
       displayName: localStorage.getItem('aeronav.family.name') || 'Jorge',
       deviceLabel: localStorage.getItem('aeronav.family.deviceLabel') || (/iPad/i.test(navigator.userAgent)?'iPad de Jorge':'iPhone de Jorge'),
-      adminPeerPending: localStorage.getItem('aeronav.admin.peerPending') === '1',
-      adminPeerVerified: localStorage.getItem('aeronav.admin.peerVerified') === '1' || (localStorage.getItem('aeronav.admin.peerPending') !== '1' && !!localStorage.getItem('aeronav.family.key') && !!localStorage.getItem('aeronav.family.memberId')),
+      adminPeerVerified: localStorage.getItem('aeronav.admin.peerVerified') === '1' || (!!localStorage.getItem('aeronav.family.key') && !!localStorage.getItem('aeronav.family.memberId')),
       adminPeerDenied: localStorage.getItem('aeronav.admin.peerDenied') === '1',
       adminVerifyPromptId: '', adminVerifyRequestSent: false,
       routeSyncLastSeenAt: Number(localStorage.getItem('aeronav.family.routeSyncLastSeenAt')||0),
@@ -2883,25 +2882,48 @@ body{min-height:var(--app-vh);margin:0}
     }
     return normalizeFlightCallsign(f.flightCallsign||f.flightNumber||'')||String(f.flightNumber||'').trim();
   }
+  const ADSB_NEARBY_CACHE_KEY='aeronav.adsb.nearby.lastGood.v1';
+  function friendlyAdsbError(err){
+    const raw=String(err?.message||err||'').trim();
+    if(/\b(429|502|503|504)\b/.test(raw))return 'O serviço ADS-B está temporariamente ocupado. A AERONAV continuará a tentar automaticamente.';
+    if(/failed to fetch|network|load failed|internet/i.test(raw))return 'Sem resposta do serviço ADS-B. Verifique a Internet; a rota e o callsign continuam guardados.';
+    return raw&&!/^HTTP\s+\d+/i.test(raw)?raw:'ADS-B temporariamente indisponível. Tente novamente em alguns segundos.';
+  }
+  function saveAdsbNearbyCache(rows=[]){try{localStorage.setItem(ADSB_NEARBY_CACHE_KEY,JSON.stringify({at:Date.now(),rows:Array.isArray(rows)?rows:[]}));}catch(_){}}
+  function loadAdsbNearbyCache(p,maxAgeMs=300000){
+    try{
+      const c=JSON.parse(localStorage.getItem(ADSB_NEARBY_CACHE_KEY)||'null');
+      if(!c||!Array.isArray(c.rows)||!Number.isFinite(Number(c.at))||Date.now()-Number(c.at)>maxAgeMs)return null;
+      const ownAlt=Number.isFinite(state.currentPosition?.altitude)?state.currentPosition.altitude*3.28084:null;
+      const rows=c.rows.map(a=>{const lat=+a.lat,lon=+a.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;const d=haversine({lat:+p.lat,lon:+p.lon},{lat,lon})/1852;const alt=typeof a.alt_baro==='number'?a.alt_baro:(typeof a.alt_geom==='number'?a.alt_geom:null);const urgent=d<5&&ownAlt!==null&&alt!==null&&Math.abs(alt-ownAlt)<1500;return {...a,distanceNm:d,displayAlt:alt,urgent};}).filter(Boolean).sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,100);
+      return {rows,at:Number(c.at)};
+    }catch(_){return null}
+  }
   async function refreshAdsbPickerTraffic(){
     const p=state.currentPosition||state.currentRoute?.from;if(!p||!Number.isFinite(+p.lat)||!Number.isFinite(+p.lon))throw new Error('Ative o GPS ou abra uma rota para procurar aeronaves ADS-B.');
     const radius=Math.max(25,Math.min(100,Number(state.traffic.radiusNm)||100));
     let lastErr=null;
-    for(let attempt=0;attempt<3;attempt++){
+    for(let attempt=0;attempt<4;attempt++){
       try{
         const r=await fetch(`${FAMILY_BOOTSTRAP_SERVER}/adsb/nearby?lat=${encodeURIComponent(+p.lat)}&lon=${encodeURIComponent(+p.lon)}&radius_nm=${radius}`,{cache:'no-store'});
-        if(!r.ok)throw new Error('HTTP '+r.status);
-        const j=await r.json();
+        if(!r.ok){const e=new Error('HTTP '+r.status);e.status=r.status;throw e;}
+        const j=await r.json(),rawRows=Array.isArray(j.ac)?j.ac:[];
         const ownAlt=Number.isFinite(state.currentPosition?.altitude)?state.currentPosition.altitude*3.28084:null;
-        state.traffic.aircraft=(j.ac||[]).map(a=>{const lat=+a.lat,lon=+a.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;const d=haversine({lat:+p.lat,lon:+p.lon},{lat,lon})/1852;const alt=typeof a.alt_baro==='number'?a.alt_baro:(typeof a.alt_geom==='number'?a.alt_geom:null);const urgent=d<5&&ownAlt!==null&&alt!==null&&Math.abs(alt-ownAlt)<1500;return {...a,distanceNm:d,displayAlt:alt,urgent};}).filter(Boolean).sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,100);
-        state.traffic.updatedAt=Date.now();return state.traffic.aircraft;
-      }catch(e){lastErr=e;if(attempt<2)await new Promise(res=>setTimeout(res,650*(attempt+1)));}
+        state.traffic.aircraft=rawRows.map(a=>{const lat=+a.lat,lon=+a.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;const d=haversine({lat:+p.lat,lon:+p.lon},{lat,lon})/1852;const alt=typeof a.alt_baro==='number'?a.alt_baro:(typeof a.alt_geom==='number'?a.alt_geom:null);const urgent=d<5&&ownAlt!==null&&alt!==null&&Math.abs(alt-ownAlt)<1500;return {...a,distanceNm:d,displayAlt:alt,urgent};}).filter(Boolean).sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,100);
+        state.traffic.updatedAt=Date.now();state.traffic.fromCache=false;state.traffic.cacheAgeMs=0;saveAdsbNearbyCache(rawRows);return state.traffic.aircraft;
+      }catch(e){
+        lastErr=e;const status=Number(e?.status)||Number((String(e?.message||'').match(/HTTP\s+(\d+)/i)||[])[1]);
+        if(status&&![429,502,503,504].includes(status))break;
+        if(attempt<3)await new Promise(res=>setTimeout(res,[450,900,1800][attempt]||1800));
+      }
     }
-    throw lastErr||new Error('ADS-B indisponível.');
+    const cached=loadAdsbNearbyCache(p,300000);
+    if(cached?.rows?.length){state.traffic.aircraft=cached.rows;state.traffic.updatedAt=cached.at;state.traffic.fromCache=true;state.traffic.cacheAgeMs=Date.now()-cached.at;return cached.rows;}
+    throw new Error(friendlyAdsbError(lastErr));
   }
   function selectedAirlineLabel(){const f=state.family;if(!f.flightAirlineName&&!f.flightAirlineIcao)return 'Todas as companhias';return `${f.flightAirlineName||f.flightAirlineIcao}${f.flightAirlineIata?` · ${f.flightAirlineIata}`:''}${f.flightAirlineIcao?` / ${f.flightAirlineIcao}`:''}`;}
   async function openAirlinePicker(onSelect=null){
-    try{toast('A atualizar companhias e voos ADS-B…');await refreshAdsbPickerTraffic();}catch(e){toast('ADS-B: '+(e.message||e));}
+    try{toast('A atualizar companhias e voos ADS-B…');await refreshAdsbPickerTraffic();if(state.traffic.fromCache)toast('ADS-B instável · a usar a última lista válida.');}catch(e){toast(friendlyAdsbError(e));}
     document.querySelector('.airline-picker-overlay')?.remove();
     const f=state.family,o=document.createElement('div');o.className='pairing-overlay airline-picker-overlay';
     o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true" style="max-width:680px"><h2>Companhia aérea</h2><p>Escolha uma companhia. As que têm voos ADS-B detetados aparecem primeiro.</p><input id="airlinePickerSearch" placeholder="Pesquisar companhia, IATA ou ICAO" style="width:100%;margin:8px 0 10px"><div class="family-actions"><button class="soft-btn" id="airlinePickerAll">Todas / sem filtro</button><button class="soft-btn" id="airlinePickerClose">Fechar</button></div><div id="airlinePickerList" style="margin-top:10px;max-height:min(56vh,520px);overflow:auto"></div></div>`;
@@ -2911,27 +2933,35 @@ body{min-height:var(--app-vh);margin:0}
     search.addEventListener('input',draw);o.querySelector('#airlinePickerAll').onclick=()=>{f.flightAirlineName='';f.flightAirlineIcao='';f.flightAirlineIata='';saveFamilySettings();o.remove();renderFamilyScreen();};o.querySelector('#airlinePickerClose').onclick=()=>o.remove();draw();
   }
   async function openAdsbCallsignPicker(onSelect=null){
-    try{toast('A procurar aeronaves com callsign ADS-B ativo…');await refreshAdsbPickerTraffic();}catch(e){toast('ADS-B: '+(e.message||e));return;}
+    let adsbNotice='';
+    try{toast('A procurar aeronaves com callsign ADS-B ativo…');await refreshAdsbPickerTraffic();if(state.traffic.fromCache){const mins=Math.max(1,Math.round((state.traffic.cacheAgeMs||0)/60000));adsbNotice=`Feed ADS-B temporariamente instável. A mostrar a última lista válida (há ${mins} min).`;}}
+    catch(e){adsbNotice=friendlyAdsbError(e)+' Pode manter o callsign introduzido manualmente e continuar a configurar a rota.';}
     document.querySelector('.adsb-picker-overlay')?.remove();
     const f=state.family,o=document.createElement('div');o.className='pairing-overlay adsb-picker-overlay';
-    o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true" style="max-width:720px"><h2>Escolher voo ADS-B</h2><p>Mostra apenas aeronaves recebidas agora com callsign. Companhia: <strong>${esc(selectedAirlineLabel())}</strong>.</p><input id="adsbPickerSearch" placeholder="Pesquisar callsign, matrícula ou tipo" style="width:100%;margin:8px 0 10px"><div class="family-actions"><button class="soft-btn" id="adsbPickerAirline">Companhias aéreas</button><button class="soft-btn" id="adsbPickerRefresh">↻ Atualizar</button><button class="soft-btn" id="adsbPickerClose">Fechar</button></div><div id="adsbPickerList" style="margin-top:10px;max-height:min(56vh,520px);overflow:auto"></div></div>`;
+    o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true" style="max-width:720px"><h2>Escolher voo ADS-B</h2><p>Mostra aeronaves recebidas com callsign. Companhia: <strong>${esc(selectedAirlineLabel())}</strong>.</p>${adsbNotice?`<div class="notice" id="adsbPickerNotice" style="margin:8px 0">${esc(adsbNotice)}</div>`:''}<input id="adsbPickerSearch" placeholder="Pesquisar callsign, matrícula ou tipo" style="width:100%;margin:8px 0 10px"><div class="family-actions"><button class="soft-btn" id="adsbPickerAirline">Companhias aéreas</button><button class="soft-btn" id="adsbPickerRefresh">↻ Atualizar</button><button class="soft-btn" id="adsbPickerClose">Fechar</button></div><div id="adsbPickerList" style="margin-top:10px;max-height:min(56vh,520px);overflow:auto"></div></div>`;
     document.body.appendChild(o);
     const list=o.querySelector('#adsbPickerList'),search=o.querySelector('#adsbPickerSearch');
     const candidateRows=()=>{const q=search.value.trim().toLowerCase(),icao=String(f.flightAirlineIcao||'').toUpperCase(),name=String(f.flightAirlineName||'').toLowerCase();return (state.traffic.aircraft||[]).filter(a=>adsbCallsignOf(a)).filter(a=>{const al=adsbAirlineFor(a),call=adsbCallsignOf(a);if(icao&&!(call.startsWith(icao)||al?.icao===icao))return false;if(name&&al?.name&&!al.name.toLowerCase().includes(name)&&!name.includes(al.name.toLowerCase()))return false;const hay=`${call} ${a.r||''} ${a.t||''} ${a.ownOp||''} ${al?.name||''}`.toLowerCase();return !q||hay.includes(q);}).sort((a,b)=>a.distanceNm-b.distanceNm);};
     const draw=()=>{const rows=candidateRows();list.innerHTML=rows.length?rows.map((a,i)=>{const call=adsbCallsignOf(a),al=adsbAirlineFor(a);return `<button type="button" class="list-item" data-adsb-index="${i}" style="width:100%;text-align:left;margin-bottom:7px"><div class="item-icon" style="color:#ff9c43">✈</div><div class="item-main"><strong>${esc(call)} <span class="badge ok" style="font-size:9px">ADS-B ATIVO</span></strong><small>${esc(al?.name||a.ownOp||'Companhia não identificada')} · ${a.distanceNm.toFixed(1)} NM · ${a.displayAlt??'—'} ft${a.r?` · ${esc(a.r)}`:''}${a.t?` · ${esc(a.t)}`:''}</small></div></button>`}).join(''):'<div class="empty">Nenhuma aeronave com callsign encontrada para este filtro. Escolha “Companhias aéreas” para mudar o filtro ou atualize a lista.</div>';list.querySelectorAll('[data-adsb-index]').forEach(b=>b.onclick=()=>{const rows=candidateRows(),a=rows[Number(b.dataset.adsbIndex)];if(!a)return;const call=adsbCallsignOf(a),al=adsbAirlineFor(a);f.flightCallsign=call;if(!f.flightNumber)f.flightNumber=call;if(al){f.flightAirlineName=al.name||'';f.flightAirlineIcao=al.icao||'';f.flightAirlineIata=al.iata||'';}saveFamilySettings();o.remove();renderFamilyScreen();if(typeof onSelect==='function')try{onSelect(call,al,a)}catch(_){}toast(`Callsign selecionado: ${call}`);});};
-    search.addEventListener('input',draw);o.querySelector('#adsbPickerAirline').onclick=()=>{o.remove();openAirlinePicker(onSelect);};o.querySelector('#adsbPickerRefresh').onclick=async()=>{try{await refreshAdsbPickerTraffic();draw();toast('Lista ADS-B atualizada.');}catch(e){toast('ADS-B: '+(e.message||e));}};o.querySelector('#adsbPickerClose').onclick=()=>o.remove();draw();
+    search.addEventListener('input',draw);o.querySelector('#adsbPickerAirline').onclick=()=>{o.remove();openAirlinePicker(onSelect);};o.querySelector('#adsbPickerRefresh').onclick=async()=>{let notice=o.querySelector('#adsbPickerNotice');try{await refreshAdsbPickerTraffic();draw();if(state.traffic.fromCache){const mins=Math.max(1,Math.round((state.traffic.cacheAgeMs||0)/60000));if(!notice){notice=document.createElement('div');notice.id='adsbPickerNotice';notice.className='notice';notice.style.margin='8px 0';o.querySelector('.pairing-card p')?.after(notice);}notice.style.display='block';notice.textContent=`Feed ADS-B temporariamente instável. A mostrar a última lista válida (há ${mins} min).`;toast('Última lista ADS-B válida carregada.');}else{if(notice)notice.style.display='none';toast('Lista ADS-B atualizada.');}}catch(e){const msg=friendlyAdsbError(e);if(!notice){notice=document.createElement('div');notice.id='adsbPickerNotice';notice.className='notice';notice.style.margin='8px 0';o.querySelector('.pairing-card p')?.after(notice);}notice.style.display='block';notice.textContent=msg+' O callsign manual continua disponível.';toast(msg);}};o.querySelector('#adsbPickerClose').onclick=()=>o.remove();draw();
   }
 
   async function fetchAdsbPosition(flightNumber, explicitCallsign=''){
-    if(!navigator.onLine || state.net==='offline') return null;
     const call=normalizeFlightCallsign(explicitCallsign||flightNumber); if(!call) return null;
     const cache=state.family.adsbCache.get(call); if(cache && Date.now()-cache.at<20000) return cache.data;
-    try{
-      const r=await fetch(`${FAMILY_BOOTSTRAP_SERVER}/adsb/callsign/${encodeURIComponent(call)}`,{cache:'no-store'}); if(!r.ok)throw new Error('ADS-B '+r.status);
-      const j=await r.json(); const ac=(j.ac||[]).filter(x=>Number.isFinite(Number(x.lat))&&Number.isFinite(Number(x.lon))).sort((a,b)=>(Number(a.seen)||999)-(Number(b.seen)||999))[0]; if(!ac)return null;
-      const age=Math.max(0,Number(ac.seen)||0); const data={lat:Number(ac.lat),lon:Number(ac.lon),altitude:Number.isFinite(Number(ac.alt_baro))?Number(ac.alt_baro)*0.3048:null,speed:Number.isFinite(Number(ac.gs))?Number(ac.gs)/1.943844492:null,heading:Number.isFinite(Number(ac.track))?Number(ac.track):null,updatedAt:new Date(Date.now()-age*1000).toISOString(),callsign:call};
-      state.family.adsbCache.set(call,{at:Date.now(),data}); return data;
-    }catch(e){return null;}
+    const diskKey='aeronav.adsb.callsign.'+call;
+    if(navigator.onLine && state.net!=='offline'){
+      for(let attempt=0;attempt<3;attempt++){
+        try{
+          const r=await fetch(`${FAMILY_BOOTSTRAP_SERVER}/adsb/callsign/${encodeURIComponent(call)}`,{cache:'no-store'});if(!r.ok){const e=new Error('ADS-B '+r.status);e.status=r.status;throw e;}
+          const j=await r.json(),ac=(j.ac||[]).filter(x=>Number.isFinite(Number(x.lat))&&Number.isFinite(Number(x.lon))).sort((a,b)=>(Number(a.seen)||999)-(Number(b.seen)||999))[0];if(!ac)break;
+          const age=Math.max(0,Number(ac.seen)||0),data={lat:Number(ac.lat),lon:Number(ac.lon),altitude:Number.isFinite(Number(ac.alt_baro))?Number(ac.alt_baro)*0.3048:null,speed:Number.isFinite(Number(ac.gs))?Number(ac.gs)/1.943844492:null,heading:Number.isFinite(Number(ac.track))?Number(ac.track):null,updatedAt:new Date(Date.now()-age*1000).toISOString(),callsign:call,source:'ADS-B'};
+          state.family.adsbCache.set(call,{at:Date.now(),data});try{localStorage.setItem(diskKey,JSON.stringify({at:Date.now(),data}));}catch(_){}return data;
+        }catch(e){const status=Number(e?.status)||Number((String(e?.message||'').match(/(\d{3})/)||[])[1]);if(status&&![429,502,503,504].includes(status))break;if(attempt<2)await new Promise(res=>setTimeout(res,attempt===0?450:1100));}
+      }
+    }
+    try{const c=JSON.parse(localStorage.getItem(diskKey)||'null');if(c?.data&&Date.now()-Number(c.at||0)<=120000){const data={...c.data,source:'ADS-B CACHE'};state.family.adsbCache.set(call,{at:Number(c.at||Date.now()),data});return data;}}catch(_){}
+    return null;
   }
   async function fetchSatellitePosition(){
     const f=state.family; if(!f.satelliteEndpoint || !navigator.onLine || state.net==='offline') return null;
@@ -3125,13 +3155,12 @@ body{min-height:var(--app-vh);margin:0}
   }
   async function checkAdminPeerVerification(rows=[]){
     const f=state.family;if(!adminPeerVerificationRequired())return true;
-    if(f.adminPeerVerified){f.adminPeerPending=false;localStorage.setItem('aeronav.admin.peerVerified','1');localStorage.removeItem('aeronav.admin.peerPending');localStorage.removeItem('aeronav.admin.peerDenied');f.adminPeerDenied=false;for(const row of rows){if(!isFamilyAdminVerifyRow(row))continue;const d=adminVerifyDecode(row);if(d?.status==='REQUEST'&&String(d.deviceId||'')!==String(f.memberId))showAdminVerifyRequest(row,d)}return true;}
+    if(f.adminPeerVerified){localStorage.setItem('aeronav.admin.peerVerified','1');localStorage.removeItem('aeronav.admin.peerDenied');f.adminPeerDenied=false;for(const row of rows){if(!isFamilyAdminVerifyRow(row))continue;const d=adminVerifyDecode(row);if(d?.status==='REQUEST'&&String(d.deviceId||'')!==String(f.memberId))showAdminVerifyRequest(row,d)}return true;}
     const ownRow=rows.find(r=>String(r.member_id||'')===adminVerifyRowId(f.memberId));const own=adminVerifyDecode(ownRow);
-    if(own?.status==='APPROVED'){f.adminPeerVerified=true;f.adminPeerPending=false;f.adminPeerDenied=false;localStorage.setItem('aeronav.admin.peerVerified','1');localStorage.removeItem('aeronav.admin.peerPending');localStorage.removeItem('aeronav.admin.peerDenied');closeAdminVerifyOverlay();toast('Este dispositivo foi confirmado como Jorge pelo outro administrador.');return true;}
-    if(own?.status==='DENIED'){f.adminPeerVerified=false;f.adminPeerPending=false;f.adminPeerDenied=true;localStorage.removeItem('aeronav.admin.peerVerified');localStorage.removeItem('aeronav.admin.peerPending');localStorage.setItem('aeronav.admin.peerDenied','1');showAdminVerifyDenied();return false;}
+    if(own?.status==='APPROVED'){f.adminPeerVerified=true;f.adminPeerDenied=false;localStorage.setItem('aeronav.admin.peerVerified','1');localStorage.removeItem('aeronav.admin.peerDenied');closeAdminVerifyOverlay();toast('Este dispositivo foi confirmado como Jorge pelo outro administrador.');return true;}
+    if(own?.status==='DENIED'){f.adminPeerDenied=true;localStorage.setItem('aeronav.admin.peerDenied','1');showAdminVerifyDenied();return false;}
     const otherJorge=rows.find(r=>!isFamilySystemRow(r)&&String(r.member_id||'')!==String(f.memberId)&&isJorgeAdminName(r.display_name)&&Date.now()-(Date.parse(r.updated_at||0)||0)<7*86400000);
-    if(!otherJorge){f.adminPeerVerified=true;f.adminPeerPending=false;f.adminPeerDenied=false;localStorage.setItem('aeronav.admin.peerVerified','1');localStorage.removeItem('aeronav.admin.peerPending');localStorage.removeItem('aeronav.admin.peerDenied');return true;}
-    f.adminPeerPending=true;localStorage.setItem('aeronav.admin.peerPending','1');localStorage.removeItem('aeronav.admin.peerVerified');
+    if(!otherJorge){f.adminPeerVerified=true;f.adminPeerDenied=false;localStorage.setItem('aeronav.admin.peerVerified','1');localStorage.removeItem('aeronav.admin.peerDenied');return true;}
     if(!f.adminVerifyRequestSent){f.adminVerifyRequestSent=true;await upsertAdminVerify('REQUEST',f.memberId,f.deviceLabel,{requestingDeviceId:f.memberId}).catch(()=>false)}showAdminVerifyWaiting();return false;
   }
 
@@ -3460,14 +3489,13 @@ body{min-height:var(--app-vh);margin:0}
   function isFamilyBatteryRow(m){return /__BATTERY$/.test(String(m?.member_id||''))||/^BATTERY:/.test(String(m?.transport||''));}
   let familyBatteryState={level:null,charging:null,updatedAt:0};
   async function initFamilyBattery(){if(!navigator.getBattery)return;try{const b=await navigator.getBattery();const update=()=>{familyBatteryState={level:Math.round(Number(b.level||0)*100),charging:!!b.charging,updatedAt:Date.now()};pushFamilyBattery(false)};b.addEventListener('levelchange',update);b.addEventListener('chargingchange',update);update()}catch(_){}}
-  async function pushFamilyBattery(force=false){const f=state.family;if(!familyConfigured()||!navigator.onLine||familyBatteryState.level==null)return;if(adminPeerVerificationRequired()&&!adminCanManageMembers())return;const last=Number(localStorage.getItem('aeronav.family.batteryLastPush')||0);if(!force&&Date.now()-last<60000)return;await ensureFamilyHash();const body={room_hash:f.familyHash,member_id:familyBatteryMemberId(f.memberId),display_name:'BATTERY · '+(f.displayName||'Membro'),sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:`BATTERY:${familyBatteryState.level}:${familyBatteryState.charging?1:0}:${encodeURIComponent(f.deviceLabel||'')}`,flight_number:null,flight_eta:null,updated_at:new Date().toISOString()};try{const r=await fetch(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});if(r.ok)localStorage.setItem('aeronav.family.batteryLastPush',String(Date.now()))}catch(_){}}
+  async function pushFamilyBattery(force=false){const f=state.family;if(!familyConfigured()||!navigator.onLine||familyBatteryState.level==null)return;const last=Number(localStorage.getItem('aeronav.family.batteryLastPush')||0);if(!force&&Date.now()-last<60000)return;await ensureFamilyHash();const body={room_hash:f.familyHash,member_id:familyBatteryMemberId(f.memberId),display_name:'BATTERY · '+(f.displayName||'Membro'),sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:`BATTERY:${familyBatteryState.level}:${familyBatteryState.charging?1:0}:${encodeURIComponent(f.deviceLabel||'')}`,flight_number:null,flight_eta:null,updated_at:new Date().toISOString()};try{const r=await fetch(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});if(r.ok)localStorage.setItem('aeronav.family.batteryLastPush',String(Date.now()))}catch(_){}}
   function applyFamilyBatteryRows(rows){state.family.batteryByMember=state.family.batteryByMember||{};for(const r of rows||[]){if(!isFamilyBatteryRow(r))continue;const m=String(r.transport||'').match(/^BATTERY:(\d{1,3}):(0|1):(.*)$/);if(!m)continue;const base=String(r.member_id||'').replace(/__BATTERY$/,'');state.family.batteryByMember[base]={level:Math.max(0,Math.min(100,Number(m[1]))),charging:m[2]==='1',deviceLabel:decodeURIComponent(m[3]||''),updated_at:r.updated_at};}}
   function checkFamilyBatteryAlerts(rows){applyFamilyBatteryRows(rows);const map=state.family.batteryByMember||{};for(const [id,b] of Object.entries(map)){if(id===state.family.memberId||b.charging||b.level<10||b.level>30)continue;const key=`aeronav.family.batteryAlert.${id}`;const last=Number(localStorage.getItem(key)||0);if(Date.now()-last<2*3600*1000)continue;localStorage.setItem(key,String(Date.now()));const main=(rows||[]).find(x=>String(x.member_id)===id);const who=main?.display_name||'Membro';const msg=`${who} está com ${b.level}% de bateria. Recomenda-se carregar o telefone.`;toast('🔋 '+msg);if('Notification'in window&&Notification.permission==='granted')try{new Notification('AERONAV · Bateria',{body:msg,tag:'aeronav-battery-'+id})}catch(_){}}}
   function showFamilyMemberDetails(memberId){const m=(state.family.members||[]).find(x=>String(x.member_id)===String(memberId));if(!m)return;const b=(state.family.batteryByMember||{})[String(memberId)],self=String(memberId)===String(state.family.memberId),first=String(m.display_name||'Membro').trim().split(/\s+/)[0]||'Membro';document.querySelector('.family-member-overlay')?.remove();const o=document.createElement('div');o.className='pairing-overlay family-member-overlay';o.innerHTML=`<div class="pairing-card"><h2>${esc(m.display_name||'Membro')}</h2><p>${m._source||'GPS'} · ${fmtFamilyAge(m._displayUpdatedAt||m.updated_at)}</p><div class="family-member"><div class="family-avatar">${personAvatarHtml(m.display_name,m.display_name||'Membro')}</div><div><strong>Bateria</strong><small>${b?`${b.level}%${b.charging?' · a carregar':''}${b.deviceLabel?' · '+esc(b.deviceLabel):''}`:'Bateria indisponível neste dispositivo'}</small></div><div class="family-meta"><b>${b&&b.level<=30&&!b.charging?'CARREGAR':'OK'}</b></div></div><div class="pairing-actions">${self?'':`<button class="primary-btn" id="familyMemberNavigate">📍 Ir até ${esc(first)}</button>`}<button id="familyMemberClose">Fechar</button></div></div>`;document.body.appendChild(o);o.querySelector('#familyMemberClose').onclick=()=>o.remove();o.querySelector('#familyMemberNavigate')?.addEventListener('click',()=>{o.remove();goToFamilyMember(memberId)});o.addEventListener('click',e=>{if(e.target===o)o.remove()});}
 
   async function pushFamilyLocation(force=false){
     const f=state.family; if(!familyConfigured() || !navigator.onLine || f.syncing) return;
-    if(adminPeerVerificationRequired()&&!adminCanManageMembers()){if(force)toast('Aguardando confirmação deste dispositivo pelo outro administrador Jorge.');return;}
     if(!force && Date.now()-f.lastPushAt<8000) return;
     const p=state.currentPosition;
     const gpsAgeMs=p?.at?Math.max(0,Date.now()-Number(p.at)):Infinity;
@@ -3661,8 +3689,8 @@ body{min-height:var(--app-vh);margin:0}
     $('#familyJoinExisting')?.addEventListener('click',joinExistingFamily);
     $('#familyPairingCreate')?.addEventListener('click',()=>familyPairingFlow('setup'));
     $('#familyPairingRecover')?.addEventListener('click',()=>familyPairingFlow('recovery'));
-        $('#familySave').onclick=async()=>{f.displayName=$('#familyName').value.trim()||'Membro';f.deviceLabel=$('#familyDeviceLabel')?.value.trim()||f.deviceLabel;f.familyKey=$('#familyKey').value.trim();f.supabaseUrl=$('#familyUrl')?.value.trim()||f.supabaseUrl;f.anonKey=$('#familyAnon')?.value.trim()||f.anonKey;if(!f.familyKey){toast('Introduza o Código da Família.');return}if(!f.supabaseUrl||!f.anonKey){try{const boot=await familyBootstrapConfig(f.familyKey);f.supabaseUrl=boot.url;f.anonKey=boot.anon;}catch(e){toast('Family: '+(e?.message||e));return}}f.flightNumber=$('#familyFlight').value.trim();f.flightEta=$('#familyEta').value;f.flightCallsign=$('#familyCallsign')?.value.trim().toUpperCase()||'';if(f.flightCallsign&&!f.flightAirlineIcao){const m=f.flightCallsign.match(/^([A-Z]{3})/),al=m?airlineByIcao(m[1]):null;if(al){f.flightAirlineName=al.name;f.flightAirlineIcao=al.icao;f.flightAirlineIata=al.iata;}}f.mapShareId=$('#familyMapShare')?.value.trim()||'';f.satelliteEndpoint=$('#familySatEndpoint')?.value.trim()||'';f.airborneEnabled=$('#familyAirborne')?.checked!==false;f.adsbFallback=$('#familyAdsb')?.checked!==false;f.keepAwake=$('#familyKeepAwake')?.checked!==false;f.enabled=true;f.familyHash='';if(!localStorage.getItem('aeronav.admin.peerVerified')){f.adminPeerVerified=false;f.adminPeerDenied=false;f.adminVerifyRequestSent=false;if(f.adminPeerPending)localStorage.setItem('aeronav.admin.peerPending','1');}saveFamilySettings();await updateFamilyWakeLock();startFamilySync();await familySyncCycle();renderFamilyScreen();toast('Family configurado. Se já existir outro dispositivo Jorge, ele deverá confirmar este aparelho.');};
-    $('#familySync').onclick=async()=>{await pullFamilyLocations(true);if(adminPeerVerificationRequired()&&!adminCanManageMembers()){toast('Aguardando confirmação no outro dispositivo Jorge.');return;}await pushFamilyLocation(true);await pushFamilyBattery(true);};
+        $('#familySave').onclick=async()=>{f.displayName=$('#familyName').value.trim()||'Membro';f.deviceLabel=$('#familyDeviceLabel')?.value.trim()||f.deviceLabel;f.familyKey=$('#familyKey').value.trim();f.supabaseUrl=$('#familyUrl')?.value.trim()||f.supabaseUrl;f.anonKey=$('#familyAnon')?.value.trim()||f.anonKey;if(!f.familyKey){toast('Introduza o Código da Família.');return}if(!f.supabaseUrl||!f.anonKey){try{const boot=await familyBootstrapConfig(f.familyKey);f.supabaseUrl=boot.url;f.anonKey=boot.anon;}catch(e){toast('Family: '+(e?.message||e));return}}f.flightNumber=$('#familyFlight').value.trim();f.flightEta=$('#familyEta').value;f.flightCallsign=$('#familyCallsign')?.value.trim().toUpperCase()||'';if(f.flightCallsign&&!f.flightAirlineIcao){const m=f.flightCallsign.match(/^([A-Z]{3})/),al=m?airlineByIcao(m[1]):null;if(al){f.flightAirlineName=al.name;f.flightAirlineIcao=al.icao;f.flightAirlineIata=al.iata;}}f.mapShareId=$('#familyMapShare')?.value.trim()||'';f.satelliteEndpoint=$('#familySatEndpoint')?.value.trim()||'';f.airborneEnabled=$('#familyAirborne')?.checked!==false;f.adsbFallback=$('#familyAdsb')?.checked!==false;f.keepAwake=$('#familyKeepAwake')?.checked!==false;f.enabled=true;f.familyHash='';if(!localStorage.getItem('aeronav.admin.peerVerified')){f.adminPeerVerified=false;f.adminPeerDenied=false;f.adminVerifyRequestSent=false;}saveFamilySettings();await updateFamilyWakeLock();startFamilySync();await familySyncCycle();renderFamilyScreen();toast('Family configurado. Se já existir outro dispositivo Jorge, ele deverá confirmar este aparelho.');};
+    $('#familySync').onclick=async()=>{await pushFamilyLocation(true);await pushFamilyBattery(true);await pullFamilyLocations(true);};
     host.querySelectorAll('[data-family-member-info]').forEach(b=>b.addEventListener('click',()=>showFamilyMemberDetails(b.dataset.familyMemberInfo)));
     $('#familyViewerOpen')?.addEventListener('click',openFamilyViewer);
     $('#familyViewerShare')?.addEventListener('click',shareFamilyViewer);
@@ -4284,12 +4312,14 @@ body{min-height:var(--app-vh);margin:0}
       }
       state.traffic.aircraft=[...dedup.values()].sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,60);
       state.traffic.followedCallsign=normalizeFlightCallsign(state.family.flightCallsign||state.family.flightNumber||'');
-      state.traffic.updatedAt=Date.now();
+      state.traffic.updatedAt=Date.now();state.traffic.fromCache=false;state.traffic.cacheAgeMs=0;saveAdsbNearbyCache(j.ac||[]);
       await renderTrafficLayer();
       if(state.activeTab==='traffic')renderTrafficScreen();
       if(manual&&state.traffic.aircraft.length===0)toast('ADS-B respondeu, mas não há alvos públicos no raio selecionado.');
     }catch(e){
-      if(manual)toast('ADS-B: '+(e.message||e)+'. Mantendo os últimos alvos disponíveis.');
+      const cached=loadAdsbNearbyCache(p,300000);
+      if(cached?.rows?.length){state.traffic.aircraft=cached.rows.slice(0,60);state.traffic.updatedAt=cached.at;state.traffic.fromCache=true;state.traffic.cacheAgeMs=Date.now()-cached.at;await renderTrafficLayer();if(state.activeTab==='traffic')renderTrafficScreen();if(manual)toast('ADS-B temporariamente instável · a mostrar a última lista válida.');}
+      else if(manual)toast(friendlyAdsbError(e));
     }finally{state.traffic.loading=false;}
   }
   function renderTrafficScreen(){const host=$('#screen-traffic');if(!host)return;const a=state.traffic.aircraft||[];host.innerHTML=`<div class="panel-page"><div class="page-head"><div><h2>Tráfego aéreo real</h2><p>Alvos recebidos de ADS-B real no modo VOO. O voo que estiver a seguir fica destacado em rosa. Não substitui ATC, TCAS/ACAS nem vigilância visual.</p></div><span class="badge ${a.length?'ok':'warn'}">${a.length} ALVOS</span></div><div class="cards"><div class="card"><div class="form-grid"><div class="field"><label>Raio</label><select id="trafficRadius">${[10,25,50,100].map(x=>`<option value="${x}" ${state.traffic.radiusNm===x?'selected':''}>${x} NM</option>`).join('')}</select></div><div class="field"><label>Atualização</label><input value="~20 s quando ativo" disabled></div></div><div class="btn-row"><button class="primary-btn" id="trafficRefresh">Atualizar tráfego</button><button class="secondary-btn" id="trafficMap">Ver no mapa</button></div></div><div class="card"><div class="traffic-row head"><span>VOO</span><span>DIST</span><span>ALT</span><span>GS</span><span>TRACK</span></div>${a.length?a.map(x=>{const call=normalizeFlightCallsign(x.flight||x.r||'');const followed=!!state.traffic.followedCallsign&&call===state.traffic.followedCallsign;return `<div class="traffic-row ${x.urgent?'urgent':''}" style="${followed?'border-color:#ff4fd8;box-shadow:inset 0 0 0 1px #ff4fd866':''}"><strong>${followed?'★ ':''}${esc((x.flight||x.r||x.hex||'—').trim())}</strong><span>${x.distanceNm.toFixed(1)} NM</span><span>${x.displayAlt??'—'} ft</span><span>${Number.isFinite(+x.gs)?Math.round(+x.gs)+' kt':'—'}</span><span>${Number.isFinite(+x.track)?Math.round(+x.track)+'°':'—'}</span></div>`}).join(''):'<div class="empty">Sem alvos reais carregados. Toque em Atualizar tráfego.</div>'}</div><div class="notice">⚠️ A ausência de um alvo aqui não significa ausência de aeronave. Nem todas as aeronaves/situações aparecem em feeds ADS-B públicos.</div></div></div>`;$('#trafficRadius').onchange=e=>{state.traffic.radiusNm=+e.target.value;localStorage.setItem('aeronav.trafficRadius',state.traffic.radiusNm);};$('#trafficRefresh').onclick=()=>fetchNearbyTraffic(true);$('#trafficMap').onclick=()=>{setTab('map');setTimeout(()=>renderTrafficLayer(),220);};}

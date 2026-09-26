@@ -1,0 +1,3 @@
+AERONAV RC11.49 — ADS-B 502 RESILIENCE HOTFIX
+
+A falha 502 do feed/proxy ADS-B deixa de bloquear o seletor ou mostrar código HTTP bruto. A aplicação tenta novamente, usa cache local recente e preserva o callsign/rota.

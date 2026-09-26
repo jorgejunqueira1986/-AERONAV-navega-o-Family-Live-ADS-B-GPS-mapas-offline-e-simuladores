@@ -1,27 +1,14 @@
 AERONAV RC11.49 — TEST REPORT
 
-VALIDAÇÃO LOCAL DO PACOTE
-[PASS] manifest.json válido e atualizado para RC11.49.
-[PASS] family-manifest.json válido e atualizado para Mathia RC11.49.
-[PASS] family/family-manifest.json corrigido: start_url, scope e icons apontam para caminhos existentes.
-[PASS] wendler/manifest.json válido e atualizado para RC11.49.
-[PASS] Service Worker principal atualizado para cache RC11.49.
-[PASS] Service Worker Wendler atualizado para cache RC11.49.
-[PASS] JavaScript inline principal: node --check sem erros.
-[PASS] JavaScript inline Mathia: node --check sem erros.
-[PASS] JavaScript inline Wendler: node --check sem erros.
-[PASS] APP_VERSION principal atualizado para 7.49 RC11.49.
-[PASS] configureArrivalWebhook agora consulta /home/status e separa backend pronto de integração externa pendente.
+PASS — RC11.49 version
+PASS — 4 picker attempts
+PASS — retry 502
+PASS — nearby cache 5 min
+PASS — callsign cache 2 min
+PASS — raw toast HTTP removed
+PASS — picker no return on feed error
+PASS — manual callsign preserved
+PASS — friendly 502 mapping
 
-BACKEND RAILWAY
-[PASS] aeronav-cockpit-token-server redeployed com SUCCESS.
-[PASS] Backend health marcado RC11.49 no código implantado.
-[PASS] Endpoint /home/status presente no código implantado.
-[PASS] Campos alexa_backend e google_home_bridge presentes no diagnóstico.
-[PASS] AERONAV_ALEXA_SECRET configurada no Railway.
-[PASS] AERONAV_ALEXA_FAMILY_CODE configurada no Railway.
-[PENDING EXTERNAL] HOME_AUTOMATION_WEBHOOK_URL não está configurada. AERONAV não deve fingir que Google Home está fisicamente ligado sem um bridge/webhook real.
-[PENDING EXTERNAL] HOME_AUTOMATION_SECRET não está configurada porque depende do bridge escolhido.
-
-OBSERVAÇÃO
-A aplicação e o backend estão preparados para Alexa/Google Home. A Alexa tem backend ativado. O controlo físico do Google Home requer uma integração externa real (por exemplo Home Assistant/webhook compatível) e credenciais/URL desse serviço.
+JavaScript syntax: PASS — index.html, family-viewer.html, wendler/index.html
+ZIP integrity: checked separately before delivery.

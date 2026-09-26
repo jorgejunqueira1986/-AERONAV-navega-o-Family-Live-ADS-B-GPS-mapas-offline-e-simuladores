@@ -5,7 +5,7 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_48-strict-routes-family-privacy-offline-sync-20260926-1';
+const CACHE='aeronav-RC11_49-adsb-resilience-hotfix-20260926-1';
 const LOCAL=[
   './',
   './index.html',
