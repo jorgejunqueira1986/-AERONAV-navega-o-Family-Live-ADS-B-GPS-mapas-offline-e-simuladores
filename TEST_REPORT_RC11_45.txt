@@ -1,0 +1,26 @@
+AERONAV RC11.45 — TEST REPORT
+
+UPDATE: INSTANT AVATAR MAP RENDER
+
+PASS — Aplicação principal alterada sem recriação do projeto.
+PASS — Avatares críticos são pré-carregados no arranque e ao abrir o mapa.
+PASS — Entrada no MAPA já não depende apenas de um atraso fixo de 60 ms.
+PASS — Renderização é repetida após MapLibre/style estar realmente pronto.
+PASS — Troca para mapa online dispara renderização de Jorge, Family e tráfego.
+PASS — Troca para PMTiles offline dispara renderização de Jorge, Family e tráfego.
+PASS — Atualizar tudo dispara nova renderização dos avatares.
+PASS — Atualização de posição GPS dispara renderização robusta quando o mapa está aberto.
+PASS — Avatares ADS-B deixam de aguardar leituras IndexedDB sequenciais antes de aparecer.
+PASS — Cache persistente das companhias continua a ser hidratado em segundo plano.
+PASS — Mathia Family Viewer redesenha marcadores no evento real de load do mapa.
+PASS — Wendler Family Viewer redesenha marcadores no evento real de load do mapa.
+PASS — Service Worker principal atualizado para novo cache RC11.45.
+PASS — Service Worker Wendler atualizado para novo cache RC11.45.
+PASS — Todas as 25 referências locais do Service Worker principal existem.
+PASS — JavaScript inline de index.html sem erros de sintaxe (node --check).
+PASS — JavaScript inline de family-viewer.html sem erros de sintaxe (node --check).
+PASS — JavaScript inline de wendler/index.html sem erros de sintaxe (node --check).
+PASS — sw.js e wendler/sw.js sem erros de sintaxe.
+PASS — manifests JSON válidos.
+
+RESULTADO: APROVADO PARA PUBLICAÇÃO.

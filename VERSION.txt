@@ -1,7 +1,9 @@
-AERONAV RC11.44 — JORGE 3D AVATAR APPROVED
+AERONAV RC11.45 — INSTANT AVATAR MAP RENDER
 
-- Novo avatar 3D de Jorge aplicado em toda a aplicação.
-- Fundo transparente: sem fundo branco, sem moldura e sem borda no asset.
-- Jorge usa o mesmo avatar em A PÉ, Family Live e visualização por Mathia/Wendler.
-- Regras Family, QR e partilha de rota da RC11.43 preservadas.
-- Avatares TAAG e restante lógica ADS-B não foram alterados nesta atualização.
+- Avatares pré-carregados ao iniciar a aplicação.
+- Jorge/veículo/aeronave e membros Family são re-renderizados assim que o MapLibre e o estilo ficam realmente prontos.
+- Ao tocar em MAPA, a aplicação não depende mais de um único atraso fixo de 60 ms.
+- Trocas de mapa online/offline e atualizações gerais disparam nova renderização dos avatares.
+- Avatares ADS-B são criados imediatamente, sem aguardar leitura sequencial do IndexedDB; cache persistente é hidratado em segundo plano.
+- Visores Mathia e Wendler repetem a renderização dos marcadores no evento real de carregamento do mapa.
+- Funcionalidades RC11.44 e anteriores preservadas.

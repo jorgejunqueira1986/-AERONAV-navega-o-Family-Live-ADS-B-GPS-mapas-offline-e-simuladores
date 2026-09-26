@@ -1,11 +1,11 @@
-/* AERONAV — RC11.44 Jorge 3D Avatar Approved
+/* AERONAV — RC11.46 Generic 3D ADS-B Avatars
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_44-jorge-avatar-20260926-1';
+const CACHE='aeronav-RC11_46-generic-adsb-avatars-20260926-1';
 const LOCAL=[
   './',
   './index.html',
@@ -31,6 +31,7 @@ const LOCAL=[
   './assets/aircraft/taag-b787-10.png',
   './assets/aircraft/taag-b777-300er.png',
   './assets/aircraft/traffic-generic.png',
+  './assets/aircraft/adsb-generic-black-3d-plane.png',
   './assets/vehicles/toyota-yaris-ld-37-23-fm.png'
 ];
 const REMOTE=[

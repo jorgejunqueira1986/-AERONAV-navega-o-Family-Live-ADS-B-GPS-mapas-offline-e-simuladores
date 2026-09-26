@@ -750,7 +750,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.44 RC11.44 · Jorge 3D Avatar Approved';
+  const APP_VERSION = '7.46 RC11.46 · Generic 3D ADS-B Avatars';
 
   const AIRLINE_DIRECTORY = [
     ['TAAG Angola Airlines','DT','DTA','Angola'],['TAP Air Portugal','TP','TAP','Portugal'],['Azores Airlines','S4','RZO','Portugal'],['SATA Air Açores','SP','SAT','Portugal'],
@@ -791,19 +791,34 @@ body{min-height:var(--app-vh);margin:0}
     const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 150"><defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".55" stop-color="${l.body}"/><stop offset="1" stop-color="#8a9cac"/></linearGradient><linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#9cadbc"/></linearGradient><filter id="s" x="-30%" y="-30%" width="170%" height="190%"><feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000" flood-opacity=".55"/></filter></defs><g filter="url(#s)" transform="translate(130 74) rotate(-8) translate(-130 -74)"><path d="M25 77 L106 62 L121 19 Q126 7 133 19 L147 60 L236 69 Q252 72 237 79 L151 88 L139 130 Q134 143 128 130 L116 90 L30 88 Q8 85 25 77Z" fill="url(#w)" stroke="#526778" stroke-width="2"/><path d="M112 66 Q128 49 148 65 L163 78 L148 91 Q128 105 111 87Z" fill="url(#f)"/><path d="M128 38 L134 15 L143 61 L135 65Z" fill="${l.tail}"/><path d="M45 78 L111 67 L116 87 L46 86Z" fill="${l.accent}" opacity=".94"/><path d="M166 71 L219 70 L227 76 L166 82Z" fill="${l.accent2}" opacity=".9"/><ellipse cx="137" cy="73" rx="11" ry="5" fill="#173a5d"/><path d="M236 69 L254 74 L237 79Z" fill="#f7fafc"/><text x="142" y="78" font-family="Arial,sans-serif" font-size="12" font-weight="900" fill="${l.tail}" text-anchor="middle">${c}</text></g><title>${safeName}</title></svg>`;
     return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg);
   }
-  async function airlineAvatarForTraffic(a={}){
+  function airlineAvatarForTraffic(a={}){
     const al=adsbAirlineFor(a),code=String(al?.icao||'UNK').toUpperCase(),key='airline-avatar-'+code;
+    if(code && code!=='DTA'){
+      state.traffic.airlineAvatarCache.set(code,ADSB_GENERIC_NON_TAAG_AVATAR);
+      Promise.resolve(dbPut('aerodata',{id:key,icao:code,name:al?.name||code,dataUri:ADSB_GENERIC_NON_TAAG_AVATAR,updatedAt:Date.now(),source:'RC11.46 generic non-TAAG ADS-B avatar'})).catch(()=>{});
+      return ADSB_GENERIC_NON_TAAG_AVATAR;
+    }
     if(state.traffic?.airlineAvatarCache?.has(code))return state.traffic.airlineAvatarCache.get(code);
-    try{const rec=await dbGet('aerodata',key);if(rec?.dataUri){state.traffic.airlineAvatarCache.set(code,rec.dataUri);return rec.dataUri;}}catch(_){}
-    const dataUri=airlineAvatarSvg(code,al?.name||code);state.traffic.airlineAvatarCache.set(code,dataUri);
-    try{await dbPut('aerodata',{id:key,icao:code,name:al?.name||code,dataUri,updatedAt:Date.now(),source:'RC11.29 generated 3D livery cache'});}catch(_){}
-    return dataUri;
+    // RC11.46: TAAG remains operator-specific; non-TAAG traffic now uses the unified 3D black aircraft icon.
+    const immediate=airlineAvatarSvg(code,al?.name||code);state.traffic.airlineAvatarCache.set(code,immediate);
+    Promise.resolve(dbGet('aerodata',key)).then(rec=>{
+      if(rec?.dataUri){
+        if(rec.dataUri!==state.traffic.airlineAvatarCache.get(code)){
+          state.traffic.airlineAvatarCache.set(code,rec.dataUri);
+          if(state.activeTab==='map')scheduleMapAvatarRender('airline-cache-hydrated');
+        }
+      }else{
+        return dbPut('aerodata',{id:key,icao:code,name:al?.name||code,dataUri:immediate,updatedAt:Date.now(),source:'RC11.46 TAAG generated 3D livery cache'});
+      }
+    }).catch(()=>{});
+    return immediate;
   }
   const FAMILY_BOOTSTRAP_SERVER='https://aeronav-cockpit-token-server-production.up.railway.app';
   const OPENFREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
   const MOBILE_FALLBACK_STYLE = {version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap contributors'}},layers:[{id:'osm-base',type:'raster',source:'osm',minzoom:0,maxzoom:19}]};
   const OPENTOPOMAP_STYLE = {version:8,sources:{topo:{type:'raster',tiles:['https://a.tile.opentopomap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:17,attribution:'© OpenStreetMap contributors · SRTM · OpenTopoMap'}},layers:[{id:'topo-base',type:'raster',source:'topo',minzoom:0,maxzoom:17}]};
   const EMBEDDED_3D_PLANE_AVATAR='data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20220%20130%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23ffffff%22%2F%3E%3Cstop%20offset%3D%22.45%22%20stop-color%3D%22%23c8d6e4%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%2363788d%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22w%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23f9fdff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%2391a6ba%22%2F%3E%3C%2FlinearGradient%3E%3Cfilter%20id%3D%22s%22%20x%3D%22-30%25%22%20y%3D%22-30%25%22%20width%3D%22160%25%22%20height%3D%22180%25%22%3E%3CfeDropShadow%20dx%3D%220%22%20dy%3D%228%22%20stdDeviation%3D%225%22%20flood-color%3D%22%23000%22%20flood-opacity%3D%22.55%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3Cg%20filter%3D%22url%28%23s%29%22%20transform%3D%22translate%28110%2064%29%20rotate%28-10%29%20translate%28-110%20-64%29%22%3E%3Cpath%20d%3D%22M25%2068%20L91%2057%20L104%2017%20Q108%208%20114%2017%20L125%2055%20L200%2062%20Q211%2064%20201%2070%20L128%2077%20L117%20113%20Q113%20123%20108%20113%20L98%2078%20L29%2077%20Q12%2075%2025%2068Z%22%20fill%3D%22url%28%23w%29%22%20stroke%3D%22%2352677a%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M96%2060%20Q108%2047%20124%2059%20L137%2069%20L124%2078%20Q108%2089%2096%2076Z%22%20fill%3D%22url%28%23b%29%22%2F%3E%3Cpath%20d%3D%22M107%2031%20L113%2014%20L119%2055%20L113%2058Z%22%20fill%3D%22%23d9283e%22%2F%3E%3Cpath%20d%3D%22M44%2069%20L95%2061%20L98%2075%20L45%2075Z%22%20fill%3D%22%23d9283e%22%20opacity%3D%22.92%22%2F%3E%3Cellipse%20cx%3D%22116%22%20cy%3D%2264%22%20rx%3D%2210%22%20ry%3D%225%22%20fill%3D%22%23173a5d%22%2F%3E%3Cpath%20d%3D%22M201%2062%20L215%2065%20L201%2070Z%22%20fill%3D%22%23f4f8fb%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E';
+  const ADSB_GENERIC_NON_TAAG_AVATAR='./assets/aircraft/adsb-generic-black-3d-plane.png';
   const NAV_PORTUGAL_EAIP='https://ais.nav.pt/eaip-downloads-en/';
   const FAA_DTPP='https://www.faa.gov/air_traffic/flight_info/aeronav/digital_products/dtpp/';
   const FAA_DIGITAL_PRODUCTS='https://www.faa.gov/air_traffic/flight_info/aeronav/productcatalog/digitalproducts/';
@@ -1080,6 +1095,39 @@ body{min-height:var(--app-vh);margin:0}
   const $ = s => document.querySelector(s);
   const $$ = s => Array.from(document.querySelectorAll(s));
   const el = (tag, cls, txt) => { const n=document.createElement(tag); if(cls)n.className=cls; if(txt!==undefined)n.textContent=txt; return n; };
+
+  // RC11.45 — avatar lifecycle: decode critical assets early and repaint markers only when the map/style is truly ready.
+  function preloadAvatarImage(src){
+    if(!src)return Promise.resolve(false);
+    return new Promise(resolve=>{const img=new Image();let done=false;const finish=ok=>{if(done)return;done=true;resolve(ok)};img.onload=()=>finish(true);img.onerror=()=>finish(false);img.src=src;if(img.complete)finish(true);setTimeout(()=>finish(false),2500)});
+  }
+  function preloadCriticalAvatars(){
+    const all=[EMBEDDED_JORGE_AVATAR,EMBEDDED_MATHIA_AVATAR,EMBEDDED_VEHICLE_AVATAR,EMBEDDED_TRAFFIC_AVATAR,EMBEDDED_3D_PLANE_AVATAR,...Object.values(EMBEDDED_AIRCRAFT_AVATARS||{})];
+    return Promise.allSettled([...new Set(all.filter(Boolean))].map(preloadAvatarImage));
+  }
+  function renderMapAvatarsNow(){
+    if(!state.map||!state.mapReady||typeof maplibregl==='undefined')return false;
+    try{if(state.map.isStyleLoaded&&!state.map.isStyleLoaded())return false;}catch(_){}
+    updatePositionMarker();
+    updateFamilyMarkers();
+    if(state.mode==='flight')Promise.resolve(renderTrafficLayer()).catch(()=>{});
+    return true;
+  }
+  function scheduleMapAvatarRender(reason=''){
+    clearTimeout(state._avatarRenderTimer);
+    let attempt=0;
+    const run=()=>{
+      attempt++;
+      const painted=renderMapAvatarsNow();
+      if(painted){
+        requestAnimationFrame(()=>{try{renderMapAvatarsNow();state.map?.resize();}catch(_){}});
+        state._avatarRenderTimer=setTimeout(()=>{try{renderMapAvatarsNow();}catch(_){}},180);
+        return;
+      }
+      if(attempt<24)state._avatarRenderTimer=setTimeout(run,attempt<6?50:140);
+    };
+    requestAnimationFrame(run);
+  }
 
   function toast(msg){
     const t=$('#toast'); if(!t)return; const text=String(msg??''); t.textContent=text; t.classList.add('show');
@@ -2047,7 +2095,7 @@ body{min-height:var(--app-vh);margin:0}
     if(id==='winds') renderWindScreen();
     if(id==='adc') renderAdcScreen();
     if(id==='crew') renderCrewScreen();
-    if(id==='map'){state.followOwnship=true;Promise.resolve(updateMapMode()).then(()=>setTimeout(()=>{state.map?.resize();if(state.currentPosition)forceCenterOnPosition(state.currentPosition);renderTrafficLayer();renderDriveAssistMapLayers();updateLiveNavigation();renderNavHud();},60));}
+    if(id==='map'){state.followOwnship=true;preloadCriticalAvatars().catch(()=>{});Promise.resolve(updateMapMode()).then(()=>{scheduleMapAvatarRender('map-tab-open');setTimeout(()=>{state.map?.resize();if(state.currentPosition)forceCenterOnPosition(state.currentPosition);renderDriveAssistMapLayers();updateLiveNavigation();renderNavHud();scheduleMapAvatarRender('map-tab-visible');},60);});}
   }
 
   function closeTopOverlayIfAny(){
@@ -2202,7 +2250,7 @@ body{min-height:var(--app-vh);margin:0}
       state.map.setStyle(style);
       state.map.once('style.load',()=>{
         state.mapReady=true;
-        addTerrainOverlay(); if(state.mode==='flight'){addAviationLayers(); addDeceaLayers().catch(()=>{}); addWorldNavLayers(); hydrateWorldNavCache().then(()=>refreshWorldNavMap());} renderCustomWaypoints(); renderSavedPlaces(); drawRouteOnMap(); updatePositionMarker(); updateFamilyMarkers();
+        addTerrainOverlay(); if(state.mode==='flight'){addAviationLayers(); addDeceaLayers().catch(()=>{}); addWorldNavLayers(); hydrateWorldNavCache().then(()=>refreshWorldNavMap());} renderCustomWaypoints(); renderSavedPlaces(); drawRouteOnMap(); updatePositionMarker(); updateFamilyMarkers(); scheduleMapAvatarRender('offline-style-load');
         setDriveBasePerformance(state.mode==='drive'); state.map.resize();
         if(state.currentPosition&&state.followOwnship) forceCenterOnPosition(state.currentPosition);
         else if(header.minLon!==undefined) state.map.fitBounds([[header.minLon,header.minLat],[header.maxLon,header.maxLat]],{padding:20,duration:0});
@@ -2218,7 +2266,7 @@ body{min-height:var(--app-vh);margin:0}
     if(state.currentMapStyle==='online'&&!force) return;
     state.currentMapStyle='online'; state.mapReady=false;
     let settled=false;
-    const finish=()=>{if(settled)return;settled=true;state.mapReady=true;addTerrainOverlay();if(state.mode==='flight'){addAviationLayers();addDeceaLayers().catch(()=>{});addWorldNavLayers();hydrateWorldNavCache().then(()=>refreshWorldNavMap());}renderCustomWaypoints();drawRouteOnMap();updatePositionMarker();state.map.resize();setDriveBasePerformance(state.mode==='drive');if(state.currentPosition&&state.followOwnship)forceCenterOnPosition(state.currentPosition);};
+    const finish=()=>{if(settled)return;settled=true;state.mapReady=true;addTerrainOverlay();if(state.mode==='flight'){addAviationLayers();addDeceaLayers().catch(()=>{});addWorldNavLayers();hydrateWorldNavCache().then(()=>refreshWorldNavMap());}renderCustomWaypoints();drawRouteOnMap();updatePositionMarker();updateFamilyMarkers();scheduleMapAvatarRender('online-style-load');state.map.resize();setDriveBasePerformance(state.mode==='drive');if(state.currentPosition&&state.followOwnship)forceCenterOnPosition(state.currentPosition);};
     const fallback=()=>{if(settled)return;try{state.currentMapStyle='online-fallback';state.map.setStyle(MOBILE_FALLBACK_STYLE);state.map.once('style.load',finish);}catch(_){finish();}};
     try{state.map.setStyle(preferredOnlineStyle());state.map.once('style.load',finish);setTimeout(()=>{if(!settled&&!state.map?.isStyleLoaded?.())fallback();},6500);}catch(_){fallback();}
   }
@@ -2313,7 +2361,7 @@ body{min-height:var(--app-vh);margin:0}
     await run('pistas/frequências',async()=>{await ensureAirportOpsData(true);});
     await run('fronteiras',async()=>{await syncCountryBoundaries(true);});
     await run('Family',async()=>{await familySyncCycle();});
-    if(state.mapReady){addTerrainOverlay();renderCustomWaypoints();renderSavedPlaces();await addDeceaLayers().catch(()=>{});refreshAirportMapSource();refreshWorldNavMap();}
+    if(state.mapReady){addTerrainOverlay();renderCustomWaypoints();renderSavedPlaces();await addDeceaLayers().catch(()=>{});refreshAirportMapSource();refreshWorldNavMap();scheduleMapAvatarRender('refresh-all');}
     if(btn){btn.disabled=false;btn.textContent='↻ Atualizar tudo';}
     toast('Atualização concluída: '+results.join(' · '));
   }
@@ -2335,7 +2383,7 @@ body{min-height:var(--app-vh);margin:0}
     state.currentMapStyle=styleMode==='empty'?'empty':'online';
     state.map.addControl(new maplibregl.NavigationControl({showCompass:true}),'bottom-right');
     state.map.on('load',()=>{
-      state.mapReady=true; addTerrainOverlay(); if(state.mode==='flight'){addAviationLayers(); addDeceaLayers().catch(()=>{}); addWorldNavLayers(); hydrateWorldNavCache().then(()=>refreshWorldNavMap());} renderCustomWaypoints(); drawRouteOnMap(); updatePositionMarker(); updateFamilyMarkers(); setDriveBasePerformance(state.mode==='drive');if(state.currentPosition){state.followOwnship=true;setTimeout(()=>forceCenterOnPosition(state.currentPosition),60);}
+      state.mapReady=true; addTerrainOverlay(); if(state.mode==='flight'){addAviationLayers(); addDeceaLayers().catch(()=>{}); addWorldNavLayers(); hydrateWorldNavCache().then(()=>refreshWorldNavMap());} renderCustomWaypoints(); drawRouteOnMap(); updatePositionMarker(); updateFamilyMarkers(); scheduleMapAvatarRender('map-load'); setDriveBasePerformance(state.mode==='drive');if(state.currentPosition){state.followOwnship=true;setTimeout(()=>forceCenterOnPosition(state.currentPosition),60);}
     });
     state.map.on('click',e=>{const f=state.map.queryRenderedFeatures(e.point,{layers:['airport-dot','world-nav-dot','world-holds-dot','decea-airspace-fill','decea-navaid','custom-waypoints-dot','saved-places-dot'].filter(id=>state.map.getLayer(id))});if(!f.length)createWaypointAt(e.lngLat);});
     state.map.on('click','saved-places-dot',e=>{const f=e.features?.[0];if(!f)return;const p=f.properties||{},id=p.id,place=(state.savedPlaces||[]).find(x=>x.id===id);if(!place)return;const html=`<div class="airport-popup"><strong>${esc(place.name)}</strong><br><small>${esc(place.category||'Outro')} · raio ${Number(place.radiusKm||5).toFixed(1)} km${place.automation?' · chegada ativa':''}</small><br><button id="aeronavPlaceRoute" style="margin-top:8px;padding:7px 9px;border:0;border-radius:8px;font-weight:700">Definir como destino</button> <button id="aeronavPlaceAutomation" style="margin-top:8px;padding:7px 9px;border:0;border-radius:8px;font-weight:700">Automação</button> <button id="aeronavPlaceDelete" style="margin-top:8px;padding:7px 9px;border:0;border-radius:8px;font-weight:700">Apagar</button></div>`;const pop=new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(state.map);setTimeout(()=>{document.getElementById('aeronavPlaceRoute')?.addEventListener('click',()=>{state.routePlannerMode='drive';localStorage.setItem('aeronav.routePlannerMode','drive');pop.remove();setTab('route');setTimeout(()=>{const input=$('#roadTo');if(input){input.value=place.name;input.dataset.addrLat=String(place.lat);input.dataset.addrLon=String(place.lon);input.dataset.addrName=place.name;const st=$('#roadToStatus');if(st)st.textContent=`Local guardado · ${place.name}`;}},50);});document.getElementById('aeronavPlaceAutomation')?.addEventListener('click',()=>configureArrivalWebhook());document.getElementById('aeronavPlaceDelete')?.addEventListener('click',()=>{if(confirm(`Apagar ${place.name}?`)){state.savedPlaces=state.savedPlaces.filter(x=>x.id!==place.id);localStorage.setItem('aeronav.savedPlaces',JSON.stringify(state.savedPlaces));renderSavedPlaces(); setTimeout(()=>syncSavedPlacesForNative(),800);syncSavedPlacesForNative();pop.remove();toast('Local apagado.');}});},0);});
@@ -2405,7 +2453,7 @@ body{min-height:var(--app-vh);margin:0}
       if(rec){await ensureMapStack(true);await useOfflinePmtiles(rec);}
       else { $('#map').classList.add('hidden'); $('#offlineMap').classList.remove('hidden'); renderOfflineSvg(state.currentRoute); }
     }
-    syncSegments(); renderDriveToolbar(); renderDriveNavCard(); if(state.mode==='drive') setTimeout(()=>{applyDriveMapView(true);if(state.currentPosition&&state.followOwnship)centerOnMe();},120);
+    syncSegments(); renderDriveToolbar(); renderDriveNavCard(); scheduleMapAvatarRender('map-mode-update'); if(state.mode==='drive') setTimeout(()=>{applyDriveMapView(true);if(state.currentPosition&&state.followOwnship)centerOnMe();},120);
   }
 
   function setLayer(layer){ state.layer=layer; localStorage.setItem('aeronav.layer',layer); syncSegments(); updateAviationVisibility(); }
@@ -2597,7 +2645,7 @@ body{min-height:var(--app-vh);margin:0}
     const alt=$('#altValue'); if(alt) alt.textContent=Number.isFinite(p.altitude)&&!p.altitudeUnreliable?`${Math.round(p.altitude*3.28084)} FT${source==='device'&&Number.isFinite(p.altitudeAccuracy)?` ±${Math.round(p.altitudeAccuracy*3.28084)}ft`:''}`:(p.altitudeUnreliable?'ALT GPS IMPRECISA':'—');
     const acc=$('#accValue'); if(acc) acc.textContent=(source==='xplane'||source==='msfs')?'SIM':`±${Math.round(p.accuracy||0)} m`;
     const src=$('#sourceLabel'); if(src) src.textContent=source==='xplane'?'X-PLANE':source==='msfs'?'MSFS 2024':'GPS';
-    updatePositionMarker(); updateFamilyMarkers(); if(state.followOwnship&&state.mapReady&&state.map)followOwnshipCamera(p);
+    updatePositionMarker(); updateFamilyMarkers(); if(state.activeTab==='map')scheduleMapAvatarRender('position-update'); if(state.followOwnship&&state.mapReady&&state.map)followOwnshipCamera(p);
     // Never publish simulator coordinates as the user's real Family Live position.
     if(source==='device'){
       recordRealTrackPoint(p).catch(()=>{}); pushFamilyLocation(false);
@@ -4076,7 +4124,7 @@ body{min-height:var(--app-vh);margin:0}
     const followed=normalizeFlightCallsign(state.family.flightCallsign||state.family.flightNumber||state.traffic.followedCallsign||''),active=new Set(),seen=new Set();
     for(const a of (state.traffic.aircraft||[]).filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lon))){
       const key=trafficEntityKey(a);if(!key||seen.has(key))continue;seen.add(key);active.add(key);
-      const call=normalizeFlightCallsign(a.flight||''),label=String(a.flight||a.r||a.hex||'AC').trim(),isFollowed=!!followed&&call===followed;if(isFollowed)continue;const airline=adsbAirlineFor(a),avatar=await airlineAvatarForTraffic(a);
+      const call=normalizeFlightCallsign(a.flight||''),label=String(a.flight||a.r||a.hex||'AC').trim(),isFollowed=!!followed&&call===followed;if(isFollowed)continue;const airline=adsbAirlineFor(a),avatar=airlineAvatarForTraffic(a);
       const props={label,callsign:String(a.flight||label).trim(),registration:String(a.r||''),aircraftType:String(a.t||''),hex:String(a.hex||''),distanceNm:Number.isFinite(+a.distanceNm)?(+a.distanceNm).toFixed(1):'',altitude:a.displayAlt??'',gs:Number.isFinite(+a.gs)?Math.round(+a.gs):'',track:Number.isFinite(+a.track)?Math.round(+a.track):'',verticalRate:Number.isFinite(+a.baro_rate)?Math.round(+a.baro_rate):(Number.isFinite(+a.geom_rate)?Math.round(+a.geom_rate):''),squawk:String(a.squawk||''),airline:airline?.name||airline?.icao||'Companhia não identificada',avatar};
       let mk=state.traffic.domMarkers.get(key),el;
       if(!mk){
@@ -5820,7 +5868,7 @@ body{min-height:var(--app-vh);margin:0}
 
   const restoredActiveRoute=await restoreActiveRouteSession();
   if(state.manualWalk&&!restoredActiveRoute){state.mode='drive';state.layer='street';state.detectedTransport='walk';}
-  syncSegments(); renderTabs(); initPremiumShell(); renderHomeScreen(); hydrateCountryBoundaries(); loadWindCache().then(()=>updateLiveNavigation()); loadAirportWeatherCache(); loadCrewData(); initFamilyBattery(); startPositionSource(); startFamilySync();
+  preloadCriticalAvatars().catch(()=>{}); syncSegments(); renderTabs(); initPremiumShell(); renderHomeScreen(); hydrateCountryBoundaries(); loadWindCache().then(()=>updateLiveNavigation()); loadAirportWeatherCache(); loadCrewData(); initFamilyBattery(); startPositionSource(); startFamilySync();
   if(restoredActiveRoute){toast('Rota em curso recuperada. O GPS vai reposicionar o mapa automaticamente.');}
   setTimeout(()=>showFirstRunOnboarding(),250);
 })();
