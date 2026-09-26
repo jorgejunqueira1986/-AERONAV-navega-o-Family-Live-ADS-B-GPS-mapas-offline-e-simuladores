@@ -1,0 +1,19 @@
+AERONAV RC11.41 — TEST REPORT
+
+GREEN  Mathia oculta Wendler da lista Family e dos marcadores.
+GREEN  Query de Mathia exclui member_id Wendler e display_name Wend*.
+GREEN  Wendler recebe de Mathia apenas metadata sem lat/lon/altitude/speed/heading.
+GREEN  Mathia aparece no cliente Wendler como PRIVADO, sem marcador/localização.
+GREEN  Jorge em África fica PRIVADO no cliente Wendler, sem marcador/localização.
+GREEN  Lisboa/Europa não ativa bloqueio África; Luanda/Joanesburgo/Casablanca/Cairo ativam.
+GREEN  Jorge continua a ler Wendler no cliente principal.
+GREEN  Jorge tem botão dedicado “Emparelhar Wendler por QR”.
+GREEN  Wendler não tem Código da Família, OTP, “entrar”, recuperação manual ou botão de join.
+GREEN  Wendler exige deviceToken + roomHash de QR/link para ficar configurado.
+GREEN  JavaScript index.html: node --check PASS.
+GREEN  JavaScript family-viewer.html: node --check PASS.
+GREEN  JavaScript wendler/index.html: node --check PASS.
+GREEN  Service workers principal/Wendler: node --check PASS.
+GREEN  Referências estáticas locais: 0 ficheiros em falta.
+
+NOTA: isolamento absoluto contra alteração manual de requests ainda depende de política equivalente no backend/RLS. A aplicação normal já não entrega os campos de localização de Mathia ao cliente Wendler e bloqueia Jorge em África na UI/fluxos Family.

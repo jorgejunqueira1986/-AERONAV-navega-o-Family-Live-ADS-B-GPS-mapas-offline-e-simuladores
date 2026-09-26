@@ -1,0 +1,9 @@
+AERONAV RC11.43 — ROUTE SHARING BY MEMBER + WENDLER ADS-B GLOBAL
+
+REGRAS
+1. Jorge pode partilhar cada rota separadamente com Mathia e/ou Wendler.
+2. Mathia continua a ver Jorge em todo o mundo.
+3. Wendler não vê GPS de Jorge em África.
+4. Exceção: se Jorge partilhar uma rota de voo com Wendler e o acompanhamento dessa rota passar para ADS-B, Wendler pode acompanhar o avião de Jorge em todo o mundo, incluindo África.
+5. A exceção é exclusiva do ADS-B dessa rota partilhada; não desbloqueia o GPS de Jorge em África.
+6. Mathia e Wendler continuam sem ver a localização um do outro.

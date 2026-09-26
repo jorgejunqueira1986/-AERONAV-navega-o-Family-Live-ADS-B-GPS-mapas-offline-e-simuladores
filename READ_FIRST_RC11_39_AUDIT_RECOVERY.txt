@@ -1,0 +1,12 @@
+AERONAV RC11.39
+
+Correções sobre a auditoria RC11.38:
+- pacote completo reconstruído a partir do último bundle integral, com todos os assets, manifests, service workers, Family e Wendler;
+- /family/ incluído e redireciona para o Family Viewer da Mathia;
+- Wendler inclui botão visível “Entrar nesta Família”;
+- fluxo Wendler: Código da Família -> verificação de 6 dígitos -> confirmar e entrar;
+- fallback ADS-B da Mathia e Wendler: 3 tentativas com backoff + último fix ADS-B válido por até 120 s;
+- fontes ADS-B em cache continuam visualizadas como avião, com indicação ADS-B CACHE;
+- manifestos e caches atualizados para RC11.39 / Wendler RC1.2;
+- mantém privacidade: Mathia não vê Wendler; Jorge vê ambos;
+- mantém “Ir até à Mathia” no clique do avatar e rota automática.

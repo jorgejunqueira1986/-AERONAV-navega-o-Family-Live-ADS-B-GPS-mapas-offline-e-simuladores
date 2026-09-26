@@ -1,0 +1,8 @@
+AERONAV RC11.44 — JORGE 3D AVATAR
+
+Atualização visual aprovada:
+- substitui o avatar 3D de Jorge pelo novo retrato aprovado;
+- usa PNG RGBA com transparência real;
+- remove fundo branco do asset;
+- aplica o mesmo avatar no app Jorge, Family Viewer de Mathia e cliente Wendler;
+- mantém todas as regras RC11.43 sem alteração funcional.

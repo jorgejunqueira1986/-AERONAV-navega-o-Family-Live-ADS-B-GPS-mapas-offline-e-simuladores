@@ -1,6 +1,7 @@
-AERONAV RC11.34 — FAMILY VISIBILITY: MATHIA CANNOT SEE WENDLER; JORGE SEES BOTH
+AERONAV RC11.44 — JORGE 3D AVATAR APPROVED
 
-RC11.36 PATCH
-- Avatar Jorge/Mathia em A PÉ endireitado (sem rotação lateral).
-- Avatar do carro do Jorge sem moldura/bordas no mapa.
-- Link HTML do cliente Wendler mantido em /wendler/index.html.
+- Novo avatar 3D de Jorge aplicado em toda a aplicação.
+- Fundo transparente: sem fundo branco, sem moldura e sem borda no asset.
+- Jorge usa o mesmo avatar em A PÉ, Family Live e visualização por Mathia/Wendler.
+- Regras Family, QR e partilha de rota da RC11.43 preservadas.
+- Avatares TAAG e restante lógica ADS-B não foram alterados nesta atualização.

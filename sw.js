@@ -1,11 +1,11 @@
-/* AERONAV — RC11.34 3D Jorge/Mathia Avatars + 30% Size
+/* AERONAV — RC11.44 Jorge 3D Avatar Approved
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_34-family-visibility-wendler-20260926-1';
+const CACHE='aeronav-RC11_44-jorge-avatar-20260926-1';
 const LOCAL=[
   './',
   './index.html',
@@ -22,6 +22,8 @@ const LOCAL=[
   './assets/aeronav-hero.jpg',
   './assets/people/jorge-avatar.jpeg',
   './assets/people/mathia-avatar.jpeg',
+  './assets/people/jorge-avatar-3d.png',
+  './assets/people/mathia-avatar-3d.png',
   './assets/aircraft/cessna-152.png',
   './assets/aircraft/taag-dash8-q400.png',
   './assets/aircraft/taag-a220-300.png',

@@ -1,0 +1,10 @@
+PASS — wendler_no_family_code_key
+PASS — wendler_no_otp_input
+PASS — wendler_qr_only_copy
+PASS — jorge_member_manager
+PASS — jorge_add_mathia_qr
+PASS — jorge_add_wendler_qr
+PASS — jorge_remove_member
+PASS — privacy_mathia_hides_wendler
+PASS — privacy_wendler_mathia_metadata_only
+PASS — privacy_africa

@@ -1,0 +1,10 @@
+AERONAV RC11.40
+
+Correções da auditoria:
+- pacote integral restaurado: app principal, Family, Wendler, assets, manifests, SW, cockpit audio e MSFS bridge;
+- Wendler NÃO possui botão “Entrar na Família” nem onboarding manual de família; a ligação é administrada pelo papá através do link/QR seguro;
+- /family/ incluído;
+- assets locais incluídos;
+- fallback ADS-B Family mantém 3 tentativas/backoff e cache temporário do último fix válido;
+- Service Workers e versão atualizados;
+- privacidade preservada: Mathia não vê Wendler; Jorge pode ver ambos.

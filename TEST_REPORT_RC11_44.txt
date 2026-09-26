@@ -1,0 +1,20 @@
+AERONAV RC11.44 — TEST REPORT
+
+UPDATE: Jorge 3D Avatar Approved
+
+PASS — Novo PNG de Jorge tem 1254x1254 RGBA.
+PASS — Cantos do PNG têm alpha=0; fundo realmente transparente.
+PASS — Asset aplicado em assets/people/jorge-avatar-3d.png.
+PASS — index.html usa exatamente o novo avatar incorporado.
+PASS — family-viewer.html usa exatamente o novo avatar incorporado.
+PASS — wendler/index.html usa exatamente o novo avatar incorporado.
+PASS — Service Worker principal atualizado para RC11.44.
+PASS — Service Worker Wendler atualizado para RC11.44.
+PASS — Todas as 25 referências locais do Service Worker principal existem.
+PASS — JavaScript inline do app Jorge sem erros de sintaxe.
+PASS — JavaScript inline do Family Viewer Mathia sem erros de sintaxe.
+PASS — JavaScript inline do cliente Wendler sem erros de sintaxe.
+PASS — sw.js, wendler/sw.js, family-call.js, wendler/family-call.js e cockpit-audio.js sem erros de sintaxe.
+PASS — Regras de Family/QR/partilha RC11.43 preservadas.
+
+RESULTADO: APROVADO PARA PUBLICAÇÃO.

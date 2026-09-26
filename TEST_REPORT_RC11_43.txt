@@ -1,0 +1,29 @@
+AERONAV RC11.43 — TEST REPORT
+
+PASS: 24
+FAIL: 0
+
+PASS | JS index.html | 0 erros de sintaxe
+PASS | JS family-viewer.html | 0 erros de sintaxe
+PASS | JS family-viewer-preview.html | 0 erros de sintaxe
+PASS | JS wendler/index.html | 0 erros de sintaxe
+PASS | JS sw.js | 0 erros de sintaxe
+PASS | JS wendler/sw.js | 0 erros de sintaxe
+PASS | JS family-call.js | 0 erros de sintaxe
+PASS | JS family/family-call.js | 0 erros de sintaxe
+PASS | JS cockpit-audio.js | 0 erros de sintaxe
+PASS | Referências estáticas locais | 0 em falta
+PASS | Botão Mathia separado | OK
+PASS | Botão Wendler separado | OK
+PASS | Audience Mathia | OK
+PASS | Mathia filtra rota própria | OK
+PASS | Wendler filtra rota própria | OK
+PASS | Wendler GPS África bloqueado | OK
+PASS | Wendler ADS-B África permitido apenas em handover | OK
+PASS | Wendler sem código manual | OK
+PASS | SW principal cache RC11.43 | OK
+PASS | SW Wendler cache RC11.43 | OK
+PASS | Wendler / Jorge GPS Luanda | blocked=True
+PASS | Wendler / Jorge ADS-B Luanda com rota | blocked=False
+PASS | Wendler / Jorge ADS-B Lisboa com rota | blocked=False
+PASS | Wendler / Jorge GPS Lisboa | blocked=False

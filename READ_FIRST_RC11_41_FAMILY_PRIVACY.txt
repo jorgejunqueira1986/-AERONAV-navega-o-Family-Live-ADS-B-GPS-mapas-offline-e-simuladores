@@ -1,0 +1,13 @@
+AERONAV RC11.41 — FAMILY PRIVACY MATRIX + WENDLER QR-ONLY
+
+REGRAS IMPLEMENTADAS
+1. Mathia não vê Wendler na Família nem a localização dele.
+2. Wendler pode ver Mathia como membro, mas nunca vê a localização dela.
+3. Jorge vê a localização de Wendler.
+4. Wendler vê a localização de Jorge fora de África.
+5. Quando Jorge está em África, a localização fica oculta no cliente Wendler; o cartão mostra PRIVADO.
+6. O cliente Wendler não tem entrada manual na Família: apenas QR/link gerado pelo Jorge.
+7. Eventos Family com localização de Mathia são filtrados no cliente Wendler; eventos de Jorge em África também são ocultados.
+
+NOTA DE SEGURANÇA
+Estas regras são aplicadas no cliente AERONAV/Family Viewer atual. Para isolamento criptográfico absoluto contra um utilizador tecnicamente malicioso que tente contornar a aplicação, a etapa futura recomendada é aplicar política equivalente no backend/RLS por identidade do dispositivo.
