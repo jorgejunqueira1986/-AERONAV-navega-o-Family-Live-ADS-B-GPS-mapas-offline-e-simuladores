@@ -759,7 +759,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.49 RC11.49 · Audit & Home Integration Fix';
+  const APP_VERSION = '7.50 RC11.50 · Wendler Live Root Fix';
 
   const AIRLINE_DIRECTORY = [
     ['TAAG Angola Airlines','DT','DTA','Angola'],['TAP Air Portugal','TP','TAP','Portugal'],['Azores Airlines','S4','RZO','Portugal'],['SATA Air Açores','SP','SAT','Portugal'],
@@ -3109,7 +3109,7 @@ body{min-height:var(--app-vh);margin:0}
     if(body!==null)init.body=JSON.stringify(body);
     const r=await fetch(FAMILY_BOOTSTRAP_SERVER+path,init);let j={};try{j=await r.json()}catch(_){}if(!r.ok)throw new Error(j?.error||`Family HTTP ${r.status}`);return j;
   }
-  function familyPairPublicBase(client='mathia'){const rel=client==='wendler'?'./wendler/':'./family/';try{return new URL(rel,location.href).href}catch(_){return location.origin+location.pathname.replace(/[^/]*$/,'')+rel.replace('./','')}}
+  function familyPairPublicBase(client='mathia'){const rel=client==='wendler'?'./wendler.html':'./family/';try{return new URL(rel,location.href).href}catch(_){return location.origin+location.pathname.replace(/[^/]*$/,'')+rel.replace('./','')}}
   async function createFamilyPairLink(label='Mathia',client='mathia'){
     const j=await familyAuthorizedApi('/family/pair-link/create',{body:{label}});const token=String(j?.pair_token||'').trim();if(!token)throw new Error('Servidor não devolveu token de emparelhamento.');
     const u=new URL(familyPairPublicBase(client));u.hash='pair='+encodeURIComponent(token);return {url:u.href,expiresAt:j.expires_at||null};

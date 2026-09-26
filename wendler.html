@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#031d32">
+<title>AERONAV Family · Wendler</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#03111f}
+#app{position:fixed;inset:0;width:100%;height:100%;border:0;background:#03111f}
+#boot{position:fixed;inset:0;z-index:5;display:grid;place-items:center;background:#03111f;color:#eefaff;font-family:system-ui,-apple-system,sans-serif}
+#boot div{text-align:center;padding:24px}.spin{width:34px;height:34px;border:4px solid #134d68;border-top-color:#22d3ee;border-radius:50%;margin:0 auto 14px;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}}small{color:#9fc7d9}
+</style>
+</head>
+<body>
+<div id="boot"><div><div class="spin"></div><b>AERONAV · Wendler</b><br><small>A carregar ligação segura…</small></div></div>
+<iframe id="app" title="AERONAV Wendler"></iframe>
+<script>
+(()=>{
+  const W='Wendler';
+  try{localStorage.setItem('aeronav.viewer.name',W)}catch(_){}
+  const f=document.getElementById('app'),boot=document.getElementById('boot');
+  const target=new URL('./family-viewer.html',location.href);
+  target.searchParams.set('client','wendler');
+  target.hash=location.hash||'';
+  f.src=target.href;
+  function brand(){
+    try{
+      const w=f.contentWindow,d=f.contentDocument;if(!w||!d)return;
+      try{w.localStorage.setItem('aeronav.viewer.name',W)}catch(_){}
+      const walker=d.createTreeWalker(d.body,NodeFilter.SHOW_TEXT),nodes=[];
+      while(walker.nextNode())nodes.push(walker.currentNode);
+      for(const n of nodes){if(n.nodeValue&&n.nodeValue.includes('Mathia'))n.nodeValue=n.nodeValue.replace(/Mathia/g,W)}
+      const h=d.querySelector('.brand h1 small');if(h)h.textContent='Family · Wendler';
+      const help=d.getElementById('setupHelp');if(help)help.textContent='Para ligar este telefone, abra o QR/link de Wendler gerado na aplicação de Jorge. Não é necessário introduzir Código da Família.';
+      const state=d.getElementById('setupState');if(state&&!w.localStorage.getItem('aeronav.viewer.deviceToken'))state.textContent='À espera do QR/link seguro de Jorge…';
+      ['key','deviceOtpWrap','saveBtn','verifyBtn','recoverBtn'].forEach(id=>{const el=d.getElementById(id);if(el){const wrap=id==='key'?el.closest('label'):el;if(wrap)wrap.style.display='none'}});
+      d.title='AERONAV Family · Wendler';
+      boot.style.display='none';
+    }catch(_){boot.style.display='none'}
+  }
+  f.addEventListener('load',()=>{brand();setTimeout(brand,250);setTimeout(brand,900)});
+  window.addEventListener('hashchange',()=>{const u=new URL(f.src);u.hash=location.hash;f.src=u.href});
+})();
+</script>
+</body></html>

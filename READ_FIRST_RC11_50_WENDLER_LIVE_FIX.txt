@@ -1,0 +1,11 @@
+AERONAV RC11.50 — WENDLER LIVE ROOT FIX
+
+Causa corrigida:
+- O deploy GitHub atual estava sem a pasta /wendler/.
+
+Correção:
+- Nova entrada raiz: /wendler.html
+- Links/QR do Wendler passam a apontar para /wendler.html
+- O Wendler usa a engine Family já publicada, com identidade Wendler e emparelhamento por QR/link.
+- Código/OTP alternativo fica oculto na interface do Wendler.
+- RC11.49 e restantes funcionalidades preservadas.

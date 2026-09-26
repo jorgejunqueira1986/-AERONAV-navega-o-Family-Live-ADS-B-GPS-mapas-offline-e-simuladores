@@ -1,15 +1,16 @@
-/* AERONAV — RC11.49 Audit & Home Integration Fix
+/* AERONAV — RC11.50 Wendler Live Root Fix
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_49-audit-home-fix-20260926-1';
+const CACHE='aeronav-RC11_50-wendler-root-fix-20260926-1';
 const LOCAL=[
   './',
   './index.html',
   './family-viewer.html',
+  './wendler.html',
   './family/family-call.js',
   './family/family-manifest.json',
   './family-viewer-preview.html',

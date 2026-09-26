@@ -1,0 +1,7 @@
+TEST REPORT RC11.50
+PASS — wendler.html criado na raiz.
+PASS — QR/link generator do Wendler aponta para ./wendler.html.
+PASS — Service Worker inclui ./wendler.html.
+PASS — JavaScript inline wendler.html sem erros de sintaxe.
+PASS — JavaScript principal sem erros de sintaxe.
+PASS — sw.js sem erros de sintaxe.

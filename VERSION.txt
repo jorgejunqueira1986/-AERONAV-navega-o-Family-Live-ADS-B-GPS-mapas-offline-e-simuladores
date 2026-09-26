@@ -5,3 +5,5 @@ Base: RC11.48 Jorge TAAG Flight Avatar
 - Manifest legado /family corrigido (start_url/scope/icons válidos).
 - Service Worker principal e Wendler com cache RC11.49.
 - Painel de automação passa a consultar /home/status para distinguir backend pronto de ligação externa pendente.
+
+RC11.50 — Wendler Live Root Fix — 26/09/2026
