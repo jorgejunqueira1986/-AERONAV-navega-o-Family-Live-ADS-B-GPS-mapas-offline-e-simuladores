@@ -1,0 +1,5 @@
+AERONAV RC11.54 — Family Visibility Matrix
+
+Novo menu: Família > Quem pode ver quem.
+Padrão: Jorge vê Mathia/Wendler; Mathia vê Jorge; Wendler vê Jorge; Mathia e Wendler não se veem.
+As regras são publicadas numa linha técnica Family e atualizadas automaticamente nos viewers.

@@ -1,6 +1,9 @@
-AERONAV
-Current package: RC11.53 — Mathia Removed Until QR
-Date: 26/09/2026
+AERONAV RC11.54 — Family Visibility Matrix
+Data: 2026-09-26
 
-Preserves RC11.52 ADS-B, GPS, Family, Mathia/Wendler viewers, route sharing, Cockpit Audio, X-Plane/MSFS and offline assets.
-Mathia is absent from the current Family until explicitly paired again by a new QR/link.
+Novo:
+- Menu Família > Quem pode ver quem.
+- Matriz independente Jorge / Mathia / Wendler.
+- Padrão: Jorge vê Mathia e Wendler; Mathia vê Jorge; Wendler vê Jorge; Mathia e Wendler não se veem.
+- Regras sincronizadas através do Family e aplicadas automaticamente nos viewers.
+- Adicionar Mathia por QR não altera a privacidade definida.

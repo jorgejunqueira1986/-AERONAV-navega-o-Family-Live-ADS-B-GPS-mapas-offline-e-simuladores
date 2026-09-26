@@ -1,0 +1,14 @@
+AERONAV RC11.54 — TEST REPORT
+
+APROVADO
+- JavaScript index.html: syntax OK
+- JavaScript family-viewer.html: syntax OK
+- Wendler wrapper: syntax OK
+- Menu "Quem pode ver quem" presente
+- 6 relações de visibilidade configuráveis
+- Padrão Wendler -> Mathia = desligado
+- Padrão Mathia -> Wendler = desligado
+- Regras Family publicadas antes de gerar novo QR
+- Linha técnica de privacidade excluída de cartões/mapa
+- Auto-purge RC11.53 desativado para permitir readicionar Mathia
+- Pacote GitHub Lean abaixo de 100 ficheiros
