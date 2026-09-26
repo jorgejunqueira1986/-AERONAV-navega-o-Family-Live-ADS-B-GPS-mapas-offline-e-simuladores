@@ -12,3 +12,13 @@ RC11.47 PATCH
 - Ao traçar rota, pergunta com quem partilhar: Mathia, Wendler, ambos ou ninguém.
 - iPhone e iPad de Jorge tratados como o mesmo perfil; a rota sincroniza entre ambos automaticamente.
 - O segundo dispositivo de Jorge deixa de aparecer como membro separado na lista do Jorge.
+RC11.48 PATCH
+- Separação rígida entre ROTA DE AVIÃO e ROTA DE CARRO; uma rota aérea nunca força contexto de carro e vice-versa.
+- Menu principal Rotas com submenus ROTA DE AVIÃO e ROTA DE CARRO.
+- Rotas guardadas: Editar, Abrir no mapa e Apagar.
+- Wendler deixa de receber/mostrar Mathia e aplica filtro redundante na consulta, lista e mapa.
+- Wendler não pode pausar/desligar a localização nem desemparelhar-se pela própria aplicação; remoção fica sob administração de Jorge. A permissão do sistema iOS continua sob controlo do próprio iOS.
+- Novo dispositivo administrador Jorge requer confirmação no outro dispositivo Jorge já ligado antes de sincronizar rota/localização ou gerir membros.
+- iPhone/iPad mantêm a rota recebida em cache local; se ficarem offline, reabrem a rota com o mapa offline instalado (ou fallback offline interno quando não existir pacote PMTiles local).
+- Cartões de rota de Mathia e Wendler identificam explicitamente ROTA DE AVIÃO ou ROTA DE CARRO.
+

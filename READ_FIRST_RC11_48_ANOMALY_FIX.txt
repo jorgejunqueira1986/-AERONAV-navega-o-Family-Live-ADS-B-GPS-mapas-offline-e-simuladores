@@ -1,0 +1,13 @@
+AERONAV RC11.48 — ANOMALY FIX
+
+CORREÇÕES PRINCIPAIS
+- Rotas aéreas e terrestres são contextos estritamente separados.
+- Menu Rotas dedicado: Rota de Avião / Rota de Carro.
+- Rotas guardadas permitem Editar / Abrir no mapa / Apagar.
+- Wendler não recebe nem mostra Mathia.
+- Wendler tem localização obrigatória dentro da aplicação e não se pode auto-remover; Jorge administra a ligação.
+- Novo iPhone/iPad administrador do perfil Jorge precisa de confirmação no outro administrador Jorge já ligado.
+- Rota sincronizada fica guardada localmente para continuar no iPad/iPhone sem Internet; usa mapa offline instalado conforme o tipo de rota.
+
+NOTA iOS
+Uma PWA não pode impedir o utilizador de revogar a permissão de Localização nas Definições do iOS. A RC11.48 impede a pausa/negação dentro da própria aplicação Wendler e informa quando a permissão do sistema está ausente.

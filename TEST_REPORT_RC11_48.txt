@@ -1,18 +1,34 @@
-AERONAV RC11.48 — TEST REPORT
+AERONAV RC11.48 — LOCAL AUDIT REPORT
+Date: 2026-09-26
 
-Base: RC11.47 GPS + ADS-B fix.
+RESULT: PASS for the requested RC11.48 changes.
 
-Aplicado:
-1. Jorge em voo TAAG usa avião TAAG + avatar pessoal de Jorge no mesmo marcador.
-2. Callsign/ICAO TAAG (DTA) impede fallback visual para Cessna.
-3. O aircraftId enviado ao Family passa a ser o avatar TAAG efetivo.
-4. Mathia e Wendler mostram Jorge com avião + avatar pessoal durante voo.
-5. ADS-B TAAG usa avatar TAAG vermelho; tráfego não-TAAG mantém avatar preto genérico.
-6. Mantidas correções GPS e proxy ADS-B da RC11.47.
+Validated:
+- Main inline JavaScript syntax: PASS
+- Mathia inline JavaScript syntax: PASS
+- Wendler inline JavaScript syntax: PASS
+- Root Service Worker syntax: PASS
+- Wendler Service Worker syntax: PASS
+- Shared Family Call/Cockpit Audio syntax: PASS
+- Dedicated Rotas bottom menu: PASS
+- Route submenu ROTA DE AVIÃO / ROTA DE CARRO: PASS
+- Flight creation applies flight/aviation context: PASS
+- Road creation applies road/drive context: PASS
+- Incoming route preserves flight vs road type: PASS
+- Saved routes: Editar / Abrir no mapa / Apagar: PASS
+- Synced route local cache for offline recovery: PASS
+- Offline map category follows route type (aviation/terrestrial): PASS
+- Admin peer verification dialog “É o Jorge?”: PASS
+- Pending admin status persists across reload and blocks route/location synchronization until approved: PASS
+- Mathia does not receive/show Wendler: PASS
+- Wendler does not receive/show Mathia: PASS
+- Wendler cannot pause location sharing inside the app: PASS
+- Wendler cannot self-unpair; removal is controlled from Jorge admin app: PASS
+- Mathia/Wendler route cards explicitly identify airplane vs car: PASS
+- SW caches bumped to RC11.48: PASS
 
-Validação:
-- Sintaxe JavaScript index.html: OK
-- Sintaxe JavaScript family-viewer.html: OK
-- Sintaxe JavaScript wendler/index.html: OK
-- Service Worker principal: cache RC11.48
-- Service Worker Wendler: cache RC11.48
+Note on HTML IDs:
+The source contains repeated IDs in flightRouteHTML() and driveRouteHTML() templates, but renderRouteScreen() inserts only one template at a time (flight OR drive). Therefore those repeated source literals do not coexist in the runtime DOM.
+
+Platform limitation:
+A browser/PWA cannot override iOS Settings. Wendler cannot disable location inside AERONAV, but iOS itself can still deny/revoke the system Location permission. AERONAV detects and reports that condition.

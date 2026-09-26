@@ -648,7 +648,7 @@ body{min-height:var(--app-vh);margin:0}
     <nav class="aeronav-bottom-nav" id="aeronavBottomNav" aria-label="Navegação principal">
       <button class="bottom-nav-btn active" data-bottom="home" aria-label="Início"><span>⌂</span><b>Início</b></button>
       <button class="bottom-nav-btn" data-bottom="map" aria-label="Mapa"><span>⌖</span><b>Mapa</b></button>
-      <button class="bottom-nav-btn" data-bottom="trip" aria-label="Viagem"><span>➤</span><b>Viagem</b></button>
+      <button class="bottom-nav-btn" data-bottom="route" aria-label="Rotas"><span>⇢</span><b>Rotas</b></button>
       <button class="bottom-nav-btn" data-bottom="family" aria-label="Família"><span>♧</span><b>Família</b></button>
       <button class="bottom-nav-btn" data-bottom="more" aria-label="Mais"><span>•••</span><b>Mais</b></button>
     </nav>
@@ -657,7 +657,8 @@ body{min-height:var(--app-vh);margin:0}
       <section class="premium-drawer-sheet" role="dialog" aria-label="Mais funções">
         <div class="premium-drawer-head"><div><strong>Mais funções</strong><small>AERONAV RC11.26</small></div><button class="drawer-close" data-close-more>✕</button></div>
         <div class="premium-more-grid">
-          <button data-more-go="route"><i>➤</i><span>Planear rota</span></button>
+          <button data-more-go="route"><i>⇢</i><span>Rotas</span></button>
+          <button data-more-go="journey"><i>➤</i><span>Viagem</span></button>
           <button data-more-go="weather"><i>☀</i><span>Meteorologia</span></button>
           <button data-more-go="offline"><i>▱</i><span>Mapas Offline</span></button>
           <button data-more-go="xplane"><i>✈</i><span>X-Plane</span></button>
@@ -750,7 +751,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.47 RC11.47 · Route Share Selector + Unified Jorge Profile';
+  const APP_VERSION = '7.48 RC11.48 · Strict Route Modes + Family Privacy + Offline Admin Sync';
 
   const AIRLINE_DIRECTORY = [
     ['TAAG Angola Airlines','DT','DTA','Angola'],['TAP Air Portugal','TP','TAP','Portugal'],['Azores Airlines','S4','RZO','Portugal'],['SATA Air Açores','SP','SAT','Portugal'],
@@ -994,6 +995,10 @@ body{min-height:var(--app-vh);margin:0}
       memberId: localStorage.getItem('aeronav.family.memberId') || (crypto.randomUUID ? crypto.randomUUID() : 'member-'+Math.random().toString(36).slice(2)),
       displayName: localStorage.getItem('aeronav.family.name') || 'Jorge',
       deviceLabel: localStorage.getItem('aeronav.family.deviceLabel') || (/iPad/i.test(navigator.userAgent)?'iPad de Jorge':'iPhone de Jorge'),
+      adminPeerPending: localStorage.getItem('aeronav.admin.peerPending') === '1',
+      adminPeerVerified: localStorage.getItem('aeronav.admin.peerVerified') === '1' || (localStorage.getItem('aeronav.admin.peerPending') !== '1' && !!localStorage.getItem('aeronav.family.key') && !!localStorage.getItem('aeronav.family.memberId')),
+      adminPeerDenied: localStorage.getItem('aeronav.admin.peerDenied') === '1',
+      adminVerifyPromptId: '', adminVerifyRequestSent: false,
       routeSyncLastSeenAt: Number(localStorage.getItem('aeronav.family.routeSyncLastSeenAt')||0),
       routeSyncLastPushedSig: localStorage.getItem('aeronav.family.routeSyncLastPushedSig')||'',
       routeSyncBusy: false, routeSyncApplying: false, routeSyncInitialPullDone: false,
@@ -1760,12 +1765,14 @@ body{min-height:var(--app-vh);margin:0}
       const rec=await dbGet('aerodata',ACTIVE_ROUTE_SESSION_ID);
       if(!rec?.route||rec.route.status==='completed')return false;
       state.currentRoute=rec.route;state.currentRoute.navigationActive=true;state.currentRoute._mapOpened=true;
-      if(state.currentRoute.kind==='flight'){state.mode='flight';state.manualWalk=false;state.layer='aviation';state.routePlannerMode='flight';armFamilyFlightTrackingFromRoute(state.currentRoute,{push:false,shareRoute:false}).catch(()=>{});}
-      else if(state.currentRoute.kind==='road'){state.mode='drive';state.manualWalk=false;state.layer='street';state.routePlannerMode='drive';}
-      localStorage.setItem('aeronav.mode',state.mode);localStorage.setItem('aeronav.manualWalk','0');localStorage.setItem('aeronav.layer',state.layer);localStorage.setItem('aeronav.routePlannerMode',state.routePlannerMode);
+      const restoredKind=activateRouteContext(state.currentRoute);if(restoredKind==='flight')armFamilyFlightTrackingFromRoute(state.currentRoute,{push:false,shareRoute:false}).catch(()=>{});
       state.followOwnship=true;
       return true;
     }catch(e){console.warn('AERONAV active-route restore failed',e);return false}
+  }
+  async function restoreLatestSyncedRouteOffline(){
+    if(navigator.onLine||state.currentRoute)return false;
+    try{const rec=await dbGet('aerodata',LATEST_DEVICE_ROUTE_CACHE_ID);if(!rec?.route||rec.route.status==='completed')return false;state.currentRoute=rec.route;activateRouteContext(state.currentRoute);state.net='offline';localStorage.setItem('aeronav.net','offline');renderOfflineSvg(state.currentRoute);return true}catch(_){return false}
   }
   async function closeActiveRoute(auto=false){
     const r=state.currentRoute;if(!r||state.activeRouteClosing)return;state.activeRouteClosing=true;
@@ -1885,7 +1892,7 @@ body{min-height:var(--app-vh);margin:0}
   }
   async function prepareForFlightOffline(){ return prepareOfflineFor('flight'); }
   window.addEventListener('online',()=>{updateCoreStrip();refreshCoreReadiness(false);});
-  window.addEventListener('offline',()=>{updateCoreStrip();toast('Internet desligada. AERONAV passou para operação local.');});
+  window.addEventListener('offline',async()=>{state.net='offline';localStorage.setItem('aeronav.net','offline');if(state.currentRoute)activateRouteContext(state.currentRoute);updateCoreStrip();syncSegments();await updateMapMode().catch(()=>{});drawRouteOnMap();if(state.currentRoute)toast('Internet desligada. A rota foi mantida e o mapa offline foi carregado neste dispositivo.');else toast('Internet desligada. AERONAV passou para operação local.');});
   window.addEventListener('pagehide',()=>{if(routeIsInProgress())persistActiveRoute('pagehide',true).catch(()=>{})});
   document.addEventListener('visibilitychange',()=>{
     if(document.visibilityState==='hidden'){if(routeIsInProgress())persistActiveRoute('background',true).catch(()=>{});return;}
@@ -1913,7 +1920,7 @@ body{min-height:var(--app-vh);margin:0}
   function openPremiumMore(){const d=document.getElementById('premiumMoreDrawer');if(!d)return;d.classList.add('show');d.setAttribute('aria-hidden','false');syncPremiumShell();}
   function closePremiumMore(){const d=document.getElementById('premiumMoreDrawer');if(!d)return;d.classList.remove('show');d.setAttribute('aria-hidden','true');}
   function initPremiumShell(){
-    document.querySelectorAll('[data-bottom]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.bottom;if(k==='more'){openPremiumMore();return;}if(k==='trip')setTab('journey');else setTab(k)}));
+    document.querySelectorAll('[data-bottom]').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.bottom;if(k==='more'){openPremiumMore();return;}setTab(k)}));
     document.querySelectorAll('[data-close-more]').forEach(b=>b.addEventListener('click',closePremiumMore));
     document.querySelectorAll('[data-more-go]').forEach(b=>b.addEventListener('click',()=>{closePremiumMore();setTab(b.dataset.moreGo)}));
     document.querySelectorAll('[data-premium-net]').forEach(b=>b.addEventListener('click',()=>{setNet(b.dataset.premiumNet);syncPremiumShell()}));
@@ -2458,10 +2465,28 @@ body{min-height:var(--app-vh);margin:0}
     const v=Math.round(Number(raw));if(!Number.isFinite(v)||v<10||v>200)throw new Error('Defina o limite de velocidade da rota entre 10 e 200 km/h.');
     state.drive.userSpeedLimitKmh=v;localStorage.setItem('aeronav.drive.userSpeedLimitKmh',String(v));return v;
   }
+  function strictRouteKind(route){
+    if(!route)return '';
+    if(route.kind==='flight'||route.mode==='flight'||route.routeMode==='direct'||route.routeMode==='airways'||route.routeMode==='waypoints')return 'flight';
+    if(route.kind==='road'||route.kind==='drive'||route.mode==='drive'||route.mode==='walk')return 'road';
+    return route.kind||'';
+  }
+  function activateRouteContext(route,{offlineWhenDisconnected=true}={}){
+    const k=strictRouteKind(route);if(!route)return '';
+    if(k==='flight'){
+      route.kind='flight';state.mode='flight';state.manualWalk=false;state.layer='aviation';state.routePlannerMode='flight';
+    }else if(k==='road'){
+      route.kind='road';state.mode='drive';state.manualWalk=false;state.layer='street';state.routePlannerMode='drive';
+    }
+    localStorage.setItem('aeronav.mode',state.mode);localStorage.setItem('aeronav.manualWalk','0');localStorage.setItem('aeronav.layer',state.layer);localStorage.setItem('aeronav.routePlannerMode',state.routePlannerMode);
+    if(offlineWhenDisconnected&&!navigator.onLine){state.net='offline';localStorage.setItem('aeronav.net','offline');}
+    syncSegments();return k;
+  }
   function openCurrentRouteOnMap(){
-    const r=state.currentRoute;if(!r)return toast('Crie ou abra uma rota primeiro.');r._mapOpened=true;r.navigationActive=true;if(!r.status||r.status==='planned')r.status='active';
+    const r=state.currentRoute;if(!r)return toast('Crie ou abra uma rota primeiro.');
+    const k=activateRouteContext(r);r._mapOpened=true;r.navigationActive=true;if(!r.status||r.status==='planned')r.status='active';
     persistActiveRoute('open-map',true).catch(()=>{});
-    setTab('map');setTimeout(()=>{drawRouteOnMap();fitCurrentRoute();if(r.kind==='road')renderDriveNavCard();scheduleFamilyJourneyShare();},180);
+    setTab('map');setTimeout(async()=>{await updateMapMode().catch(()=>{});drawRouteOnMap();fitCurrentRoute();if(k==='road')renderDriveNavCard();scheduleFamilyJourneyShare();},180);
   }
   function editCurrentRoute(){
     const r=state.currentRoute;if(!r)return toast('Crie ou abra uma rota primeiro.');
@@ -2481,7 +2506,7 @@ body{min-height:var(--app-vh);margin:0}
       let limit=Number(state.drive.userSpeedLimitKmh||0);if(!limit){const v=prompt('Limite de velocidade desta rota (km/h):','60');if(v===null)return;limit=validateRouteSpeedLimit(v);}else limit=validateRouteSpeedLimit(limit);
       const first=String(m.display_name||'Membro').trim().split(/\s+/)[0]||'Membro';const from={lat:state.currentPosition.lat,lon:state.currentPosition.lon,name:'Minha posição'},to={lat,lon,name:first};
       const r=await roadRoute(from,to,{preference:state.drive.routePreference,avoidTraffic:state.drive.avoidTraffic,avoidHighways:state.drive.avoidHighways,avoidFerries:state.drive.avoidFerries,avoidTolls:state.drive.avoidTolls});
-      r.name=`Minha posição → ${first}`;r.userSpeedLimitKmh=limit;r.speedLimit=String(limit);r._mapOpened=true;r.navigationActive=true;r.status='active';r.familyTargetMemberId=String(m.member_id);state.currentRoute=r;state.routePlannerMode='drive';localStorage.setItem('aeronav.routePlannerMode','drive');await persistActiveRoute('family-target',true);
+      r.name=`Minha posição → ${first}`;r.userSpeedLimitKmh=limit;r.speedLimit=String(limit);r._mapOpened=true;r.navigationActive=true;r.status='active';r.familyTargetMemberId=String(m.member_id);state.currentRoute=r;activateRouteContext(r,{offlineWhenDisconnected:false});await persistActiveRoute('family-target',true);
       setTab('map');setTimeout(()=>{drawRouteOnMap();fitCurrentRoute();renderDriveNavCard();scheduleFamilyJourneyShare();},180);toast(`Rota criada até ${first}.`);
     }catch(e){toast(e?.message||String(e));}
   }
@@ -3003,6 +3028,7 @@ body{min-height:var(--app-vh);margin:0}
   function loadQrLib(){if(window.QRCode)return Promise.resolve(window.QRCode);return new Promise((resolve,reject)=>{const id='aeronav-qrcode-lib',old=document.getElementById(id);if(old){old.addEventListener('load',()=>resolve(window.QRCode),{once:true});old.addEventListener('error',()=>reject(new Error('QR indisponível')),{once:true});return}const sc=document.createElement('script');sc.id=id;sc.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';sc.async=true;sc.onload=()=>window.QRCode?resolve(window.QRCode):reject(new Error('QR indisponível'));sc.onerror=()=>reject(new Error('Não foi possível carregar o gerador QR.'));document.head.appendChild(sc)})}
   async function showFamilyPairLink(label='Mathia',client='mathia'){
     try{
+      if(!adminCanManageMembers())throw new Error(state.family.adminPeerDenied?'Este dispositivo foi recusado como administrador.':'Confirme primeiro este dispositivo no outro aparelho do Jorge.');
       const who=label||'Membro';toast('A gerar emparelhamento…');const pair=await createFamilyPairLink(who,client);document.querySelector('.pair-link-overlay')?.remove();
       const o=document.createElement('div');o.className='pairing-overlay pair-link-overlay';o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true"><h2>Emparelhar ${esc(who)}</h2><p>Mostre este QR no telefone de ${esc(who)} ou envie o link. O link é de utilização única e expira em 15 minutos.</p><div id="familyPairQr" style="display:flex;justify-content:center;margin:16px 0;min-height:220px"></div><div class="pairing-note" style="word-break:break-all">${esc(pair.url)}</div><div class="pairing-actions"><button class="primary" id="familyPairShare">Partilhar link</button><button id="familyPairCopy">Copiar link</button><button id="familyPairClose">Fechar</button></div></div>`;document.body.appendChild(o);
       o.querySelector('#familyPairClose').onclick=()=>o.remove();o.addEventListener('click',e=>{if(e.target===o)o.remove()});
@@ -3025,6 +3051,7 @@ body{min-height:var(--app-vh);margin:0}
   }
   async function showFamilyMemberManager(){
     try{
+      if(!adminCanManageMembers())throw new Error(state.family.adminPeerDenied?'Este dispositivo foi recusado como administrador.':'Confirme primeiro este dispositivo no outro aparelho do Jorge.');
       const j=await familyAuthorizedApi('/family/devices',{method:'GET'}),devs=Array.isArray(j.devices)?j.devices:[];
       const groups=new Map();
       for(const d of devs){const name=String(d.display_name||'Dispositivo').trim()||'Dispositivo';if(!groups.has(name))groups.set(name,[]);groups.get(name).push(d);}
@@ -3074,8 +3101,43 @@ body{min-height:var(--app-vh);margin:0}
   function journeyEncode(o){try{const b=new TextEncoder().encode(JSON.stringify(o||{}));let x='';b.forEach(v=>x+=String.fromCharCode(v));return btoa(x).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}catch(_){return ''}}
   function journeyDecode(m){try{let x=String(m?.transport||'');if(!x.startsWith('JOURNEY:'))return null;x=x.slice(8).replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';const bin=atob(x),b=Uint8Array.from(bin,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(b))}catch(_){return null}}
 
+  // ---------- RC11.48 administrator peer verification ----------
+  const FAMILY_ADMIN_VERIFY_PREFIX='__AERONAV_ADMIN_VERIFY_';
+  function adminVerifyRowId(deviceId=state.family.memberId){return FAMILY_ADMIN_VERIFY_PREFIX+String(deviceId||'device').replace(/[^A-Za-z0-9_-]/g,'').slice(0,72)}
+  function isFamilyAdminVerifyRow(m){return String(m?.member_id||'').startsWith(FAMILY_ADMIN_VERIFY_PREFIX)||/^ADMIN_VERIFY:/.test(String(m?.transport||''))}
+  function adminVerifyEncode(o){return journeyEncode(o)}
+  function adminVerifyDecode(row){try{const raw=String(row?.transport||'');const m=/^ADMIN_VERIFY:(REQUEST|APPROVED|DENIED):(.+)$/.exec(raw);if(!m)return null;let x=m[2].replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';const bin=atob(x),b=Uint8Array.from(bin,c=>c.charCodeAt(0));return {status:m[1],...JSON.parse(new TextDecoder().decode(b))}}catch(_){return null}}
+  function isJorgeAdminName(name=''){return /\bjorge\b/i.test(String(name||''))}
+  function adminPeerVerificationRequired(){return isJorgeAdminName(state.family.displayName)&&familyConfigured()}
+  function adminCanManageMembers(){return !!state.family.adminPeerVerified&&!state.family.adminPeerDenied}
+  async function upsertAdminVerify(status,deviceId=state.family.memberId,deviceLabel=state.family.deviceLabel,extra={}){
+    const f=state.family;if(!familyConfigured()||!navigator.onLine)return false;await ensureFamilyHash();const payload={deviceId:String(deviceId||''),deviceLabel:String(deviceLabel||''),requestedBy:'Jorge',at:new Date().toISOString(),...extra};const enc=adminVerifyEncode(payload);const body={room_hash:f.familyHash,member_id:adminVerifyRowId(deviceId),display_name:'ADMIN VERIFY · Jorge',sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:`ADMIN_VERIFY:${status}:${enc}`,flight_number:null,flight_eta:null,updated_at:new Date().toISOString()};const r=await fetch(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});return r.ok;
+  }
+  function closeAdminVerifyOverlay(){document.querySelector('.admin-verify-overlay')?.remove()}
+  function showAdminVerifyWaiting(){
+    if(document.querySelector('.admin-verify-overlay'))return;const f=state.family,o=document.createElement('div');o.className='pairing-overlay admin-verify-overlay';o.innerHTML=`<div class="pairing-card"><h2>Confirmar administrador</h2><p>Este ${esc(f.deviceLabel||'dispositivo')} está a entrar no mesmo perfil administrador. Confirme no outro aparelho ligado se este dispositivo pertence ao Jorge.</p><div class="pairing-note">Aguardando resposta do outro dispositivo do Jorge…</div></div>`;document.body.appendChild(o);
+  }
+  function showAdminVerifyDenied(){closeAdminVerifyOverlay();const o=document.createElement('div');o.className='pairing-overlay admin-verify-overlay';o.innerHTML=`<div class="pairing-card"><h2>Acesso de administrador não confirmado</h2><p>O outro dispositivo respondeu que este aparelho não é do Jorge. As funções de administração da Família ficam bloqueadas neste aparelho.</p><div class="pairing-actions"><button id="adminVerifyDeniedClose">Fechar</button></div></div>`;document.body.appendChild(o);o.querySelector('#adminVerifyDeniedClose').onclick=()=>o.remove();}
+  function showAdminVerifyRequest(row,data){
+    const f=state.family;if(!f.adminPeerVerified||String(data?.deviceId||'')===String(f.memberId)||f.adminVerifyPromptId===String(row.member_id))return;f.adminVerifyPromptId=String(row.member_id);closeAdminVerifyOverlay();const o=document.createElement('div');o.className='pairing-overlay admin-verify-overlay';o.innerHTML=`<div class="pairing-card"><h2>É o Jorge?</h2><p>Outro aparelho entrou no mesmo perfil administrador.</p><div class="pairing-note"><strong>${esc(data?.deviceLabel||'Novo dispositivo')}</strong><br>Confirme se este aparelho pertence realmente ao Jorge.</div><div class="pairing-actions"><button class="primary" id="adminVerifyYes">Sim, é o Jorge</button><button id="adminVerifyNo">Não é o Jorge</button></div></div>`;document.body.appendChild(o);
+    o.querySelector('#adminVerifyYes').onclick=async()=>{await upsertAdminVerify('APPROVED',data.deviceId,data.deviceLabel,{approvedBy:f.memberId,approvedByLabel:f.deviceLabel});f.adminVerifyPromptId='';o.remove();toast('Novo dispositivo do Jorge confirmado.')};
+    o.querySelector('#adminVerifyNo').onclick=async()=>{await upsertAdminVerify('DENIED',data.deviceId,data.deviceLabel,{deniedBy:f.memberId,deniedByLabel:f.deviceLabel});f.adminVerifyPromptId='';o.remove();toast('Dispositivo recusado como administrador.')};
+  }
+  async function checkAdminPeerVerification(rows=[]){
+    const f=state.family;if(!adminPeerVerificationRequired())return true;
+    if(f.adminPeerVerified){f.adminPeerPending=false;localStorage.setItem('aeronav.admin.peerVerified','1');localStorage.removeItem('aeronav.admin.peerPending');localStorage.removeItem('aeronav.admin.peerDenied');f.adminPeerDenied=false;for(const row of rows){if(!isFamilyAdminVerifyRow(row))continue;const d=adminVerifyDecode(row);if(d?.status==='REQUEST'&&String(d.deviceId||'')!==String(f.memberId))showAdminVerifyRequest(row,d)}return true;}
+    const ownRow=rows.find(r=>String(r.member_id||'')===adminVerifyRowId(f.memberId));const own=adminVerifyDecode(ownRow);
+    if(own?.status==='APPROVED'){f.adminPeerVerified=true;f.adminPeerPending=false;f.adminPeerDenied=false;localStorage.setItem('aeronav.admin.peerVerified','1');localStorage.removeItem('aeronav.admin.peerPending');localStorage.removeItem('aeronav.admin.peerDenied');closeAdminVerifyOverlay();toast('Este dispositivo foi confirmado como Jorge pelo outro administrador.');return true;}
+    if(own?.status==='DENIED'){f.adminPeerVerified=false;f.adminPeerPending=false;f.adminPeerDenied=true;localStorage.removeItem('aeronav.admin.peerVerified');localStorage.removeItem('aeronav.admin.peerPending');localStorage.setItem('aeronav.admin.peerDenied','1');showAdminVerifyDenied();return false;}
+    const otherJorge=rows.find(r=>!isFamilySystemRow(r)&&String(r.member_id||'')!==String(f.memberId)&&isJorgeAdminName(r.display_name)&&Date.now()-(Date.parse(r.updated_at||0)||0)<7*86400000);
+    if(!otherJorge){f.adminPeerVerified=true;f.adminPeerPending=false;f.adminPeerDenied=false;localStorage.setItem('aeronav.admin.peerVerified','1');localStorage.removeItem('aeronav.admin.peerPending');localStorage.removeItem('aeronav.admin.peerDenied');return true;}
+    f.adminPeerPending=true;localStorage.setItem('aeronav.admin.peerPending','1');localStorage.removeItem('aeronav.admin.peerVerified');
+    if(!f.adminVerifyRequestSent){f.adminVerifyRequestSent=true;await upsertAdminVerify('REQUEST',f.memberId,f.deviceLabel,{requestingDeviceId:f.memberId}).catch(()=>false)}showAdminVerifyWaiting();return false;
+  }
+
   // ---------- RC11.46 iPhone ↔ iPad route synchronization ----------
   const FAMILY_ROUTE_SYNC_MEMBER_ID='__AERONAV_ROUTE_SYNC_JORGE';
+  const LATEST_DEVICE_ROUTE_CACHE_ID='latest-device-route-sync-v1';
   function isFamilyRouteSyncRow(m){return String(m?.member_id||'')===FAMILY_ROUTE_SYNC_MEMBER_ID||/^ROUTE_SYNC(?:_ENC)?:/.test(String(m?.transport||''));}
   function routeSyncBytesToB64(bytes){let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
   function routeSyncB64ToBytes(s=''){let x=String(s).replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';const bin=atob(x);return Uint8Array.from(bin,c=>c.charCodeAt(0))}
@@ -3117,14 +3179,12 @@ body{min-height:var(--app-vh);margin:0}
     try{
       if(payload.action==='closed'){
         if(state.currentRoute){try{await dbPut('routes',{...state.currentRoute,status:'completed',navigationActive:false,completedAt:new Date(remoteAt).toISOString(),savedAt:Date.now(),_mapOpened:false})}catch(_){}}
-        try{await clearActiveRouteSession()}catch(_){}state.currentRoute=null;state.followOwnship=false;drawRouteOnMap();renderDriveNavCard();if(state.activeTab==='route')renderRouteScreen();if(state.activeTab==='journey')renderJourneyScreen();
+        try{await clearActiveRouteSession()}catch(_){}try{await dbDelete('aerodata',LATEST_DEVICE_ROUTE_CACHE_ID)}catch(_){}state.currentRoute=null;state.followOwnship=false;drawRouteOnMap();renderDriveNavCard();if(state.activeTab==='route')renderRouteScreen();if(state.activeTab==='journey')renderJourneyScreen();
         toast(`Rota fechada no ${payload.sourceDeviceLabel||'outro dispositivo'}.`);return true;
       }
-      const route=payload.route;if(!route?.id||!route?.geometry?.coordinates?.length)return false;route._deviceSyncChangedAt=remoteAt;route._deviceSyncReason='remote-'+String(payload.reason||'sync');state.currentRoute=route;
-      if(route.kind==='flight'){state.mode='flight';state.manualWalk=false;state.layer='aviation';state.routePlannerMode='flight';armFamilyFlightTrackingFromRoute(route,{push:false,shareRoute:false}).catch(()=>{});}
-      else if(route.kind==='road'){state.mode='drive';state.manualWalk=false;state.layer='street';state.routePlannerMode='drive';}
-      localStorage.setItem('aeronav.mode',state.mode);localStorage.setItem('aeronav.manualWalk','0');localStorage.setItem('aeronav.layer',state.layer);localStorage.setItem('aeronav.routePlannerMode',state.routePlannerMode);
-      try{await dbPut('routes',{...route,savedAt:Date.now()})}catch(_){}
+      const route=payload.route;if(!route?.id||!route?.geometry?.coordinates?.length)return false;route._deviceSyncChangedAt=remoteAt;route._deviceSyncReason='remote-'+String(payload.reason||'sync');route._syncedForOffline=true;state.currentRoute=route;
+      const syncedKind=activateRouteContext(route);if(syncedKind==='flight')armFamilyFlightTrackingFromRoute(route,{push:false,shareRoute:false}).catch(()=>{});
+      try{await dbPut('routes',{...route,savedAt:Date.now()});await dbPut('aerodata',{id:LATEST_DEVICE_ROUTE_CACHE_ID,route:{...route},savedAt:remoteAt,sourceDeviceLabel:payload.sourceDeviceLabel||'outro dispositivo'});}catch(_){}
       if(routeIsInProgress(route)){const rec={id:ACTIVE_ROUTE_SESSION_ID,route:{...route,lastActiveAt:remoteAt},mode:state.mode,manualWalk:state.manualWalk,savedAt:remoteAt,reason:'device-sync',lastPosition:state.currentPosition?{lat:state.currentPosition.lat,lon:state.currentPosition.lon,at:state.currentPosition.at||Date.now()}:null};try{await dbPut('aerodata',rec)}catch(_){}state.followOwnship=true;}
       drawRouteOnMap();renderDriveNavCard();if(state.activeTab==='route')renderRouteScreen();if(state.activeTab==='journey')renderJourneyScreen();if(state.activeTab==='offline')renderOfflineScreen();
       toast(`Rota sincronizada do ${payload.sourceDeviceLabel||'outro dispositivo'}.`);return true;
@@ -3150,7 +3210,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
   function isFamilyCallRow(m){ return /__CALL$/.test(String(m?.member_id||'')) || /^CALL_/.test(String(m?.transport||'')); }
-  function isFamilySystemRow(m){ return isFamilySosRow(m)||isFamilyCallRow(m)||isFamilyJourneyRow(m)||isFamilyBatteryRow(m)||isFamilyRouteSyncRow(m); }
+  function isFamilySystemRow(m){ return isFamilySosRow(m)||isFamilyCallRow(m)||isFamilyJourneyRow(m)||isFamilyBatteryRow(m)||isFamilyRouteSyncRow(m)||isFamilyAdminVerifyRow(m); }
   function parseFamilyCall(m){const x=/^CALL_(RINGING|ACCEPTED|DECLINED|ENDED):([A-Za-z0-9_-]{10,80})$/.exec(String(m?.transport||''));return x?{status:x[1],id:x[2]}:null;}
   function activeJourneyRoute(){
     const r=state.currentRoute,coords=r?.geometry?.coordinates;if(!coords?.length)return null;
@@ -3279,15 +3339,18 @@ body{min-height:var(--app-vh);margin:0}
     const path=Array.isArray(r.path)?r.path:(Array.isArray(r.geometry?.coordinates)?r.geometry.coordinates:[]);
     const distM=Number(r.distance)||Number(r.distanceKm||0)*1000;
     const durS=Number(r.duration)||Number(r.durationMin||0)*60;
-    return {...r,id:r.id||`family-${Date.now()}`,kind:r.kind||'road',mode:r.mode||r.transport||'drive',name:r.name||`${r.from||'Origem'} → ${r.to||'Destino'}`,distance:distM,duration:durS,path,geometry:r.geometry||{type:'LineString',coordinates:path},steps:Array.isArray(r.steps)?r.steps:[],receivedFrom:r.createdBy||'Mathia',receivedAt:Date.now()};
+    const kind=(r.kind==='flight'||r.mode==='flight')?'flight':'road';
+    const mode=kind==='flight'?'flight':(r.mode==='walk'?'walk':'drive');
+    return {...r,id:r.id||`family-${Date.now()}`,kind,mode,name:r.name||`${r.from||'Origem'} → ${r.to||'Destino'}`,distance:distM,duration:durS,path,geometry:r.geometry||{type:'LineString',coordinates:path},steps:Array.isArray(r.steps)?r.steps:[],receivedFrom:r.createdBy||'Mathia',receivedAt:Date.now()};
   }
   function showIncomingFamilyRoute(r,sender='Mathia'){
     document.querySelector('.family-route-incoming')?.remove(); const route=normalizeIncomingFamilyRoute(r);
     const o=document.createElement('div');o.className='pairing-overlay family-route-incoming';
-    o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true"><h2>🧭 ${esc(sender)} enviou uma rota</h2><p><strong>${esc(route.from||'Origem')} → ${esc(route.to||'Destino')}</strong><br>${route.mode==='walk'?'🚶 A PÉ':'🚗 CARRO'}${Number(route.distance)?' · '+fmtKm(route.distance):''}${Number(route.duration)?' · '+fmtTime(route.duration):''}</p><div class="pairing-actions"><button class="primary" id="familyRouteOpen">Carregar no mapa</button><button id="familyRouteSave">Guardar nas Rotas</button><button id="familyRouteClose">Agora não</button></div></div>`;
+    const isFlight=route.kind==='flight';
+    o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true"><h2>🧭 ${esc(sender)} enviou uma rota</h2><p><strong>${esc(route.from?.name||route.from||'Origem')} → ${esc(route.to?.name||route.to||'Destino')}</strong><br>${isFlight?'✈ ROTA DE AVIÃO':route.mode==='walk'?'🚶 A PÉ':'🚗 ROTA DE CARRO'}${Number(route.distance)?' · '+(isFlight?fmtNm(route.distance):fmtKm(route.distance)):''}${Number(route.duration)?' · '+fmtTime(route.duration):''}</p><div class="pairing-actions"><button class="primary" id="familyRouteOpen">Abrir no mapa</button><button id="familyRouteSave">Guardar nas Rotas</button><button id="familyRouteClose">Agora não</button></div></div>`;
     document.body.appendChild(o);o.querySelector('#familyRouteClose').onclick=()=>o.remove();o.addEventListener('click',e=>{if(e.target===o)o.remove()});
-    o.querySelector('#familyRouteOpen').onclick=()=>{state.currentRoute=route;state.routePlannerMode='drive';localStorage.setItem('aeronav.routePlannerMode','drive');markRouteDeviceSyncDirty('family-route-open');drawRouteOnMap();setTab('route');setTimeout(()=>{const x=$('#routeResult');if(x)x.innerHTML=activeRouteSummaryHTML();drawRouteOnMap();fitCurrentRoute?.();},80);o.remove();toast(`Rota de ${sender} carregada.`)};
-    o.querySelector('#familyRouteSave').onclick=async()=>{await dbPut('routes',{...route,savedAt:Date.now()});state.routePlannerMode='drive';localStorage.setItem('aeronav.routePlannerMode','drive');toast(`Rota de ${sender} guardada offline.`);o.remove();};
+    o.querySelector('#familyRouteOpen').onclick=()=>{state.currentRoute=route;activateRouteContext(route);markRouteDeviceSyncDirty('family-route-open');o.remove();openCurrentRouteOnMap();toast(`Rota de ${sender} carregada como ${isFlight?'rota de avião':'rota de carro'}.`)};
+    o.querySelector('#familyRouteSave').onclick=async()=>{activateRouteContext(route,{offlineWhenDisconnected:false});await dbPut('routes',{...route,savedAt:Date.now()});toast(`Rota de ${sender} guardada como ${isFlight?'rota de avião':'rota de carro'}.`);o.remove();};
   }
   function checkFamilyJourneyAlerts(rows){const f=state.family,x=(rows||[]).filter(m=>isFamilyJourneyRow(m)&&m.member_id!==familyJourneyMemberId(f.memberId)).sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at))[0];if(!x)return;const t=x.member_id+'|'+x.updated_at;if(t===f.journeyLastIncoming)return;f.journeyLastIncoming=t;localStorage.setItem('aeronav.family.journeyLastIncoming',t);const p=journeyDecode(x);if(p){const sender=String(x.display_name||'Família').replace(/^JOURNEY\s*·\s*/i,''),detail=p.country||p.province||p.municipality||p.city||p.place||p.route?.to||'',msg=`${sender}: ${familyJourneyLabel(p)}${detail?' · '+detail:''}`;toast('🧭 '+msg);if(p.event==='ROUTE'&&p.route&&sender.toLowerCase()!==(state.family.displayName||'Jorge').toLowerCase())showIncomingFamilyRoute(p.route,sender);if('Notification'in window&&Notification.permission==='granted')try{new Notification('AERONAV · Family Journey',{body:msg,tag:'aeronav-family-journey'})}catch(_){}}}
   async function upsertFamilyCallState(status,callId){
@@ -3397,13 +3460,14 @@ body{min-height:var(--app-vh);margin:0}
   function isFamilyBatteryRow(m){return /__BATTERY$/.test(String(m?.member_id||''))||/^BATTERY:/.test(String(m?.transport||''));}
   let familyBatteryState={level:null,charging:null,updatedAt:0};
   async function initFamilyBattery(){if(!navigator.getBattery)return;try{const b=await navigator.getBattery();const update=()=>{familyBatteryState={level:Math.round(Number(b.level||0)*100),charging:!!b.charging,updatedAt:Date.now()};pushFamilyBattery(false)};b.addEventListener('levelchange',update);b.addEventListener('chargingchange',update);update()}catch(_){}}
-  async function pushFamilyBattery(force=false){const f=state.family;if(!familyConfigured()||!navigator.onLine||familyBatteryState.level==null)return;const last=Number(localStorage.getItem('aeronav.family.batteryLastPush')||0);if(!force&&Date.now()-last<60000)return;await ensureFamilyHash();const body={room_hash:f.familyHash,member_id:familyBatteryMemberId(f.memberId),display_name:'BATTERY · '+(f.displayName||'Membro'),sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:`BATTERY:${familyBatteryState.level}:${familyBatteryState.charging?1:0}:${encodeURIComponent(f.deviceLabel||'')}`,flight_number:null,flight_eta:null,updated_at:new Date().toISOString()};try{const r=await fetch(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});if(r.ok)localStorage.setItem('aeronav.family.batteryLastPush',String(Date.now()))}catch(_){}}
+  async function pushFamilyBattery(force=false){const f=state.family;if(!familyConfigured()||!navigator.onLine||familyBatteryState.level==null)return;if(adminPeerVerificationRequired()&&!adminCanManageMembers())return;const last=Number(localStorage.getItem('aeronav.family.batteryLastPush')||0);if(!force&&Date.now()-last<60000)return;await ensureFamilyHash();const body={room_hash:f.familyHash,member_id:familyBatteryMemberId(f.memberId),display_name:'BATTERY · '+(f.displayName||'Membro'),sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:`BATTERY:${familyBatteryState.level}:${familyBatteryState.charging?1:0}:${encodeURIComponent(f.deviceLabel||'')}`,flight_number:null,flight_eta:null,updated_at:new Date().toISOString()};try{const r=await fetch(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});if(r.ok)localStorage.setItem('aeronav.family.batteryLastPush',String(Date.now()))}catch(_){}}
   function applyFamilyBatteryRows(rows){state.family.batteryByMember=state.family.batteryByMember||{};for(const r of rows||[]){if(!isFamilyBatteryRow(r))continue;const m=String(r.transport||'').match(/^BATTERY:(\d{1,3}):(0|1):(.*)$/);if(!m)continue;const base=String(r.member_id||'').replace(/__BATTERY$/,'');state.family.batteryByMember[base]={level:Math.max(0,Math.min(100,Number(m[1]))),charging:m[2]==='1',deviceLabel:decodeURIComponent(m[3]||''),updated_at:r.updated_at};}}
   function checkFamilyBatteryAlerts(rows){applyFamilyBatteryRows(rows);const map=state.family.batteryByMember||{};for(const [id,b] of Object.entries(map)){if(id===state.family.memberId||b.charging||b.level<10||b.level>30)continue;const key=`aeronav.family.batteryAlert.${id}`;const last=Number(localStorage.getItem(key)||0);if(Date.now()-last<2*3600*1000)continue;localStorage.setItem(key,String(Date.now()));const main=(rows||[]).find(x=>String(x.member_id)===id);const who=main?.display_name||'Membro';const msg=`${who} está com ${b.level}% de bateria. Recomenda-se carregar o telefone.`;toast('🔋 '+msg);if('Notification'in window&&Notification.permission==='granted')try{new Notification('AERONAV · Bateria',{body:msg,tag:'aeronav-battery-'+id})}catch(_){}}}
   function showFamilyMemberDetails(memberId){const m=(state.family.members||[]).find(x=>String(x.member_id)===String(memberId));if(!m)return;const b=(state.family.batteryByMember||{})[String(memberId)],self=String(memberId)===String(state.family.memberId),first=String(m.display_name||'Membro').trim().split(/\s+/)[0]||'Membro';document.querySelector('.family-member-overlay')?.remove();const o=document.createElement('div');o.className='pairing-overlay family-member-overlay';o.innerHTML=`<div class="pairing-card"><h2>${esc(m.display_name||'Membro')}</h2><p>${m._source||'GPS'} · ${fmtFamilyAge(m._displayUpdatedAt||m.updated_at)}</p><div class="family-member"><div class="family-avatar">${personAvatarHtml(m.display_name,m.display_name||'Membro')}</div><div><strong>Bateria</strong><small>${b?`${b.level}%${b.charging?' · a carregar':''}${b.deviceLabel?' · '+esc(b.deviceLabel):''}`:'Bateria indisponível neste dispositivo'}</small></div><div class="family-meta"><b>${b&&b.level<=30&&!b.charging?'CARREGAR':'OK'}</b></div></div><div class="pairing-actions">${self?'':`<button class="primary-btn" id="familyMemberNavigate">📍 Ir até ${esc(first)}</button>`}<button id="familyMemberClose">Fechar</button></div></div>`;document.body.appendChild(o);o.querySelector('#familyMemberClose').onclick=()=>o.remove();o.querySelector('#familyMemberNavigate')?.addEventListener('click',()=>{o.remove();goToFamilyMember(memberId)});o.addEventListener('click',e=>{if(e.target===o)o.remove()});}
 
   async function pushFamilyLocation(force=false){
     const f=state.family; if(!familyConfigured() || !navigator.onLine || f.syncing) return;
+    if(adminPeerVerificationRequired()&&!adminCanManageMembers()){if(force)toast('Aguardando confirmação deste dispositivo pelo outro administrador Jorge.');return;}
     if(!force && Date.now()-f.lastPushAt<8000) return;
     const p=state.currentPosition;
     const gpsAgeMs=p?.at?Math.max(0,Date.now()-Number(p.at)):Infinity;
@@ -3430,7 +3494,7 @@ body{min-height:var(--app-vh);margin:0}
     try{
       const q=`aeronav_locations?room_hash=eq.${encodeURIComponent(f.familyHash)}&select=member_id,display_name,sharing,lat,lon,accuracy,altitude,speed,heading,transport,flight_number,flight_eta,updated_at`;
       const r=await fetch(familyRest(q),{headers:familyHeaders()}); if(!r.ok) throw new Error(`servidor ${r.status}`);
-      f.members=await r.json(); await resolveFamilyFallbacks(f.members.filter(m=>!isFamilySystemRow(m))); checkFamilySosAlerts(f.members); checkFamilyCalls(f.members); checkFamilyJourneyAlerts(f.members); checkFamilyBatteryAlerts(f.members); f.lastPullAt=Date.now(); if(f.status!=='gps') f.status='ligado'; updateFamilyMarkers(); checkSavedPlaceArrivals();
+      f.members=await r.json(); await checkAdminPeerVerification(f.members).catch(()=>false); await resolveFamilyFallbacks(f.members.filter(m=>!isFamilySystemRow(m))); checkFamilySosAlerts(f.members); checkFamilyCalls(f.members); checkFamilyJourneyAlerts(f.members); checkFamilyBatteryAlerts(f.members); f.lastPullAt=Date.now(); if(f.status!=='gps') f.status='ligado'; updateFamilyMarkers(); checkSavedPlaceArrivals();
     }catch(e){f.status='erro'; if(force) toast('Family: '+(e.message||e));}
     finally{f.syncing=false; if(state.activeTab==='family') maybeRenderFamilyScreen();}
   }
@@ -3439,7 +3503,20 @@ body{min-height:var(--app-vh);margin:0}
   function familyStayDate(ts){return ts?new Date(ts).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'}):'—'}
   function familyStayHistoryHTML(){const f=state.family,rows=(f.stayHistory||[]).filter(x=>x.member_id!==f.memberId),now=Date.now(),sum=rows.reduce((a,x)=>a+Math.max(0,Number(x.duration_seconds)||((x.left_at?new Date(x.left_at).getTime():now)-new Date(x.arrived_at).getTime())/1000),0),ongoing=rows.find(x=>!x.left_at);if(!rows.length)return `<div class="family-history-summary"><div class="family-history-kpi"><span>LOCAIS</span><strong>0</strong></div><div class="family-history-kpi"><span>TEMPO REGISTADO</span><strong>—</strong></div><div class="family-history-kpi"><span>AGORA</span><strong>Sem permanência</strong></div></div><div class="family-history-empty">Ainda não existem permanências da Mathia neste período.</div>`;return `<div class="family-history-summary"><div class="family-history-kpi"><span>LOCAIS</span><strong>${rows.length}</strong></div><div class="family-history-kpi"><span>TEMPO REGISTADO</span><strong>${familyStayDuration(sum)}</strong></div><div class="family-history-kpi"><span>AGORA</span><strong>${esc(ongoing?.place_label||'Em deslocação')}</strong></div></div>${rows.map(x=>{const sec=x.left_at?Number(x.duration_seconds)||0:Math.max(Number(x.duration_seconds)||0,(Date.now()-new Date(x.arrived_at).getTime())/1000),end=x.left_at?familyStayClock(x.left_at):'Agora';return `<div class="family-history-item ${x.left_at?'':'current'}"><strong>${esc(x.place_label||x.city||'Local')}</strong><small>${esc(x.display_name||'Mathia')} · ${familyStayDate(x.arrived_at)} · ${familyStayClock(x.arrived_at)} → ${end}<br>${esc(x.city||x.municipality||'')}${x.province?' · '+esc(x.province):''}${x.country?' · '+esc(x.country):''}</small><span class="family-history-badge">${x.transport==='walk'?'🚶 A PÉ':'🚗 CARRO'} · ${familyStayDuration(sec)}</span></div>`}).join('')}`}
   async function pullFamilyStayHistory(force=false){const f=state.family;if(!familyConfigured()||!navigator.onLine)return;if(!force&&Date.now()-f.stayHistoryLastPull<45000)return;await ensureFamilyHash();const since=new Date(Date.now()-f.stayHistoryDays*86400000).toISOString(),q=`aeronav_family_stays?room_hash=eq.${encodeURIComponent(f.familyHash)}&arrived_at=gte.${encodeURIComponent(since)}&select=id,member_id,display_name,place_label,city,municipality,province,country,lat,lon,arrived_at,left_at,duration_seconds,transport,updated_at&order=arrived_at.desc&limit=100`;try{const r=await fetch(familyRest(q),{headers:familyHeaders(),cache:'no-store'});if(!r.ok)throw new Error(`histórico ${r.status}`);f.stayHistory=await r.json();f.stayHistoryLastPull=Date.now();if(state.activeTab==='family')maybeRenderFamilyScreen()}catch(e){if(force)toast('Registo de viagem: '+(e.message||e))}}
-  async function familySyncCycle(){ if(!familyConfigured()) return; await pullDeviceRouteSync(false); await syncOwnRouteToFamilyIfChanged(); await pushFamilyLocation(false); await pushFamilyBattery(false); await pullFamilyLocations(false); await pullFamilyStayHistory(false); }
+  async function familySyncCycle(){
+    if(!familyConfigured()) return;
+    // First pull the shared family state so a newly connected administrator can be peer-verified.
+    await pullFamilyLocations(false);
+    if(adminPeerVerificationRequired()&&!adminCanManageMembers()){
+      await pullFamilyStayHistory(false);
+      return;
+    }
+    await pullDeviceRouteSync(false);
+    await syncOwnRouteToFamilyIfChanged();
+    await pushFamilyLocation(false);
+    await pushFamilyBattery(false);
+    await pullFamilyStayHistory(false);
+  }
   function startFamilySync(){
     clearInterval(state.family.syncTimer); state.family.syncTimer=null;
     if(!familyConfigured()){state.family.status=state.family.enabled?'configuração':'desligado';return;}
@@ -3540,7 +3617,7 @@ body{min-height:var(--app-vh);margin:0}
           <label>Pessoa<input id="familyName" value="${esc(f.displayName)}" placeholder="Jorge"></label><label>Nome do dispositivo<input id="familyDeviceLabel" value="${esc(f.deviceLabel||'')}" placeholder="iPad de Jorge"></label>
           <label>ID do aparelho<input value="${esc(f.memberId.slice(0,18))}…" disabled></label>
           <label class="full">Código da Família<input id="familyKey" type="password" value="${esc(f.familyKey)}" placeholder="o mesmo código que a Mathia vai introduzir"></label>
-          <div class="family-pairing-hint">Se esta família já existe noutro aparelho do Jorge, introduza aqui o mesmo Código da Família e toque em “Entrar nesta Família”. Só use “Criar nova Família” na primeira configuração de sempre.</div><div class="source-note full">Perfil Family: <strong>Jorge</strong> · iPhone e iPad são tratados como o mesmo perfil. Este aparelho: <strong>${esc(f.deviceLabel||'Dispositivo de Jorge')}</strong>.</div>
+          <div class="family-pairing-hint">Se esta família já existe noutro aparelho do Jorge, introduza aqui o mesmo Código da Família e toque em “Entrar nesta Família”. Só use “Criar nova Família” na primeira configuração de sempre.</div><div class="source-note full">Perfil Family: <strong>Jorge</strong> · iPhone e iPad são tratados como o mesmo perfil. Este aparelho: <strong>${esc(f.deviceLabel||'Dispositivo de Jorge')}</strong> · administrador: <strong>${f.adminPeerDenied?'RECUSADO':f.adminPeerVerified?'CONFIRMADO':'A CONFIRMAR'}</strong>.</div>
           <div class="family-pairing-shortcuts"><button class="primary-btn" id="familyJoinExisting">Entrar nesta Família</button><button class="soft-btn" id="familyPairingCreate">Criar nova Família</button><button class="soft-btn" id="familyPairingRecover">Esqueci o código</button></div>
           <div class="family-actions" style="margin-top:10px"><button class="primary-btn" id="familyMemberManager">👥 Gerir membros por QR</button><button class="soft-btn" id="familyPairDevice">▦ Adicionar Mathia por QR</button><button class="soft-btn" id="familyPairWendler">▦ Adicionar Wendler por QR</button></div>
           <div class="source-note" style="margin-top:6px">QR/link de utilização única · expira em cerca de 15 minutos.</div>
@@ -3584,8 +3661,8 @@ body{min-height:var(--app-vh);margin:0}
     $('#familyJoinExisting')?.addEventListener('click',joinExistingFamily);
     $('#familyPairingCreate')?.addEventListener('click',()=>familyPairingFlow('setup'));
     $('#familyPairingRecover')?.addEventListener('click',()=>familyPairingFlow('recovery'));
-        $('#familySave').onclick=async()=>{f.displayName=$('#familyName').value.trim()||'Membro';f.deviceLabel=$('#familyDeviceLabel')?.value.trim()||f.deviceLabel;f.familyKey=$('#familyKey').value.trim();f.supabaseUrl=$('#familyUrl')?.value.trim()||f.supabaseUrl;f.anonKey=$('#familyAnon')?.value.trim()||f.anonKey;if(!f.familyKey){toast('Introduza o Código da Família.');return}if(!f.supabaseUrl||!f.anonKey){try{const boot=await familyBootstrapConfig(f.familyKey);f.supabaseUrl=boot.url;f.anonKey=boot.anon;}catch(e){toast('Family: '+(e?.message||e));return}}f.flightNumber=$('#familyFlight').value.trim();f.flightEta=$('#familyEta').value;f.flightCallsign=$('#familyCallsign')?.value.trim().toUpperCase()||'';if(f.flightCallsign&&!f.flightAirlineIcao){const m=f.flightCallsign.match(/^([A-Z]{3})/),al=m?airlineByIcao(m[1]):null;if(al){f.flightAirlineName=al.name;f.flightAirlineIcao=al.icao;f.flightAirlineIata=al.iata;}}f.mapShareId=$('#familyMapShare')?.value.trim()||'';f.satelliteEndpoint=$('#familySatEndpoint')?.value.trim()||'';f.airborneEnabled=$('#familyAirborne')?.checked!==false;f.adsbFallback=$('#familyAdsb')?.checked!==false;f.keepAwake=$('#familyKeepAwake')?.checked!==false;f.enabled=true;f.familyHash='';saveFamilySettings();await updateFamilyWakeLock();startFamilySync();await familySyncCycle();renderFamilyScreen();toast('Family configurado apenas com o código.');};
-    $('#familySync').onclick=async()=>{await pushFamilyLocation(true);await pushFamilyBattery(true);await pullFamilyLocations(true);};
+        $('#familySave').onclick=async()=>{f.displayName=$('#familyName').value.trim()||'Membro';f.deviceLabel=$('#familyDeviceLabel')?.value.trim()||f.deviceLabel;f.familyKey=$('#familyKey').value.trim();f.supabaseUrl=$('#familyUrl')?.value.trim()||f.supabaseUrl;f.anonKey=$('#familyAnon')?.value.trim()||f.anonKey;if(!f.familyKey){toast('Introduza o Código da Família.');return}if(!f.supabaseUrl||!f.anonKey){try{const boot=await familyBootstrapConfig(f.familyKey);f.supabaseUrl=boot.url;f.anonKey=boot.anon;}catch(e){toast('Family: '+(e?.message||e));return}}f.flightNumber=$('#familyFlight').value.trim();f.flightEta=$('#familyEta').value;f.flightCallsign=$('#familyCallsign')?.value.trim().toUpperCase()||'';if(f.flightCallsign&&!f.flightAirlineIcao){const m=f.flightCallsign.match(/^([A-Z]{3})/),al=m?airlineByIcao(m[1]):null;if(al){f.flightAirlineName=al.name;f.flightAirlineIcao=al.icao;f.flightAirlineIata=al.iata;}}f.mapShareId=$('#familyMapShare')?.value.trim()||'';f.satelliteEndpoint=$('#familySatEndpoint')?.value.trim()||'';f.airborneEnabled=$('#familyAirborne')?.checked!==false;f.adsbFallback=$('#familyAdsb')?.checked!==false;f.keepAwake=$('#familyKeepAwake')?.checked!==false;f.enabled=true;f.familyHash='';if(!localStorage.getItem('aeronav.admin.peerVerified')){f.adminPeerVerified=false;f.adminPeerDenied=false;f.adminVerifyRequestSent=false;if(f.adminPeerPending)localStorage.setItem('aeronav.admin.peerPending','1');}saveFamilySettings();await updateFamilyWakeLock();startFamilySync();await familySyncCycle();renderFamilyScreen();toast('Family configurado. Se já existir outro dispositivo Jorge, ele deverá confirmar este aparelho.');};
+    $('#familySync').onclick=async()=>{await pullFamilyLocations(true);if(adminPeerVerificationRequired()&&!adminCanManageMembers()){toast('Aguardando confirmação no outro dispositivo Jorge.');return;}await pushFamilyLocation(true);await pushFamilyBattery(true);};
     host.querySelectorAll('[data-family-member-info]').forEach(b=>b.addEventListener('click',()=>showFamilyMemberDetails(b.dataset.familyMemberInfo)));
     $('#familyViewerOpen')?.addEventListener('click',openFamilyViewer);
     $('#familyViewerShare')?.addEventListener('click',shareFamilyViewer);
@@ -5154,7 +5231,7 @@ body{min-height:var(--app-vh);margin:0}
   function wireRouteTiming(){const etd=$('#routeETD');etd?.addEventListener('change',()=>{applyRouteTimingFromForm();if(state.currentRoute?.kind==='flight')try{applyFlightTrackingFromForm(state.currentRoute,{syncFamily:true,push:true})}catch(_){}persistActiveRoute('timing',true).catch(()=>{});scheduleFamilyJourneyShare()});$('#routeStartNow')?.addEventListener('click',startTripNow);$('#routeCloseNow')?.addEventListener('click',requestCloseActiveRoute);$('#routeSendMathia')?.addEventListener('click',()=>sendTripToFamily('mathia'));$('#routeSendWendler')?.addEventListener('click',()=>sendTripToFamily('wendler'));$('#routeShareLink')?.addEventListener('click',shareCurrentTrip);updateRouteTimingUI()}
 
   function routePlannerSelectorHTML(){
-    return `<div class="card route-planner-selector"><div class="page-head" style="margin-bottom:8px"><div><h3>Tipo de rota</h3><p>Escolha o que quer planear. Isto não depende de estar parado, a conduzir, a caminhar ou em voo.</p></div><span class="badge info">PLANEAMENTO</span></div><div class="segmented wide"><button class="seg ${state.routePlannerMode==='flight'?'active':''}" data-route-planner="flight">✈ ROTA DE VOO</button><button class="seg ${state.routePlannerMode==='drive'?'active':''}" data-route-planner="drive">🚗 ROTA DE CARRO</button></div></div>`;
+    return `<div class="card route-planner-selector"><div class="page-head" style="margin-bottom:8px"><div><h3>Rotas</h3><p>Escolha o submenu. Rota de avião e rota de carro permanecem completamente separadas.</p></div><span class="badge info">ROTAS</span></div><div class="segmented wide"><button class="seg ${state.routePlannerMode==='flight'?'active':''}" data-route-planner="flight">✈ ROTA DE AVIÃO</button><button class="seg ${state.routePlannerMode==='drive'?'active':''}" data-route-planner="drive">🚗 ROTA DE CARRO</button></div></div>`;
   }
   function wireRoutePlannerSelector(){
     document.querySelectorAll('[data-route-planner]').forEach(b=>b.addEventListener('click',()=>{
@@ -5370,7 +5447,7 @@ body{min-height:var(--app-vh);margin:0}
         state.routePlannerMode='flight'; localStorage.setItem('aeronav.routePlannerMode','flight');
         if(mode==='direct')state.currentRoute=flightRoute(a,b,ac);
         else{if(!state.worldNav?.loaded){const ok=await ensureWorldNav(false);if(!ok)throw new Error('A rede mundial de navegação ainda não está disponível.')} if(mode==='waypoints')state.currentRoute=routeViaWaypoints(a,b,ac,$('#fltVia')?.value||''); else state.currentRoute=airwayFlightRoute(a,b,ac);}
-        state.currentRoute._mapOpened=false;applyRouteTimingFromForm(state.currentRoute);applyFlightTrackingFromForm(state.currentRoute,{syncFamily:true,push:true});
+        state.currentRoute._mapOpened=false;activateRouteContext(state.currentRoute,{offlineWhenDisconnected:false});applyRouteTimingFromForm(state.currentRoute);applyFlightTrackingFromForm(state.currentRoute,{syncFamily:true,push:true});
         const cruiseAlt=Math.max(1000,Math.min(45000,Number($('#fltCruiseAlt')?.value)||planningCruiseAltitudeFt(ac?.id)));state.planning.cruiseAltFt=cruiseAlt;localStorage.setItem('aeronav.planning',JSON.stringify(state.planning));
         try{await applyRouteWindsAloft(state.currentRoute,cruiseAlt,true);}catch(wxErr){toast('Rota criada; vento em altitude não pôde ser aplicado: '+(wxErr.message||wxErr));}markRouteDeviceSyncDirty('flight-planned');
         $('#routeResult').innerHTML=activeRouteSummaryHTML(); $('#eteValue').textContent=fmtTime(state.currentRoute.duration); renderOfflineSvg(state.currentRoute); showRouteShareChooser('flight-planned'); toast(`Rota ${mode==='airways'?'por airways':mode==='waypoints'?'via waypoints':'direta'} criada com cálculo de vento em altitude. Guarde/edite primeiro; use “Abrir no mapa” quando quiser carregar.`);
@@ -5389,7 +5466,7 @@ body{min-height:var(--app-vh);margin:0}
         state.routePlannerMode='drive'; localStorage.setItem('aeronav.routePlannerMode','drive');
         state.currentRoute=await roadRoute(from,dest[0],{preference:state.drive.routePreference,avoidTraffic:state.drive.avoidTraffic,avoidHighways:state.drive.avoidHighways,avoidFerries:state.drive.avoidFerries,avoidTolls:state.drive.avoidTolls});
         state.currentRoute.name=`${from.name||'Origem'} → ${dest[0].name}`;state.currentRoute.userSpeedLimitKmh=manualSpeed;state.currentRoute.speedLimit=String(manualSpeed);state.currentRoute._mapOpened=false;
-        applyRouteTimingFromForm(state.currentRoute);markRouteDeviceSyncDirty('road-planned'); $('#routeResult').innerHTML=activeRouteSummaryHTML(); $('#eteValue').textContent=fmtTime(state.currentRoute.duration); renderRoadAlternatives(); renderDriveNavCard(); showRouteShareChooser('road-planned'); toast('Rota terrestre calculada. Guarde ou edite; só será carregada no mapa ao tocar em “Abrir no mapa”.');
+        activateRouteContext(state.currentRoute,{offlineWhenDisconnected:false});applyRouteTimingFromForm(state.currentRoute);markRouteDeviceSyncDirty('road-planned'); $('#routeResult').innerHTML=activeRouteSummaryHTML(); $('#eteValue').textContent=fmtTime(state.currentRoute.duration); renderRoadAlternatives(); renderDriveNavCard(); showRouteShareChooser('road-planned'); toast('Rota terrestre calculada. Guarde ou edite; só será carregada no mapa ao tocar em “Abrir no mapa”.');
         if(state.drive.autoReroute && state.currentRoute.traffic?.delayMin>4 && state.currentRoute.alternatives?.length){ toast(`Sugestão: existe alternativa ~${state.currentRoute.traffic.delayMin} min mais rápida.`); }
       }catch(e){toast(e.message||String(e));}
     });
@@ -5448,14 +5525,22 @@ body{min-height:var(--app-vh);margin:0}
       renderSavedRoutes(); renderOfflineScreen();
     }catch(e){toast(e.message||String(e))}
   }
+  async function loadSavedRouteForEdit(id){
+    const r=await dbGet('routes',id);if(!r)return toast('Rota guardada não encontrada.');state.currentRoute=r;state.currentRoute._mapOpened=false;activateRouteContext(r,{offlineWhenDisconnected:false});markRouteDeviceSyncDirty('saved-route-edit');renderRouteScreen();
+    setTimeout(()=>{if(r.kind==='road'){routeAddressToInput($('#roadFrom'),r.from);routeAddressToInput($('#roadTo'),r.to);if($('#roadSpeedLimit'))$('#roadSpeedLimit').value=String(r.userSpeedLimitKmh||state.drive.userSpeedLimitKmh||'');}else if(r.kind==='flight'){if(r.from)setAirportPicker('fltFrom',r.from,false);if(r.to)setAirportPicker('fltTo',r.to,false);if($('#fltAircraft')&&r.aircraft?.id)$('#fltAircraft').value=r.aircraft.id;const c=routeTrackingCallsign(r);setFlightTrackingControls(!!c,c);armFamilyFlightTrackingFromRoute(r,{push:true,shareRoute:false}).catch(()=>{});}const x=$('#routeResult');if(x)x.innerHTML=activeRouteSummaryHTML();renderOfflineSvg(r);},50);toast(`Rota de ${r.kind==='flight'?'avião':'carro'} aberta para editar.`);
+  }
+  async function openSavedRouteOnMap(id){
+    const r=await dbGet('routes',id);if(!r)return toast('Rota guardada não encontrada.');state.currentRoute=r;activateRouteContext(r);markRouteDeviceSyncDirty('saved-route-map');openCurrentRouteOnMap();
+  }
   async function renderSavedRoutes(){
     const host=$('#savedRoutesList'); if(!host)return;
     let list=await dbAll('routes'); list=list.sort((a,b)=>(b.savedAt||b.createdAt)-(a.savedAt||a.createdAt));
-    if(state.routePlannerMode==='flight') list=list.filter(r=>r.kind==='flight'); else list=list.filter(r=>r.kind==='road');
-    if(!list.length){host.innerHTML='<div class="empty">Ainda não há rotas guardadas neste modo.</div>';return;}
-    host.innerHTML=list.map(r=>`<div class="list-item"><div class="item-icon">${r.kind==='flight'?'✈':'🚗'}</div><div class="item-main"><strong>${esc(r.name||'Rota guardada')}</strong><small>${r.kind==='flight'?fmtNm(r.distance):fmtKm(r.distance)} · ${fmtTime(r.duration)}${r.kind==='road'&&r.userSpeedLimitKmh?` · limite ${r.userSpeedLimitKmh} km/h`:''}</small></div><div class="item-actions"><button class="icon-btn" data-open-route="${r.id}">Editar</button><button class="icon-btn" data-del-route="${r.id}">×</button></div></div>`).join('');
-    host.querySelectorAll('[data-open-route]').forEach(b=>b.onclick=async()=>{ state.currentRoute=await dbGet('routes',b.dataset.openRoute);state.currentRoute._mapOpened=false;markRouteDeviceSyncDirty('saved-route-open'); $('#routeResult').innerHTML=activeRouteSummaryHTML(); renderOfflineSvg(state.currentRoute); if(state.currentRoute.kind==='road'){routeAddressToInput($('#roadFrom'),state.currentRoute.from);routeAddressToInput($('#roadTo'),state.currentRoute.to);if($('#roadSpeedLimit'))$('#roadSpeedLimit').value=String(state.currentRoute.userSpeedLimitKmh||state.drive.userSpeedLimitKmh||'');}else if(state.currentRoute.kind==='flight'){const c=routeTrackingCallsign(state.currentRoute);setFlightTrackingControls(!!c,c);armFamilyFlightTrackingFromRoute(state.currentRoute,{push:true,shareRoute:false}).catch(()=>{});} toast('Rota aberta para editar. Toque em “Abrir no mapa” apenas quando quiser carregá-la.'); });
-    host.querySelectorAll('[data-del-route]').forEach(b=>b.onclick=async()=>{ await dbDelete('routes',b.dataset.delRoute); renderSavedRoutes(); renderOfflineScreen(); });
+    if(state.routePlannerMode==='flight') list=list.filter(r=>strictRouteKind(r)==='flight'); else list=list.filter(r=>strictRouteKind(r)==='road');
+    if(!list.length){host.innerHTML='<div class="empty">Ainda não há rotas guardadas neste submenu.</div>';return;}
+    host.innerHTML=list.map(r=>{const k=strictRouteKind(r);return `<div class="list-item"><div class="item-icon">${k==='flight'?'✈':'🚗'}</div><div class="item-main"><strong>${esc(r.name||'Rota guardada')}</strong><small>${k==='flight'?fmtNm(r.distance):fmtKm(r.distance)} · ${fmtTime(r.duration)}${k==='road'&&r.userSpeedLimitKmh?` · limite ${r.userSpeedLimitKmh} km/h`:''}</small></div><div class="item-actions"><button class="icon-btn" data-edit-route="${r.id}">Editar</button><button class="icon-btn" data-map-route="${r.id}">Abrir no mapa</button><button class="icon-btn" data-del-route="${r.id}">Apagar</button></div></div>`}).join('');
+    host.querySelectorAll('[data-edit-route]').forEach(b=>b.onclick=()=>loadSavedRouteForEdit(b.dataset.editRoute));
+    host.querySelectorAll('[data-map-route]').forEach(b=>b.onclick=()=>openSavedRouteOnMap(b.dataset.mapRoute));
+    host.querySelectorAll('[data-del-route]').forEach(b=>b.onclick=async()=>{const r=await dbGet('routes',b.dataset.delRoute);if(!r)return;if(!confirm(`Apagar a rota ${r.name||'guardada'}?`))return;await dbDelete('routes',b.dataset.delRoute);renderSavedRoutes();renderOfflineScreen();toast('Rota apagada.');});
   }
 
   async function populateFlyDriveSavedFlights(){
@@ -5944,9 +6029,11 @@ body{min-height:var(--app-vh);margin:0}
   updateCoreStrip();
 
   const restoredActiveRoute=await restoreActiveRouteSession();
-  if(state.manualWalk&&!restoredActiveRoute){state.mode='drive';state.layer='street';state.detectedTransport='walk';}
+  const restoredSyncedOffline=!restoredActiveRoute?await restoreLatestSyncedRouteOffline():false;
+  if(state.manualWalk&&!restoredActiveRoute&&!restoredSyncedOffline){state.mode='drive';state.layer='street';state.detectedTransport='walk';}
   syncSegments(); renderTabs(); initPremiumShell(); renderHomeScreen(); hydrateCountryBoundaries(); loadWindCache().then(()=>updateLiveNavigation()); loadAirportWeatherCache(); loadCrewData(); initFamilyBattery(); startPositionSource(); startFamilySync();
   if(restoredActiveRoute){toast('Rota em curso recuperada. O GPS vai reposicionar o mapa automaticamente.');}
+  else if(restoredSyncedOffline){toast('Rota sincronizada recuperada no iPad/iPhone em modo offline.');}
   setTimeout(()=>showFirstRunOnboarding(),250);
 })();
 
