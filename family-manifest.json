@@ -1,7 +1,6 @@
 {
-  "name": "AERONAV Family RC11.54",
+  "name": "AERONAV Family RC11.39",
   "short_name": "AERONAV Family",
-  "description": "AERONAV Family para Mathia acompanhar Jorge e rotas partilhadas.",
   "start_url": "./family-viewer.html",
   "scope": "./",
   "display": "standalone",

@@ -1,16 +1,15 @@
-/* AERONAV — RC11.54 Mathia Removed Until QR
+/* AERONAV — RC11.47 Route Share Selector + Unified Jorge Profile
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_54-qr-membership-reset-20260926-2';
+const CACHE='aeronav-RC11_47-route-share-selector-20260926-1';
 const LOCAL=[
   './',
   './index.html',
   './family-viewer.html',
-  './wendler.html',
   './family/family-call.js',
   './family/family-manifest.json',
   './family-viewer-preview.html',
@@ -32,7 +31,6 @@ const LOCAL=[
   './assets/aircraft/taag-b787-10.png',
   './assets/aircraft/taag-b777-300er.png',
   './assets/aircraft/traffic-generic.png',
-  './assets/aircraft/adsb-generic-black-3d-plane.png',
   './assets/vehicles/toyota-yaris-ld-37-23-fm.png'
 ];
 const REMOTE=[

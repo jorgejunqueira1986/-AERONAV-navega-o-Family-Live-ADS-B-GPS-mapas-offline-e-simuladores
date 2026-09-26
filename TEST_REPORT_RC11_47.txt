@@ -1,10 +1,26 @@
-TEST REPORT RC11.47
+AERONAV RC11.47 TEST REPORT
 
-PASS — JavaScript inline syntax checked with Node.js 22.16.0.
-PASS — manifest.json, family-manifest.json and wendler/manifest.json parse as valid JSON.
-PASS — GPS recent-fix immediate centering enabled.
-PASS — GPS background high-accuracy refinement enabled.
-PASS — ADS-B Railway proxy primary + direct fallback chain present.
-PASS — ADSB.lol nearby endpoint uses /v2/point/{lat}/{lon}/{radius}.
-PASS — adsb.fi and adsb.one fallbacks present.
-PASS — Railway aeronav-cockpit-token-server deployment f39eecc6-dabe-4a72-8294-5a887cb1c428 reported SUCCESS.
+PASS - RC11.47 visible version
+PASS - Route share chooser exists
+PASS - Chooser asks who to share
+PASS - Mathia recipient selectable
+PASS - Wendler recipient selectable
+PASS - Both selector
+PASS - No-share option
+PASS - Jorge iPhone+iPad same-profile note
+PASS - Flight route triggers chooser
+PASS - Road route triggers chooser
+PASS - FlyDrive triggers chooser
+PASS - Direct-to triggers chooser
+PASS - Route targets separate Mathia/Wendler
+PASS - Explicit share enables progress
+PASS - iPhone/iPad encrypted sync preserved
+PASS - Jorge app hides duplicate own Jorge devices
+PASS - Mathia viewer dedupes Jorge devices
+PASS - Wendler viewer dedupes Jorge devices
+PASS - Mathia still hides Wendler
+PASS - Wendler privacy rule preserved
+PASS - Wendler QR-only wording preserved
+PASS - Service worker RC11.47 cache
+
+RESULT: 22 PASS / 0 FAIL

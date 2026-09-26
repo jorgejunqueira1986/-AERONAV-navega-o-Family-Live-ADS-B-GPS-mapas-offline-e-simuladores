@@ -1,9 +1,14 @@
-AERONAV RC11.54 — Family Visibility Matrix
-Data: 2026-09-26
+AERONAV RC11.46 — IPHONE/IPAD ROUTE SYNC
 
-Novo:
-- Menu Família > Quem pode ver quem.
-- Matriz independente Jorge / Mathia / Wendler.
-- Padrão: Jorge vê Mathia e Wendler; Mathia vê Jorge; Wendler vê Jorge; Mathia e Wendler não se veem.
-- Regras sincronizadas através do Family e aplicadas automaticamente nos viewers.
-- Adicionar Mathia por QR não altera a privacidade definida.
+- Mantém RC11.45: avatares cruzados e avatares ADS-B em todas as aplicações.
+- iPhone e iPad de Jorge sincronizam a mesma rota através da mesma Família AERONAV.
+- Criação, abertura, alteração, início, recálculo e fecho da rota são propagados entre os dois dispositivos.
+- O dispositivo recetor aplica a rota sem criar uma rota duplicada.
+- O fecho da rota num dispositivo fecha a mesma rota no outro.
+- Sincronização cloud usa um registo técnico oculto e encriptado com AES-GCM derivado do Código da Família de Jorge.
+- Mathia e Wendler não mostram nem processam o registo técnico de sincronização.
+- Requer Internet para sincronização entre dispositivos; a rota local continua disponível offline conforme as funções existentes.
+RC11.47 PATCH
+- Ao traçar rota, pergunta com quem partilhar: Mathia, Wendler, ambos ou ninguém.
+- iPhone e iPad de Jorge tratados como o mesmo perfil; a rota sincroniza entre ambos automaticamente.
+- O segundo dispositivo de Jorge deixa de aparecer como membro separado na lista do Jorge.

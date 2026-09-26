@@ -1,0 +1,18 @@
+AERONAV RC11.46 — iPhone ↔ iPad Route Sync
+
+OBJETIVO
+A rota de Jorge deve ficar igual no iPhone e no iPad, quase em tempo real, quando ambos usam a mesma Família AERONAV.
+
+COMPORTAMENTO
+- Rota planeada no iPhone aparece no iPad e vice-versa.
+- Abrir a rota no mapa, iniciar, alterar ETD, selecionar alternativa, recalcular/desviar e partilhar são sincronizados.
+- Fechar a rota num aparelho fecha a mesma rota no outro.
+- A rota remota é aplicada à rota atual; não é criada uma segunda rota paralela.
+- O último estado mais recente ganha em caso de alteração concorrente.
+- A sincronização ocorre no ciclo Family (~3 s, dependendo de rede/SO).
+
+PRIVACIDADE
+O payload de sincronização é encriptado com AES-GCM usando uma chave derivada do Código da Família disponível nos aparelhos principais de Jorge. O registo técnico é ocultado nas aplicações Mathia e Wendler.
+
+REQUISITO
+Os dois aparelhos de Jorge devem estar configurados com a mesma Família AERONAV e ter Internet para a sincronização entre dispositivos.

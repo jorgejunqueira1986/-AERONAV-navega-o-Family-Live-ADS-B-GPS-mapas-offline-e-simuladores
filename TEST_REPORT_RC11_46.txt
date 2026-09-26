@@ -1,1 +1,28 @@
-TEST REPORT RC11.46
+AERONAV RC11.46 — TEST REPORT
+
+PASS: 23
+FAIL: 0
+
+PASS — APP_VERSION RC11.46
+PASS — Row sync único
+PASS — AES-GCM encrypt
+PASS — AES-GCM decrypt
+PASS — Payload não usa ROUTE_SYNC plaintext no push
+PASS — Pull remoto antes de push local
+PASS — Fecho propagado
+PASS — Rota planeada voo sincroniza
+PASS — Rota planeada carro sincroniza
+PASS — Rota guardada aberta sincroniza
+PASS — Alternativa sincroniza
+PASS — GPS não força route-sync a cada fix
+PASS — Mathia oculta row técnico
+PASS — Wendler oculta row técnico
+PASS — SW principal RC11.46
+PASS — SW Wendler RC11.46
+PASS — Sintaxe sw.js
+PASS — Sintaxe wendler/sw.js
+PASS — Sintaxe family-call.js
+PASS — Sintaxe cockpit-audio.js
+PASS — Sintaxe inline index.html
+PASS — Sintaxe inline family-viewer.html
+PASS — Sintaxe inline wendler/index.html

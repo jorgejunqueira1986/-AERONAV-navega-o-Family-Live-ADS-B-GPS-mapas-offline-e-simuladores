@@ -1,0 +1,7 @@
+AERONAV RC11.47 — ROUTE SHARE SELECTOR + UNIFIED JORGE PROFILE
+
+- Toda nova rota de voo, carro, Fly & Drive ou Direct-To abre a escolha de destinatários.
+- Destinatários: Mathia, Wendler, ambos, ou Não partilhar agora.
+- iPhone e iPad do Jorge são um único perfil Jorge e sincronizam a rota automaticamente.
+- Os dispositivos do Jorge não aparecem como destinatários nem como membros duplicados do próprio Jorge.
+- As regras de privacidade Mathia/Wendler já existentes são preservadas.
