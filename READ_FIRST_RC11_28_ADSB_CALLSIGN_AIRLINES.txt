@@ -1,0 +1,13 @@
+AERONAV RC11.28 — ADS-B Callsign & Airline Picker
+
+ALTERAÇÕES
+- Em Família > Ligação segura, Companhia aérea abre uma lista pesquisável.
+- Companhias com aeronaves ADS-B detetadas aparecem primeiro.
+- Callsign ADS-B abre uma lista de aeronaves atualmente recebidas, com callsign, operador, distância, altitude, matrícula e tipo quando disponíveis.
+- Ao escolher uma companhia, a lista de callsigns é filtrada por essa companhia/ICAO.
+- O utilizador pode continuar a introduzir o callsign manualmente.
+- O callsign selecionado passa a ser o identificador prioritário de tracking enviado ao Family Viewer, melhorando o fallback ADS-B.
+- Diretório integrado inclui companhias principais globais e é complementado dinamicamente pelos operadores recebidos no feed ADS-B.
+
+NOTA
+A lista de aeronaves é dinâmica: só mostra alvos presentes no feed ADS-B público no momento da consulta e dentro do raio pesquisado.

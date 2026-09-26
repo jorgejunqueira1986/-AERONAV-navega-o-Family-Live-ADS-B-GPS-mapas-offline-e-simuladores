@@ -1,0 +1,11 @@
+AERONAV RC11.28 — TEST REPORT
+
+Static validation:
+- Main index inline JavaScript: syntax OK (3 inline script blocks).
+- Service worker JavaScript: syntax OK.
+- Family ADS-B airline/callsign controls present.
+- Selected callsign persisted in localStorage.
+- Selected airline name / IATA / ICAO persisted in localStorage.
+- Callsign takes priority as Family tracking flight identifier.
+- ADS-B picker retries transient errors and lists only aircraft with a callsign.
+- Airline picker prioritizes operators currently detected by ADS-B and includes a built-in global directory.

@@ -1,0 +1,9 @@
+AERONAV RC11.25 — DEVICE IDENTITY AVATARS
+
+Regra corrigida:
+- Aparelho da Mathia: o marcador pessoal A PÉ/self usa a foto da Mathia.
+- Aparelho do Jorge: o marcador pessoal A PÉ/self usa a foto do Jorge.
+- A identidade local do próprio aparelho tem prioridade sobre um nome remoto desatualizado.
+- Os outros membros continuam a usar a identidade Family recebida.
+
+Mantém RC11.24: marcadores ADS-B com aeronaves e toque para detalhes, avatares embutidos, ajuste ao ecrã, mensagens legíveis e VOO manual persistente.

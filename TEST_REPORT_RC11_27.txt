@@ -1,0 +1,20 @@
+AERONAV RC11.27 — TEST REPORT
+
+Static validation completed:
+- Main index.html inline JavaScript: syntax OK (Node --check).
+- Family index.html inline JavaScript: syntax OK.
+- Legacy family-viewer.html redirect script: syntax OK.
+- sw.js: syntax OK.
+- Family manifest JSON files: valid JSON.
+
+Functional code paths reviewed:
+- GENDEC PDF extraction now reconstructs visual rows by PDF coordinates before parsing crew roles/names.
+- ADS-B other-aircraft marker is orange; urgent/followed traffic is red; tap popup retained.
+- Fly & Drive can select a saved flight route and preserves its flight geometry, distance, duration, procedures and wind plan.
+- Flight planning samples pressure-level winds along the route and adjusts estimated GS/ETE.
+- X-Plane screen exposes NavData and CIFP import using existing parsers; PDF chart and PMTiles import routes to existing app importers.
+- Family Viewer button navigates directly to family/index.html and legacy family-viewer.html redirects to the canonical viewer.
+
+Operational limitation:
+- X-Plane scenery/orthophoto is not automatically converted into official aeronautical charts or PMTiles.
+- Route wind data is auxiliary forecast data and must not replace operational weather/dispatch products.

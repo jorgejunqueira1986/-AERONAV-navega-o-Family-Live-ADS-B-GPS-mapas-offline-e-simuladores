@@ -1,0 +1,11 @@
+AERONAV RC11.27
+
+Correções principais:
+- GENDEC: reconstrução de linhas do PDF por coordenadas, mais funções/abreviações reconhecidas e deduplicação melhorada.
+- ADS-B: outros tráfegos em avatar laranja; alertas de proximidade em vermelho; toque mantém detalhes.
+- Fly & Drive: permite selecionar uma rota de voo já guardada e preserva distância, waypoints, procedimentos, vento e ETE.
+- Planeamento de voo: altitude de cruzeiro + vento em altitude amostrado ao longo da rota; GS/ETE corrigidos por vento de proa/cauda.
+- X-Plane 12: importação direta no ecrã X-Plane de earth_fix.dat, earth_nav.dat, earth_awy.dat, earth_hold.dat e CIFP. Cartas PDF/mapas oficiais não são automaticamente extraídos do X-Plane.
+- Family Viewer: botão abre diretamente family/index.html; family-viewer.html redireciona para o viewer atual.
+
+Nota operacional: os dados de vento e planeamento são auxiliares e não substituem briefing, OFP/dispatch, AIP/NOTAM ou procedimentos oficiais.

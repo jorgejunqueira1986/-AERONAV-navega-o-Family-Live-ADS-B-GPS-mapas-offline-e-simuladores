@@ -1,0 +1,11 @@
+AERONAV RC11.26
+
+Correções principais:
+- GPS abre/centra automaticamente no mapa no primeiro fix.
+- Mapa mobile ocupa a área disponível até à barra inferior.
+- Bases: OpenFreeMap, OpenStreetMap, OpenTopoMap e MapLibre/XYZ personalizada.
+- Avatar próprio de avião sem fundo, com tratamento visual 3D; fallback 3D transparente.
+- Assistência Rápida: botões, voltar, copiar, partilhar, Family, nearest e hospital religados corretamente.
+- Cartas: AISWEB/DECEA, NAV Portugal eAIP e FAA disponíveis como fontes oficiais; API AISWEB continua quando há credenciais.
+- Family/Mathia: avatar muda por transporte (pessoa a pé, Toyota em carro, avião em voo/ADS-B).
+- Metadados de versão harmonizados e input duplicado de logo removido.

@@ -1,0 +1,8 @@
+AERONAV RC11.24
+1. ADS-B traffic on the main map now uses DOM aircraft markers for iPhone/iPad reliability.
+2. Every ADS-B marker is tappable and opens flight details.
+3. Mathia and Jorge photos are embedded, so missing GitHub asset folders cannot break people avatars.
+4. In AERONAV Family, Mathia's A PÉ marker uses her photo.
+5. Family Live markers/cards use Mathia/Jorge photos when names match.
+6. Jorge's A PÉ marker in the main app uses Jorge's photo.
+7. RC11.23 device-fit/readable-message fixes are preserved.
