@@ -1,0 +1,12 @@
+AERONAV RC11.53 — TEST REPORT
+
+PASS — Mathia is not a default Family member.
+PASS — legacy local Mathia member/history/marker state is removed immediately.
+PASS — main app requests server-side /family/member/remove until the purge succeeds.
+PASS — existing Railway endpoint revokes Mathia devices and removes location/system and stay-history rows.
+PASS — cleanup key is set only after successful server removal; offline failures retry.
+PASS — stale Mathia stay history is not loaded without an active authorised Mathia device.
+PASS — Mathia route-share and go-to controls are hidden until she is paired again.
+PASS — “Adicionar Mathia por QR” remains available for a future explicit re-add.
+PASS — Wendler privacy behaviour preserved.
+PASS — package remains below GitHub web upload 100-file limit.

@@ -1,9 +1,6 @@
-AERONAV RC11.49 — Audit & Home Integration Fix
+AERONAV
+Current package: RC11.53 — Mathia Removed Until QR
+Date: 26/09/2026
 
-Base: RC11.48 Jorge TAAG Flight Avatar
-- Manifests principal, Mathia e Wendler sincronizados para RC11.49.
-- Manifest legado /family corrigido (start_url/scope/icons válidos).
-- Service Worker principal e Wendler com cache RC11.49.
-- Painel de automação passa a consultar /home/status para distinguir backend pronto de ligação externa pendente.
-
-RC11.52 — QR Membership Reset — 26/09/2026
+Preserves RC11.52 ADS-B, GPS, Family, Mathia/Wendler viewers, route sharing, Cockpit Audio, X-Plane/MSFS and offline assets.
+Mathia is absent from the current Family until explicitly paired again by a new QR/link.

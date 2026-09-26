@@ -1,0 +1,7 @@
+AERONAV RC11.53 — MATHIA REMOVED COMPLETELY UNTIL NEW QR
+
+On the first online launch after publishing this version, the main AERONAV calls the Railway /family/member/remove endpoint for Mathia using the configured Family code. This revokes her active Family devices and removes Mathia-related location/system rows and stay-history rows from the current Family.
+
+Mathia is also removed immediately from local cards, markers and history. The cleanup retries while offline or if the server is temporarily unavailable.
+
+After the successful cleanup, Mathia stays absent. She can only return after Jorge explicitly generates a new one-time QR/link from “Adicionar Mathia por QR”.
