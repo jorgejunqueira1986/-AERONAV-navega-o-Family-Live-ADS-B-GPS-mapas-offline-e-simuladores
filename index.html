@@ -56,11 +56,12 @@ main{max-width:1120px;margin:0 auto}.screen{display:none;min-height:calc(100dvh 
 .mode-map-label{margin-left:auto;background:#0e5579;color:#9eeaff;border:1px solid #26769a;border-radius:12px;padding:9px 12px;font-size:12px;font-weight:850;white-space:nowrap;letter-spacing:.25px}
 .position-marker{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;filter:drop-shadow(0 5px 10px #0008);transform-origin:50% 50%}
  .position-marker.flight,.position-marker.drive{width:58px;height:58px;background:#061c2ad9;border:2px solid #73e7ff;border-radius:16px;box-shadow:0 0 0 3px #06233466;overflow:visible}
+ .position-marker.drive{width:58px;height:58px;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;position:relative}
  .position-marker.flight{width:120px;height:88px;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;position:relative}
 .position-marker.flight:after{content:"";position:absolute;left:17%;right:17%;bottom:5px;height:10px;border-radius:50%;background:#0008;filter:blur(7px);z-index:-1}
  .position-marker.flight img{width:120px;height:86px;object-fit:contain;display:block;background:transparent!important;filter:drop-shadow(0 6px 4px #0009) drop-shadow(0 1px 1px #ffffff55) saturate(1.12) contrast(1.05)}
  .position-marker.drive img{width:54px;height:54px;object-fit:contain;display:block;filter:drop-shadow(0 4px 7px #000b)}
-.position-marker.walk{width:65px;height:65px;display:grid;place-items:center;background:transparent;border:0;border-radius:0;filter:drop-shadow(0 7px 8px #000a);overflow:visible}.position-marker.walk img{width:100%;height:100%;object-fit:contain;display:block;border-radius:0;background:transparent}
+.position-marker.walk{width:65px;height:65px;display:grid;place-items:center;background:transparent;border:0;border-radius:0;filter:drop-shadow(0 7px 8px #000a);overflow:visible}.position-marker.walk img{width:100%;height:100%;object-fit:contain;display:block;border-radius:0;background:transparent;transform:rotate(0deg);transform-origin:50% 50%}.family-marker.transport-walk img{transform:rotate(0deg);transform-origin:50% 50%}
 .position-marker .avatar-fallback{font-size:30px;line-height:1}
 .decea-legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
 .legend-chip{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid #21495f;border-radius:11px;background:#071925;color:#c9dce7;font-size:12px}
@@ -565,6 +566,7 @@ body{min-height:var(--app-vh);margin:0}
             <button data-map-proxy="navEmergencyBtn">⚠ Assistência</button>
             <button data-map-proxy="expandMapBtn">↕ Expandir mapa</button>
             <button data-map-proxy="deceaQuickBtn" data-flight-only="1">✈ DECEA</button>
+            <button data-map-proxy="trafficQuickBtn" data-flight-only="1">📡 Tráfego</button>
             <button data-map-proxy="driveMapTypeBtn" data-ground-only="1">🗺 Tipo de mapa</button>
             <button data-drive-proxy="2d" data-ground-only="1">2D</button>
             <button data-drive-proxy="3d" data-ground-only="1">3D</button>
@@ -575,6 +577,7 @@ body{min-height:var(--app-vh);margin:0}
           <button class="soft-btn" id="fitRouteBtn">⌘ Ver rota</button>
           <button class="soft-btn" id="offlineCenterBtn">⇩ Mapa mundial</button>
           <button class="soft-btn" id="deceaQuickBtn">✈ DECEA</button>
+          <button class="soft-btn" id="trafficQuickBtn">📡 Tráfego</button>
           <button class="soft-btn" id="terrainOverlayBtn">⛰ Terreno</button>
           <button class="soft-btn" id="refreshAllBtn">↻ Atualizar tudo</button>
           <button class="soft-btn" id="navHudBtn">▣ HUD</button><button class="soft-btn" id="navEmergencyBtn">⚠ Assistência</button><button class="soft-btn map-expand-btn" id="expandMapBtn">🗖 Aumentar mapa</button><button class="soft-btn" id="fullScreenBtn">⛶ Full screen</button>
@@ -1960,6 +1963,7 @@ body{min-height:var(--app-vh);margin:0}
     $('#netOffline').classList.toggle('active',state.net==='offline');
     const modeLabel=$('#modeMapLabel'); if(modeLabel) modeLabel.textContent=state.mode==='flight'?'✈ Aeronáutico':(ground==='drive'?'🚗 Carro':'🚶 A pé');
     const dq=$('#deceaQuickBtn'); if(dq) dq.classList.toggle('hidden',state.mode!=='flight');
+    const tq=$('#trafficQuickBtn'); if(tq) tq.classList.toggle('hidden',state.mode!=='flight');
     $('#mapBadge strong').textContent = state.mode==='flight' ? 'MAPA AERONÁUTICO' : 'MAPA TERRESTRE';
     $('#mapBadge span').textContent = state.mode==='flight'
       ? 'Mapa de voo. A camada DECEA instalada neste dispositivo é mostrada quando disponível; confirme AIRAC/AIP/NOTAM antes do voo real.'
@@ -5702,6 +5706,7 @@ body{min-height:var(--app-vh);margin:0}
   $('#myPositionBtn').onclick=centerOnMe; $('#fitRouteBtn').onclick=fitCurrentRoute;
   $('#offlineCenterBtn').onclick=()=>setTab('offline');
   $('#deceaQuickBtn').onclick=()=>state.mode==='flight'?setTab('decea'):toast('DECEA está disponível no modo VOO.');
+  $('#trafficQuickBtn').onclick=()=>{if(state.mode!=='flight')return toast('Tráfego ADS-B está disponível no modo VOO.');setTab('traffic');setTimeout(()=>fetchNearbyTraffic(false).catch(()=>{}),180)};
   $('#terrainOverlayBtn').onclick=toggleTerrainOverlay; $('#refreshAllBtn').onclick=refreshAllOnlineData;
   bindEmergencyActions();
   $('#navHudBtn').onclick=toggleNavHud;$('#navEmergencyBtn').onclick=openEmergencyOverlay;$('#expandMapBtn').onclick=()=>toggleMapExpand();$('#fullScreenBtn').onclick=toggleFocusMode;$('#mapStyleClose').onclick=closeMapStyleMenu;$('#mapStyleOverlay').onclick=e=>{if(e.target.id==='mapStyleOverlay')closeMapStyleMenu();};renderMapStyleMenu();

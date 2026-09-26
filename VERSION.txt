@@ -1,1 +1,6 @@
 AERONAV RC11.34 — FAMILY VISIBILITY: MATHIA CANNOT SEE WENDLER; JORGE SEES BOTH
+
+RC11.36 PATCH
+- Avatar Jorge/Mathia em A PÉ endireitado (sem rotação lateral).
+- Avatar do carro do Jorge sem moldura/bordas no mapa.
+- Link HTML do cliente Wendler mantido em /wendler/index.html.
