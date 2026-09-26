@@ -1,0 +1,11 @@
+AERONAV RC11.29 — TEST REPORT
+
+Static validation completed:
+- Main application JavaScript syntax: OK
+- Family Viewer JavaScript syntax: OK
+- Family Viewer root path no longer depends on /family/index.html: OK
+- Service worker fallback points to /family-viewer.html: OK
+- Marker registries are keyed and deduplicated: ownship, family entities and ADS-B traffic.
+- Own/followed flight is excluded from ADS-B traffic markers to avoid duplicate ownship.
+- Airline 3D avatars generated with transparent SVG and cached in IndexedDB aerodata.
+- Global back control present in main app and Family Viewer.

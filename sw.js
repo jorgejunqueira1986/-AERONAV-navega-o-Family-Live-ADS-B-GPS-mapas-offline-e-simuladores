@@ -1,16 +1,15 @@
-/* AERONAV — RC11.28 Map/Nav/Charts/Dynamic Avatars
+/* AERONAV — RC11.31 Optional Flight Callsign + Mathia ADS-B Safety Handover
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_28-adsb-airline-picker-20260926-1';
+const CACHE='aeronav-RC11_31-flight-callsign-safety-handover-20260926-1';
 const LOCAL=[
   './',
   './index.html',
   './family-viewer.html',
-  './family/index.html',
   './family/family-call.js',
   './family/family-manifest.json',
   './family-viewer-preview.html',
@@ -95,7 +94,7 @@ async function networkFirst(request){
     const exact=await c.match(request,{ignoreSearch:false}) || await c.match(url.pathname==='/'?'./index.html':url.pathname.replace(/^\//,'./'));
     if(exact) return exact;
     const familyPath=/\/family\/?(?:index\.html)?$/.test(url.pathname);
-    const fallback=await c.match(familyPath?'./family/index.html':'./index.html');
+    const fallback=await c.match(familyPath?'./family-viewer.html':'./index.html');
     if(fallback) return fallback;
     throw err;
   }

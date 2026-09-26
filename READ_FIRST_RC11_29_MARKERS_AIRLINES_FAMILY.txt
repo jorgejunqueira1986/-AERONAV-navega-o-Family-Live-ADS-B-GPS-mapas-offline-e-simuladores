@@ -1,0 +1,12 @@
+AERONAV RC11.29
+
+Correções principais:
+- Um único marker por entidade: ownship, Jorge/Mathia e cada alvo ADS-B.
+- O próprio utilizador deixa de ser desenhado duas vezes via Family Live.
+- Registos Family duplicados por pessoa são consolidados pelo mais recente.
+- ADS-B mantém registry por ICAO24/callsign: atualiza marker existente, remove apenas alvos que desapareceram.
+- Avatares 3D transparentes por companhia aérea, com catálogo de liveries conhecidas e fallback automático por ICAO.
+- Cada novo operador ADS-B recebe avatar 3D gerado e guardado no IndexedDB (aerodata) para reutilização.
+- Family Viewer deixa de depender de /family/index.html e passa a funcionar diretamente em /family-viewer.html, evitando 404 em uploads móveis do GitHub.
+- Botão Voltar global no AERONAV e no Family Viewer.
+- Reinicialização do mapa limpa markers antigos antes de criar nova instância.

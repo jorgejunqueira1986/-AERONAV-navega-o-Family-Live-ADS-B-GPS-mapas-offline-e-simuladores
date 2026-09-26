@@ -1,0 +1,19 @@
+RC11.31 TEST REPORT
+
+Static checks
+- index.html inline JavaScript: syntax OK (node --check)
+- family-viewer.html inline JavaScript: syntax OK
+- family-viewer-preview.html inline JavaScript: syntax OK
+- sw.js syntax: OK
+
+Feature checks by code path
+- Optional route callsign controls exist.
+- Active ADS-B picker can populate the route callsign.
+- Airline picker callback returns to ADS-B picker.
+- Callsign is stored in current flight route.
+- Saved flight routes preserve trackingCallsign/autoAdsbFallback.
+- Reopening a saved flight route re-arms route-level Family tracking.
+- Active-route restore re-arms stored callsign without requiring manual re-entry.
+- Creating/saving/sending/starting a flight synchronizes callsign to Family when configured and online.
+- Routes explicitly configured without callsign suppress stale previous Family callsign/flight-number fallback.
+- Family Viewer already hands GPS -> ADS-B automatically when flight_number is present and GPS becomes stale, with immediate handover on TAKEOFF event.

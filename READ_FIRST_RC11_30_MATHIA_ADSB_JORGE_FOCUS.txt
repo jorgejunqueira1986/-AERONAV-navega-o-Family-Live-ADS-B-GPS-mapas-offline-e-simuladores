@@ -1,0 +1,8 @@
+AERONAV RC11.30 — MATHIA ADS-B JORGE AIRCRAFT FOCUS
+
+- Alteração apenas no Family Viewer / aplicação da Mathia.
+- Quando Jorge estiver a ser acompanhado por ADS-B após handover do voo, o botão “Onde está Jorge?” centra o mapa no alvo.
+- O alvo do Jorge é mostrado como a aeronave selecionada e recebe a etiqueta “Jorge” + badge ADS-B.
+- A identificação especial não é aplicada no mapa principal do Jorge nem ao tráfego ADS-B geral.
+- Se a fonte ainda for GPS/última posição, o botão apenas centra a localização disponível.
+- Service Worker atualizado para forçar a atualização do Family Viewer no iPhone.

@@ -145,7 +145,7 @@ body{background:radial-gradient(circle at 55% -20%,#0b3551 0,#06131f 42%,#030b12
 .live-nav-cell{background:#061521;padding:10px 11px;min-width:92px}.live-nav-cell span{display:block;color:#89a1b3;font-size:9px;font-weight:900;letter-spacing:.55px}.live-nav-cell strong{display:block;margin-top:3px;font-size:15px;white-space:nowrap}.live-nav-cell.alert strong{color:var(--amber)}
 .addon-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.addon-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px;border-radius:14px;background:#071a27;border:1px solid #173d52}.addon-toggle .meta{min-width:0}.addon-toggle strong{display:block;font-size:13px}.addon-toggle small{display:block;color:#89a5b6;margin-top:4px;line-height:1.35}.addon-toggle input{width:22px;height:22px;flex:0 0 auto}.addon-section{margin-top:14px}
 .focus-mode .app-header{display:none}.focus-mode main{max-width:none}.focus-mode .screen{min-height:100dvh}.focus-mode .map-wrap{height:calc(100dvh - 112px);min-height:0}
-.adsb-dom-marker{position:relative;width:46px;height:46px;border:0;background:transparent;padding:0;display:grid;place-items:center;cursor:pointer;filter:drop-shadow(0 4px 8px #0009)}.adsb-dom-marker .adsb-plane-symbol{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#ef7d18;color:#fff;border:2px solid #ffd1a1;box-shadow:0 0 0 3px #ef7d1833;font-size:23px;font-weight:900;line-height:1;transform-origin:50% 50%}.adsb-dom-marker.urgent .adsb-plane-symbol{background:#d9363e;border-color:#ffd0d3;box-shadow:0 0 0 4px #ff3b4638}.adsb-dom-marker.followed .adsb-plane-symbol{width:44px;height:44px;background:#c51f2f;border:3px solid #fff;box-shadow:0 0 0 4px #ff4f5b45}.adsb-dom-marker .adsb-mini{position:absolute;top:43px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#06131ee8;color:#eefaff;border:1px solid #28556e;border-radius:6px;padding:2px 5px;font-size:9px;font-weight:900;pointer-events:none}.traffic-row{display:grid;grid-template-columns:1.1fr .8fr .6fr .6fr .6fr;gap:8px;align-items:center;padding:9px 10px;background:#061823;border:1px solid #17384d;border-radius:10px;font-size:12px}.traffic-row.head{color:#88a4b5;font-weight:850;background:transparent;border:0;padding-bottom:3px}.traffic-row.urgent{border-color:#9b6325;background:#30220e}
+.adsb-dom-marker{position:relative;width:66px;height:58px;border:0;background:transparent;padding:0;display:grid;place-items:center;cursor:pointer;filter:drop-shadow(0 5px 8px #0009)}.adsb-dom-marker .adsb-traffic-halo{position:absolute;width:46px;height:46px;border-radius:50%;background:#ef7d18;border:2px solid #ffd1a1;box-shadow:0 0 0 3px #ef7d1833;z-index:0}.adsb-dom-marker.urgent .adsb-traffic-halo{background:#d9363e;border-color:#ffd0d3;box-shadow:0 0 0 4px #ff3b4638}.adsb-dom-marker.followed .adsb-traffic-halo{width:50px;height:50px;background:#c51f2f;border:3px solid #fff;box-shadow:0 0 0 4px #ff4f5b45}.adsb-dom-marker .adsb-airline-avatar{position:relative;z-index:1;width:64px;height:48px;object-fit:contain;background:transparent!important;filter:drop-shadow(0 5px 4px #000b) saturate(1.08) contrast(1.04);transform-origin:50% 50%;pointer-events:none}.adsb-dom-marker .adsb-mini{position:absolute;top:51px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#06131ef2;color:#eefaff;border:1px solid #28556e;border-radius:6px;padding:2px 5px;font-size:9px;font-weight:900;pointer-events:none;z-index:2}.global-back-btn{position:absolute;left:0;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:13px;border:1px solid #28556e;background:#081f32;color:#eaf8ff;font-size:30px;line-height:1;display:grid;place-items:center;z-index:5;box-shadow:0 6px 16px #0005}.global-back-btn:active{transform:translateY(-50%) scale(.96)}.brand-row{padding-left:50px;padding-right:50px}.traffic-row{display:grid;grid-template-columns:1.1fr .8fr .6fr .6fr .6fr;gap:8px;align-items:center;padding:9px 10px;background:#061823;border:1px solid #17384d;border-radius:10px;font-size:12px}.traffic-row.head{color:#88a4b5;font-weight:850;background:transparent;border:0;padding-bottom:3px}.traffic-row.urgent{border-color:#9b6325;background:#30220e}
 .wind-table{display:grid;gap:7px}.wind-row{display:grid;grid-template-columns:.8fr 1fr 1fr 1fr;gap:8px;align-items:center;padding:10px;background:#061823;border:1px solid #17384d;border-radius:11px}.wind-arrow{display:inline-block;font-size:22px;transform-origin:center}
 .adc-wrap{position:relative;overflow:auto;background:#111;border-radius:14px;border:1px solid #2a5268;min-height:320px}.adc-inner{position:relative;display:inline-block;min-width:100%}.adc-inner canvas{display:block;max-width:none}.adc-ownship{position:absolute;width:22px;height:22px;border-radius:50%;background:#2fd1ff;border:3px solid white;box-shadow:0 0 0 5px #2fd1ff44,0 0 16px #2fd1ff;transform:translate(-50%,-50%);display:none;z-index:3}.adc-ownship:after{content:"✈";position:absolute;color:#03141d;font-size:11px;left:50%;top:50%;transform:translate(-50%,-52%)}
 .aircraft-profile{display:flex;align-items:center;gap:14px;padding:13px;border-radius:14px;background:#061823;border:1px solid #173d52}.aircraft-logo{width:86px;height:58px;border-radius:12px;background:transparent;display:grid;place-items:center;font-size:30px;overflow:visible}.aircraft-logo img{width:100%;height:100%;object-fit:contain;background:transparent!important;filter:drop-shadow(0 6px 6px #000a)}.crew-table{display:grid;gap:8px}.crew-row{display:grid;grid-template-columns:1.2fr .7fr .7fr .8fr;gap:8px;padding:10px;border-radius:10px;background:#061823;border:1px solid #17384d;font-size:12px}.crew-row.head{background:transparent;border:0;color:#89a5b6;font-weight:850}
@@ -515,6 +515,7 @@ body{min-height:var(--app-vh);margin:0}
   <div id="app">
     <header class="app-header">
       <div class="brand-row">
+        <button type="button" class="global-back-btn" id="globalBackBtn" aria-label="Voltar" title="Voltar">‹</button>
         <div class="brand"><span class="brand-wing">✈</span><span class="brand-name">AERONAV</span></div>
         <div class="gps-status" id="gpsStatus"><span class="status-dot"></span><span>GPS aguardando</span></div>
       </div>
@@ -745,7 +746,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.28 RC11.28 · ADS-B Callsign & Airline Picker + Flight Tracking ID';
+  const APP_VERSION = '7.31 RC11.31 · Flight Callsign Safety Handover';
 
   const AIRLINE_DIRECTORY = [
     ['TAAG Angola Airlines','DT','DTA','Angola'],['TAP Air Portugal','TP','TAP','Portugal'],['Azores Airlines','S4','RZO','Portugal'],['SATA Air Açores','SP','SAT','Portugal'],
@@ -765,6 +766,35 @@ body{min-height:var(--app-vh);margin:0}
     ['Asiana Airlines','OZ','AAR','South Korea'],['Qantas','QF','QFA','Australia'],['Air New Zealand','NZ','ANZ','New Zealand'],['Air India','AI','AIC','India'],['IndiGo','6E','IGO','India'],
     ['SriLankan Airlines','UL','ALK','Sri Lanka'],['El Al Israel Airlines','LY','ELY','Israel'],['Wizz Air','W6','WZZ','Hungary'],['Transavia','HV','TRA','Netherlands'],['Jet2.com','LS','EXS','United Kingdom']
   ].map(([name,iata,icao,country])=>({name,iata,icao,country}));
+  // RC11.29: recognizable 3D traffic avatars by operator. Known palettes are based on public
+  // livery references; unknown ICAO operators receive a deterministic branded fallback and are cached.
+  const AIRLINE_LIVERY={
+    DTA:{body:'#f7f5ef',tail:'#d72b2f',accent:'#f2c232',accent2:'#171717'},TAP:{body:'#f7f7f4',tail:'#d9232e',accent:'#69b442',accent2:'#d9232e'},
+    SWR:{body:'#fafafa',tail:'#d71920',accent:'#d71920',accent2:'#ffffff'},IBE:{body:'#fafafa',tail:'#d4143a',accent:'#e6b62e',accent2:'#d4143a'},AEA:{body:'#f7fbff',tail:'#1765a8',accent:'#39a9e0',accent2:'#1765a8'},
+    RYR:{body:'#f1f5fb',tail:'#0b2d72',accent:'#f1c52d',accent2:'#0b2d72'},EZY:{body:'#ffffff',tail:'#ff6600',accent:'#ff6600',accent2:'#ffffff'},EJU:{body:'#ffffff',tail:'#ff6600',accent:'#ff6600',accent2:'#ffffff'},
+    DLH:{body:'#f7f7f7',tail:'#06235f',accent:'#f3b61f',accent2:'#06235f'},BAW:{body:'#f7f7f7',tail:'#1d2d62',accent:'#d71920',accent2:'#1d2d62'},AFR:{body:'#fbfbfb',tail:'#1b2a56',accent:'#e1222f',accent2:'#1b2a56'},KLM:{body:'#e9f7fb',tail:'#04a7df',accent:'#04a7df',accent2:'#ffffff'},
+    UAE:{body:'#fafafa',tail:'#d71920',accent:'#16814b',accent2:'#d71920'},QTR:{body:'#f3f3f3',tail:'#5c0632',accent:'#7a3158',accent2:'#5c0632'},ETH:{body:'#f7f7f7',tail:'#1f8b4c',accent:'#f2cf31',accent2:'#d53332'},THY:{body:'#f7f7f7',tail:'#d71920',accent:'#d71920',accent2:'#ffffff'},
+    UAL:{body:'#f7f7f7',tail:'#124d8c',accent:'#2e92ca',accent2:'#124d8c'},DAL:{body:'#f7f7f7',tail:'#9e1b32',accent:'#174a7e',accent2:'#9e1b32'},AAL:{body:'#e6e9ed',tail:'#174b7a',accent:'#d33a3a',accent2:'#174b7a'},ACA:{body:'#f7f7f7',tail:'#d9232e',accent:'#d9232e',accent2:'#111111'},
+    AZU:{body:'#f7f7f7',tail:'#21468b',accent:'#19a7d8',accent2:'#21468b'},GLO:{body:'#f7f7f7',tail:'#f18a21',accent:'#f18a21',accent2:'#777777'},LAN:{body:'#f7f7f7',tail:'#1e3264',accent:'#e61b4b',accent2:'#1e3264'},AVA:{body:'#f7f7f7',tail:'#d71920',accent:'#d71920',accent2:'#ffffff'},
+    SIA:{body:'#f7f7f7',tail:'#19356b',accent:'#e2a824',accent2:'#19356b'},CPA:{body:'#f7f7f7',tail:'#006f68',accent:'#006f68',accent2:'#ffffff'},JAL:{body:'#f7f7f7',tail:'#d71920',accent:'#d71920',accent2:'#ffffff'},ANA:{body:'#f7f7f7',tail:'#17549a',accent:'#17549a',accent2:'#ffffff'},QFA:{body:'#f7f7f7',tail:'#d71920',accent:'#d71920',accent2:'#ffffff'}
+  };
+  function hashHue(text=''){let h=0;for(const ch of String(text))h=(h*33+ch.charCodeAt(0))>>>0;return h%360;}
+  function airlineLiveryFor(code=''){
+    const c=String(code||'UNK').toUpperCase();if(AIRLINE_LIVERY[c])return AIRLINE_LIVERY[c];const h=hashHue(c);return {body:'#f4f7f9',tail:`hsl(${h} 68% 38%)`,accent:`hsl(${(h+42)%360} 78% 52%)`,accent2:`hsl(${h} 68% 28%)`};
+  }
+  function airlineAvatarSvg(code='UNK',name='Airline'){
+    const c=String(code||'UNK').toUpperCase().slice(0,4),l=airlineLiveryFor(c),safeName=String(name||c).replace(/[<>&"']/g,'');
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 150"><defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff"/><stop offset=".55" stop-color="${l.body}"/><stop offset="1" stop-color="#8a9cac"/></linearGradient><linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#9cadbc"/></linearGradient><filter id="s" x="-30%" y="-30%" width="170%" height="190%"><feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000" flood-opacity=".55"/></filter></defs><g filter="url(#s)" transform="translate(130 74) rotate(-8) translate(-130 -74)"><path d="M25 77 L106 62 L121 19 Q126 7 133 19 L147 60 L236 69 Q252 72 237 79 L151 88 L139 130 Q134 143 128 130 L116 90 L30 88 Q8 85 25 77Z" fill="url(#w)" stroke="#526778" stroke-width="2"/><path d="M112 66 Q128 49 148 65 L163 78 L148 91 Q128 105 111 87Z" fill="url(#f)"/><path d="M128 38 L134 15 L143 61 L135 65Z" fill="${l.tail}"/><path d="M45 78 L111 67 L116 87 L46 86Z" fill="${l.accent}" opacity=".94"/><path d="M166 71 L219 70 L227 76 L166 82Z" fill="${l.accent2}" opacity=".9"/><ellipse cx="137" cy="73" rx="11" ry="5" fill="#173a5d"/><path d="M236 69 L254 74 L237 79Z" fill="#f7fafc"/><text x="142" y="78" font-family="Arial,sans-serif" font-size="12" font-weight="900" fill="${l.tail}" text-anchor="middle">${c}</text></g><title>${safeName}</title></svg>`;
+    return 'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg);
+  }
+  async function airlineAvatarForTraffic(a={}){
+    const al=adsbAirlineFor(a),code=String(al?.icao||'UNK').toUpperCase(),key='airline-avatar-'+code;
+    if(state.traffic?.airlineAvatarCache?.has(code))return state.traffic.airlineAvatarCache.get(code);
+    try{const rec=await dbGet('aerodata',key);if(rec?.dataUri){state.traffic.airlineAvatarCache.set(code,rec.dataUri);return rec.dataUri;}}catch(_){}
+    const dataUri=airlineAvatarSvg(code,al?.name||code);state.traffic.airlineAvatarCache.set(code,dataUri);
+    try{await dbPut('aerodata',{id:key,icao:code,name:al?.name||code,dataUri,updatedAt:Date.now(),source:'RC11.29 generated 3D livery cache'});}catch(_){}
+    return dataUri;
+  }
   const FAMILY_BOOTSTRAP_SERVER='https://aeronav-cockpit-token-server-production.up.railway.app';
   const OPENFREEMAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
   const MOBILE_FALLBACK_STYLE = {version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap contributors'}},layers:[{id:'osm-base',type:'raster',source:'osm',minzoom:0,maxzoom:19}]};
@@ -871,6 +901,7 @@ body{min-height:var(--app-vh);margin:0}
     net: localStorage.getItem('aeronav.net') || 'online',
     core: {sw:false,shellReady:false,remoteReady:false,lastCheck:0},
     activeTab: 'home',
+    navHistory: [],
     routePlannerMode: localStorage.getItem('aeronav.routePlannerMode') || ((localStorage.getItem('aeronav.mode') || 'flight')==='flight'?'flight':'drive'),
     offlineRouteType: localStorage.getItem('aeronav.offlineRouteType') || 'flight',
     layer: localStorage.getItem('aeronav.layer') || 'aviation',
@@ -1000,7 +1031,7 @@ body{min-height:var(--app-vh);margin:0}
   state.liveNav={country:'—',countryCode:'',airspace:'—',airspaceClass:'',manualTasKt:Number(localStorage.getItem('aeronav.manualTasKt')||0),lastCountryCheck:0,lastAirspaceCheck:0};
   state.boundaries={geojson:null,index:[],updatedAt:0,loading:false};
   state.wind={profile:null,retrievedAt:0,lat:null,lon:null,source:'Open-Meteo'};
-  state.traffic={aircraft:[],updatedAt:0,radiusNm:Number(localStorage.getItem('aeronav.trafficRadius')||50),loading:false,followedCallsign:''};
+  state.traffic={aircraft:[],updatedAt:0,radiusNm:Number(localStorage.getItem('aeronav.trafficRadius')||50),loading:false,followedCallsign:'',domMarkers:new Map(),airlineAvatarCache:new Map()};
   // RC8.1: Glass Cockpit UI removed at user request; this lightweight state remains only for navigation heading/VSI internals.
   state.glass={pitch:0,roll:0,compassHeading:null,orientationActive:false,lastAltM:null,lastAltAt:0,vsiFpm:null};
   state.aircraftPref=localStorage.getItem('aeronav.aircraftPref')||'c152';
@@ -1719,7 +1750,7 @@ body{min-height:var(--app-vh);margin:0}
       const rec=await dbGet('aerodata',ACTIVE_ROUTE_SESSION_ID);
       if(!rec?.route||rec.route.status==='completed')return false;
       state.currentRoute=rec.route;state.currentRoute.navigationActive=true;state.currentRoute._mapOpened=true;
-      if(state.currentRoute.kind==='flight'){state.mode='flight';state.manualWalk=false;state.layer='aviation';state.routePlannerMode='flight';}
+      if(state.currentRoute.kind==='flight'){state.mode='flight';state.manualWalk=false;state.layer='aviation';state.routePlannerMode='flight';armFamilyFlightTrackingFromRoute(state.currentRoute,{push:false,shareRoute:false}).catch(()=>{});}
       else if(state.currentRoute.kind==='road'){state.mode='drive';state.manualWalk=false;state.layer='street';state.routePlannerMode='drive';}
       localStorage.setItem('aeronav.mode',state.mode);localStorage.setItem('aeronav.manualWalk','0');localStorage.setItem('aeronav.layer',state.layer);localStorage.setItem('aeronav.routePlannerMode',state.routePlannerMode);
       state.followOwnship=true;
@@ -1984,7 +2015,9 @@ body{min-height:var(--app-vh);margin:0}
     syncSegments(); renderAllScreens(); if(state.activeTab==='map'||state.mapReady)updateMapMode();
     toast(net==='offline'?'Modo Offline: sem pedidos à Internet.':'Modo Online ativado.');
   }
-  function setTab(id){
+  function setTab(id,fromBack=false){
+    const prev=state.activeTab;
+    if(!fromBack&&prev&&prev!==id){state.navHistory.push(prev);if(state.navHistory.length>24)state.navHistory.shift();}
     state.activeTab=id; closePremiumMore(); closeHeaderOverflow(); renderTabs(); syncPremiumShell();
     $$('.screen').forEach(s=>s.classList.remove('active'));
     $(`#screen-${id}`).classList.add('active');
@@ -2011,6 +2044,20 @@ body{min-height:var(--app-vh);margin:0}
     if(id==='crew') renderCrewScreen();
     if(id==='map'){state.followOwnship=true;Promise.resolve(updateMapMode()).then(()=>setTimeout(()=>{state.map?.resize();if(state.currentPosition)forceCenterOnPosition(state.currentPosition);renderTrafficLayer();renderDriveAssistMapLayers();updateLiveNavigation();renderNavHud();},60));}
   }
+
+  function closeTopOverlayIfAny(){
+    const selectors=['.pairing-overlay','.premium-drawer-overlay','.map-style-overlay','.quick-assist-overlay','.family-member-overlay','.airline-picker-overlay','.adsb-picker-overlay'];
+    for(const sel of selectors){const el=document.querySelector(sel+'.show')||document.querySelector(sel);if(el&&getComputedStyle(el).display!=='none'){try{el.remove()}catch(_){el.classList.remove('show')}return true;}}
+    return false;
+  }
+  function goAppBack(){
+    if(closeTopOverlayIfAny())return;
+    let target='';while(state.navHistory.length&&!target){const x=state.navHistory.pop();if(x&&x!==state.activeTab)target=x;}
+    if(!target)target=state.activeTab==='home'?'map':'home';
+    setTab(target,true);
+  }
+  $('#globalBackBtn')?.addEventListener('click',goAppBack);
+  window.addEventListener('popstate',()=>goAppBack());
 
   // ---------- PMTiles offline basemap ----------
   function initPmtilesProtocol(){
@@ -2267,6 +2314,11 @@ body{min-height:var(--app-vh);margin:0}
   }
   // ---------- Map ----------
   function initMap(styleMode='online'){
+    // Hard reset visual marker ownership before a new map instance is created.
+    if(state.positionMarker){try{state.positionMarker.remove()}catch(_){}state.positionMarker=null;state.positionMarkerMode='';}
+    if(state.family?.markers){for(const [,mk] of state.family.markers){try{mk.remove()}catch(_){}}state.family.markers.clear();}
+    if(state.traffic?.domMarkers){for(const [,mk] of state.traffic.domMarkers){try{mk.remove()}catch(_){}}state.traffic.domMarkers.clear();}
+    if(state.map){try{state.map.remove()}catch(_){}state.map=null;state.mapReady=false;}
     initPmtilesProtocol();
     if(typeof maplibregl==='undefined'){
       state.net='offline'; localStorage.setItem('aeronav.net','offline');
@@ -2779,7 +2831,21 @@ body{min-height:var(--app-vh);margin:0}
     (state.traffic.aircraft||[]).forEach(a=>{const al=adsbAirlineFor(a);if(!al)return;const key=al.icao||al.name.toUpperCase();const cur=map.get(key)||{...al,detected:0};cur.detected=(cur.detected||0)+1;map.set(key,cur);});
     return [...map.values()].sort((a,b)=>(b.detected||0)-(a.detected||0)||a.name.localeCompare(b.name));
   }
-  function familyTrackingFlightId(){const f=state.family;return normalizeFlightCallsign(f.flightCallsign||f.flightNumber||'')||String(f.flightNumber||'').trim();}
+  function routeTrackingCallsign(route=state.currentRoute){
+    if(!route||route.kind!=='flight'||route.autoAdsbFallback!==true)return '';
+    return normalizeFlightCallsign(route.trackingCallsign||'');
+  }
+  function familyTrackingFlightId(){
+    const f=state.family,r=state.currentRoute;
+    // A flight route explicitly configured without a callsign must never reuse a
+    // stale callsign/flight number from an earlier trip.
+    if(r?.kind==='flight'){
+      const rc=routeTrackingCallsign(r);
+      if(rc)return rc;
+      if(r.autoAdsbFallback===false)return '';
+    }
+    return normalizeFlightCallsign(f.flightCallsign||f.flightNumber||'')||String(f.flightNumber||'').trim();
+  }
   async function refreshAdsbPickerTraffic(){
     const p=state.currentPosition||state.currentRoute?.from;if(!p||!Number.isFinite(+p.lat)||!Number.isFinite(+p.lon))throw new Error('Ative o GPS ou abra uma rota para procurar aeronaves ADS-B.');
     const radius=Math.max(25,Math.min(100,Number(state.traffic.radiusNm)||100));
@@ -2797,17 +2863,17 @@ body{min-height:var(--app-vh);margin:0}
     throw lastErr||new Error('ADS-B indisponível.');
   }
   function selectedAirlineLabel(){const f=state.family;if(!f.flightAirlineName&&!f.flightAirlineIcao)return 'Todas as companhias';return `${f.flightAirlineName||f.flightAirlineIcao}${f.flightAirlineIata?` · ${f.flightAirlineIata}`:''}${f.flightAirlineIcao?` / ${f.flightAirlineIcao}`:''}`;}
-  async function openAirlinePicker(){
+  async function openAirlinePicker(onSelect=null){
     try{toast('A atualizar companhias e voos ADS-B…');await refreshAdsbPickerTraffic();}catch(e){toast('ADS-B: '+(e.message||e));}
     document.querySelector('.airline-picker-overlay')?.remove();
     const f=state.family,o=document.createElement('div');o.className='pairing-overlay airline-picker-overlay';
     o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true" style="max-width:680px"><h2>Companhia aérea</h2><p>Escolha uma companhia. As que têm voos ADS-B detetados aparecem primeiro.</p><input id="airlinePickerSearch" placeholder="Pesquisar companhia, IATA ou ICAO" style="width:100%;margin:8px 0 10px"><div class="family-actions"><button class="soft-btn" id="airlinePickerAll">Todas / sem filtro</button><button class="soft-btn" id="airlinePickerClose">Fechar</button></div><div id="airlinePickerList" style="margin-top:10px;max-height:min(56vh,520px);overflow:auto"></div></div>`;
     document.body.appendChild(o);
     const list=o.querySelector('#airlinePickerList'),search=o.querySelector('#airlinePickerSearch');
-    const draw=()=>{const q=search.value.trim().toLowerCase();const rows=mergedAirlineDirectory().filter(x=>!q||`${x.name} ${x.iata} ${x.icao} ${x.country}`.toLowerCase().includes(q)).slice(0,180);list.innerHTML=rows.length?rows.map((x,i)=>`<button type="button" class="list-item" data-airline-index="${i}" style="width:100%;text-align:left;margin-bottom:7px"><div class="item-icon">${x.detected?'📡':'✈'}</div><div class="item-main"><strong>${esc(x.name)}</strong><small>${esc(x.iata||'—')} / ${esc(x.icao||'—')}${x.country?` · ${esc(x.country)}`:''}${x.detected?` · ${x.detected} voo(s) ADS-B agora`:''}</small></div></button>`).join(''):'<div class="empty">Nenhuma companhia encontrada.</div>';list.querySelectorAll('[data-airline-index]').forEach((b,idx)=>b.onclick=()=>{const x=rows[Number(b.dataset.airlineIndex)];if(!x)return;f.flightAirlineName=x.name||'';f.flightAirlineIcao=x.icao||'';f.flightAirlineIata=x.iata||'';saveFamilySettings();o.remove();renderFamilyScreen();setTimeout(openAdsbCallsignPicker,60);});};
+    const draw=()=>{const q=search.value.trim().toLowerCase();const rows=mergedAirlineDirectory().filter(x=>!q||`${x.name} ${x.iata} ${x.icao} ${x.country}`.toLowerCase().includes(q)).slice(0,180);list.innerHTML=rows.length?rows.map((x,i)=>`<button type="button" class="list-item" data-airline-index="${i}" style="width:100%;text-align:left;margin-bottom:7px"><div class="item-icon">${x.detected?'📡':'✈'}</div><div class="item-main"><strong>${esc(x.name)}</strong><small>${esc(x.iata||'—')} / ${esc(x.icao||'—')}${x.country?` · ${esc(x.country)}`:''}${x.detected?` · ${x.detected} voo(s) ADS-B agora`:''}</small></div></button>`).join(''):'<div class="empty">Nenhuma companhia encontrada.</div>';list.querySelectorAll('[data-airline-index]').forEach((b,idx)=>b.onclick=()=>{const x=rows[Number(b.dataset.airlineIndex)];if(!x)return;f.flightAirlineName=x.name||'';f.flightAirlineIcao=x.icao||'';f.flightAirlineIata=x.iata||'';saveFamilySettings();o.remove();renderFamilyScreen();setTimeout(()=>openAdsbCallsignPicker(onSelect),60);});};
     search.addEventListener('input',draw);o.querySelector('#airlinePickerAll').onclick=()=>{f.flightAirlineName='';f.flightAirlineIcao='';f.flightAirlineIata='';saveFamilySettings();o.remove();renderFamilyScreen();};o.querySelector('#airlinePickerClose').onclick=()=>o.remove();draw();
   }
-  async function openAdsbCallsignPicker(){
+  async function openAdsbCallsignPicker(onSelect=null){
     try{toast('A procurar aeronaves com callsign ADS-B ativo…');await refreshAdsbPickerTraffic();}catch(e){toast('ADS-B: '+(e.message||e));return;}
     document.querySelector('.adsb-picker-overlay')?.remove();
     const f=state.family,o=document.createElement('div');o.className='pairing-overlay adsb-picker-overlay';
@@ -2815,8 +2881,8 @@ body{min-height:var(--app-vh);margin:0}
     document.body.appendChild(o);
     const list=o.querySelector('#adsbPickerList'),search=o.querySelector('#adsbPickerSearch');
     const candidateRows=()=>{const q=search.value.trim().toLowerCase(),icao=String(f.flightAirlineIcao||'').toUpperCase(),name=String(f.flightAirlineName||'').toLowerCase();return (state.traffic.aircraft||[]).filter(a=>adsbCallsignOf(a)).filter(a=>{const al=adsbAirlineFor(a),call=adsbCallsignOf(a);if(icao&&!(call.startsWith(icao)||al?.icao===icao))return false;if(name&&al?.name&&!al.name.toLowerCase().includes(name)&&!name.includes(al.name.toLowerCase()))return false;const hay=`${call} ${a.r||''} ${a.t||''} ${a.ownOp||''} ${al?.name||''}`.toLowerCase();return !q||hay.includes(q);}).sort((a,b)=>a.distanceNm-b.distanceNm);};
-    const draw=()=>{const rows=candidateRows();list.innerHTML=rows.length?rows.map((a,i)=>{const call=adsbCallsignOf(a),al=adsbAirlineFor(a);return `<button type="button" class="list-item" data-adsb-index="${i}" style="width:100%;text-align:left;margin-bottom:7px"><div class="item-icon" style="color:#ff9c43">✈</div><div class="item-main"><strong>${esc(call)} <span class="badge ok" style="font-size:9px">ADS-B ATIVO</span></strong><small>${esc(al?.name||a.ownOp||'Companhia não identificada')} · ${a.distanceNm.toFixed(1)} NM · ${a.displayAlt??'—'} ft${a.r?` · ${esc(a.r)}`:''}${a.t?` · ${esc(a.t)}`:''}</small></div></button>`}).join(''):'<div class="empty">Nenhuma aeronave com callsign encontrada para este filtro. Escolha “Companhias aéreas” para mudar o filtro ou atualize a lista.</div>';list.querySelectorAll('[data-adsb-index]').forEach(b=>b.onclick=()=>{const rows=candidateRows(),a=rows[Number(b.dataset.adsbIndex)];if(!a)return;const call=adsbCallsignOf(a),al=adsbAirlineFor(a);f.flightCallsign=call;if(!f.flightNumber)f.flightNumber=call;if(al){f.flightAirlineName=al.name||'';f.flightAirlineIcao=al.icao||'';f.flightAirlineIata=al.iata||'';}saveFamilySettings();o.remove();renderFamilyScreen();toast(`Callsign selecionado: ${call}`);});};
-    search.addEventListener('input',draw);o.querySelector('#adsbPickerAirline').onclick=()=>{o.remove();openAirlinePicker();};o.querySelector('#adsbPickerRefresh').onclick=async()=>{try{await refreshAdsbPickerTraffic();draw();toast('Lista ADS-B atualizada.');}catch(e){toast('ADS-B: '+(e.message||e));}};o.querySelector('#adsbPickerClose').onclick=()=>o.remove();draw();
+    const draw=()=>{const rows=candidateRows();list.innerHTML=rows.length?rows.map((a,i)=>{const call=adsbCallsignOf(a),al=adsbAirlineFor(a);return `<button type="button" class="list-item" data-adsb-index="${i}" style="width:100%;text-align:left;margin-bottom:7px"><div class="item-icon" style="color:#ff9c43">✈</div><div class="item-main"><strong>${esc(call)} <span class="badge ok" style="font-size:9px">ADS-B ATIVO</span></strong><small>${esc(al?.name||a.ownOp||'Companhia não identificada')} · ${a.distanceNm.toFixed(1)} NM · ${a.displayAlt??'—'} ft${a.r?` · ${esc(a.r)}`:''}${a.t?` · ${esc(a.t)}`:''}</small></div></button>`}).join(''):'<div class="empty">Nenhuma aeronave com callsign encontrada para este filtro. Escolha “Companhias aéreas” para mudar o filtro ou atualize a lista.</div>';list.querySelectorAll('[data-adsb-index]').forEach(b=>b.onclick=()=>{const rows=candidateRows(),a=rows[Number(b.dataset.adsbIndex)];if(!a)return;const call=adsbCallsignOf(a),al=adsbAirlineFor(a);f.flightCallsign=call;if(!f.flightNumber)f.flightNumber=call;if(al){f.flightAirlineName=al.name||'';f.flightAirlineIcao=al.icao||'';f.flightAirlineIata=al.iata||'';}saveFamilySettings();o.remove();renderFamilyScreen();if(typeof onSelect==='function')try{onSelect(call,al,a)}catch(_){}toast(`Callsign selecionado: ${call}`);});};
+    search.addEventListener('input',draw);o.querySelector('#adsbPickerAirline').onclick=()=>{o.remove();openAirlinePicker(onSelect);};o.querySelector('#adsbPickerRefresh').onclick=async()=>{try{await refreshAdsbPickerTraffic();draw();toast('Lista ADS-B atualizada.');}catch(e){toast('ADS-B: '+(e.message||e));}};o.querySelector('#adsbPickerClose').onclick=()=>o.remove();draw();
   }
 
   async function fetchAdsbPosition(flightNumber, explicitCallsign=''){
@@ -2948,7 +3014,7 @@ body{min-height:var(--app-vh);margin:0}
     q('#pairRequest').onclick=async()=>{const email=q('#pairEmail').value.trim(),code=q('#pairCode').value.trim(),code2=q('#pairCode2').value.trim();if(!/^\S+@\S+\.\S+$/.test(email)){msg.textContent='Introduza um e-mail válido.';return}if(!familyCodeValid(code)){msg.textContent='O Código da Família deve ter entre 8 e 64 caracteres.';return}if(code!==code2){msg.textContent='Os dois códigos não coincidem.';return}try{q('#pairRequest').disabled=true;msg.textContent='A enviar e-mail…';if(isSetup)await familyPairingApi('/family/setup/request',{email,new_code:code});else await familyPairingApi('/family/recovery/request',{email});q('#pairOtpWrap').classList.add('show');q('#pairConfirm').style.display='inline-flex';msg.textContent='Foi enviado um código de 6 dígitos. Introduza-o abaixo. Se não chegar, verifique Spam/Lixo.';}catch(e){msg.textContent=e?.message||String(e)}finally{q('#pairRequest').disabled=false}};
     q('#pairConfirm').onclick=async()=>{const email=q('#pairEmail').value.trim(),code=q('#pairCode').value.trim(),otp=q('#pairOtp').value.trim();if(!/^\d{6}$/.test(otp)){msg.textContent='Introduza o código de 6 dígitos recebido por e-mail.';return}try{q('#pairConfirm').disabled=true;msg.textContent='A confirmar…';if(isSetup)await familyPairingApi('/family/setup/confirm',{email,otp});else await familyPairingApi('/family/recovery/confirm',{email,otp,new_code:code});const f=state.family;f.familyKey=code;f.familyHash='';localStorage.setItem('aeronav.family.key',code);sessionStorage.setItem('aeronav.cockpit.familyCode',code);const boot=await familyBootstrapConfig(code);f.supabaseUrl=boot.url;f.anonKey=boot.anon;f.enabled=true;saveFamilySettings();closeFamilyPairingModal();startFamilySync();await familySyncCycle();renderFamilyScreen();toast(isSetup?'Código da Família criado e confirmado.':'Código alterado. Introduza o novo código no telefone da Mathia.');}catch(e){msg.textContent=e?.message||String(e)}finally{q('#pairConfirm').disabled=false}};
   }
-  function familyViewerUrl(){try{return new URL('./family/index.html',location.href).href}catch(_){return familyPairPublicBase()+'index.html'}}
+  function familyViewerUrl(){try{return new URL('./family-viewer.html',location.href).href}catch(_){return location.origin+location.pathname.replace(/[^/]*$/,'')+'family-viewer.html'}}
   function openFamilyViewer(){const u=familyViewerUrl();try{window.location.assign(u)}catch(_){location.href=u}}
   async function shareFamilyViewer(){ return showFamilyPairLink(); }
   async function sha256TextHex(text){
@@ -2969,7 +3035,25 @@ body{min-height:var(--app-vh);margin:0}
   function isFamilyCallRow(m){ return /__CALL$/.test(String(m?.member_id||'')) || /^CALL_/.test(String(m?.transport||'')); }
   function isFamilySystemRow(m){ return isFamilySosRow(m)||isFamilyCallRow(m)||isFamilyJourneyRow(m)||isFamilyBatteryRow(m); }
   function parseFamilyCall(m){const x=/^CALL_(RINGING|ACCEPTED|DECLINED|ENDED):([A-Za-z0-9_-]{10,80})$/.exec(String(m?.transport||''));return x?{status:x[1],id:x[2]}:null;}
-  function activeJourneyRoute(){const r=state.currentRoute,coords=r?.geometry?.coordinates;if(!coords?.length)return null;const from=r.from?.name||r.from?.icao||r.name?.split('→')?.[0]?.trim()||'Origem',to=r.to?.name||r.to?.icao||r.name?.split('→')?.slice(-1)[0]?.trim()||'Destino',dur=Number(r.duration)||0,dist=Number(r.distance)||0,step=Math.max(1,Math.ceil(coords.length/88)),path=coords.filter((_,i)=>i%step===0||i===coords.length-1).slice(0,90).map(c=>[Math.round(Number(c[0])*1e5)/1e5,Math.round(Number(c[1])*1e5)/1e5]);const start=r.actualStartAt||r.plannedStartAt||null,eta=r.plannedArrivalAt||(start&&dur?new Date(new Date(start).getTime()+dur*1000).toISOString():(dur?new Date(Date.now()+dur*1000).toISOString():null));return{id:String(r.id||r.name||'route'),mode:r.kind==='flight'?'flight':'drive',from:String(from).slice(0,80),to:String(to).slice(0,100),durationMin:dur?Math.round(dur/60):null,distanceKm:dist?Math.round(dist/100)/10:null,plannedStartAt:r.plannedStartAt||null,actualStartAt:r.actualStartAt||null,eta,plannedArrivalAt:eta,hotel:/\b(hotel|resort|lodge|pousada|alojamento|guest\s*house|inn)\b/i.test(String(to)),path}}
+  function activeJourneyRoute(){
+    const r=state.currentRoute,coords=r?.geometry?.coordinates;if(!coords?.length)return null;
+    const from=r.from?.name||r.from?.icao||r.name?.split('→')?.[0]?.trim()||'Origem',
+      to=r.to?.name||r.to?.icao||r.name?.split('→')?.slice(-1)[0]?.trim()||'Destino',
+      dur=Number(r.duration)||0,dist=Number(r.distance)||0,
+      step=Math.max(1,Math.ceil(coords.length/88)),
+      path=coords.filter((_,i)=>i%step===0||i===coords.length-1).slice(0,90).map(c=>[Math.round(Number(c[0])*1e5)/1e5,Math.round(Number(c[1])*1e5)/1e5]),
+      start=r.actualStartAt||r.plannedStartAt||null,
+      eta=r.plannedArrivalAt||(start&&dur?new Date(new Date(start).getTime()+dur*1000).toISOString():(dur?new Date(Date.now()+dur*1000).toISOString():null)),
+      trackingCallsign=r.kind==='flight'?routeTrackingCallsign(r):'';
+    return {
+      id:String(r.id||r.name||'route'),mode:r.kind==='flight'?'flight':'drive',
+      from:String(from).slice(0,80),to:String(to).slice(0,100),
+      durationMin:dur?Math.round(dur/60):null,distanceKm:dist?Math.round(dist/100)/10:null,
+      plannedStartAt:r.plannedStartAt||null,actualStartAt:r.actualStartAt||null,eta,plannedArrivalAt:eta,
+      hotel:/\b(hotel|resort|lodge|pousada|alojamento|guest\s*house|inn)\b/i.test(String(to)),path,
+      ...(r.kind==='flight'?{trackingCallsign:trackingCallsign||null,adsbFallback:!!trackingCallsign,aircraftId:r.aircraft?.id||state.aircraftPref||'c152'}:{})
+    };
+  }
   function familyJourneyLabel(p){return({ROUTE:'Rota planeada',STARTED:'Viagem iniciada',LEFT_ORIGIN:'Saiu da zona de origem',COUNTRY:'Fronteira cruzada',TAKEOFF:'Descolou',LANDED:'Aterrou',EN_ROUTE_HOTEL:'A caminho do hotel',ARRIVED_HOTEL:'Chegou ao hotel',ARRIVED:'Chegou ao destino',PROVINCE:'Fronteira de província/região',MUNICIPALITY:'Fronteira de município',CITY_3KM:'Percorreu mais 3 km na cidade',DESCENT:'Iniciou descida para aterragem',LEFT_AIRPORT:'Deixou o aeroporto'})[p?.event]||p?.event||'Atualização da viagem'}
   const LOCAL_JOURNEY_KEY='aeronav.journey.localEvents';
   function localJourneyEvents(){try{return JSON.parse(localStorage.getItem(LOCAL_JOURNEY_KEY)||'[]')}catch(_){return []}}
@@ -2982,7 +3066,7 @@ body{min-height:var(--app-vh);margin:0}
   }
   function clearLocalJourney(){localStorage.removeItem(LOCAL_JOURNEY_KEY);if(state.activeTab==='journey')renderJourneyScreen()}
   async function upsertFamilyJourney(event,extra={}){logLocalJourneyEvent(event,extra);const f=state.family,mandatoryFlightEvent=event==='TAKEOFF'||event==='LANDED';if((!f.journeyEnabled&&!mandatoryFlightEvent)||!familyConfigured()||!navigator.onLine)return false;await ensureFamilyHash();const p=state.currentPosition,r=activeJourneyRoute(),payload={v:1,event,at:new Date().toISOString(),member:f.displayName||'Jorge',transport:state.detectedTransport,flightPhase:f.flightPhase||'ground',...(r?{route:r}:{}),...extra},enc=journeyEncode(payload);const body={room_hash:f.familyHash,member_id:familyJourneyMemberId(f.memberId),display_name:'JOURNEY · '+(f.displayName||'Jorge'),sharing:false,lat:Number.isFinite(p?.lat)?p.lat:null,lon:Number.isFinite(p?.lon)?p.lon:null,accuracy:p?.accuracy??null,altitude:p?.altitude??null,speed:p?.speed??null,heading:p?.heading??null,transport:'JOURNEY:'+enc,flight_number:familyTrackingFlightId()||null,flight_eta:r?.eta||null,updated_at:new Date().toISOString()};try{const q=await fetch(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});if(!q.ok)return false;f.journeyLastStatus=event;localStorage.setItem('aeronav.family.journeyLastStatus',event);return true}catch(_){return false}}
-  function scheduleFamilyJourneyShare(){const f=state.family,r=activeJourneyRoute();if(!r)return;const sig=`${r.id}|${r.from}|${r.to}|${r.durationMin}|${r.plannedStartAt||''}|${r.actualStartAt||''}`;const localSig=localStorage.getItem('aeronav.journey.routeSig')||'';if(localSig!==sig){localStorage.setItem('aeronav.journey.routeSig',sig);logLocalJourneyEvent('ROUTE',{place:r.to})}if(!f.journeyEnabled)return;if(sig===f.journeyLastSig||sig===f.journeyPendingSig)return;f.journeyPendingSig=sig;f.journeyOriginLeft=false;localStorage.setItem('aeronav.family.journeyOriginLeft','0');localStorage.removeItem('aeronav.family.journeyHotelRoute');setTimeout(async()=>{if(await upsertFamilyJourney('ROUTE')){f.journeyLastSig=sig;localStorage.setItem('aeronav.family.journeyLastSig',sig)}f.journeyPendingSig=''},100)}
+  function scheduleFamilyJourneyShare(){const f=state.family,r=activeJourneyRoute();if(!r)return;const sig=`${r.id}|${r.from}|${r.to}|${r.durationMin}|${r.plannedStartAt||''}|${r.actualStartAt||''}|${r.trackingCallsign||''}`;const localSig=localStorage.getItem('aeronav.journey.routeSig')||'';if(localSig!==sig){localStorage.setItem('aeronav.journey.routeSig',sig);logLocalJourneyEvent('ROUTE',{place:r.to})}if(!f.journeyEnabled)return;if(sig===f.journeyLastSig||sig===f.journeyPendingSig)return;f.journeyPendingSig=sig;f.journeyOriginLeft=false;localStorage.setItem('aeronav.family.journeyOriginLeft','0');localStorage.removeItem('aeronav.family.journeyHotelRoute');setTimeout(async()=>{if(await upsertFamilyJourney('ROUTE')){f.journeyLastSig=sig;localStorage.setItem('aeronav.family.journeyLastSig',sig)}f.journeyPendingSig=''},100)}
   function maybeUpdateJourneyProgress(p){
     const f=state.family,r=activeJourneyRoute();if(!f.journeyEnabled||!r||!p)return;
     const c=state.currentRoute.geometry.coordinates,start={lon:+c[0][0],lat:+c[0][1]},dest=routeDestination(),ds=haversine(p,start),dd=dest?haversine(p,dest):NaN,spd=Number(p.speed)||0;
@@ -3214,21 +3298,34 @@ body{min-height:var(--app-vh);margin:0}
     if(transport==='drive')return {kind:'drive',src:EMBEDDED_VEHICLE_AVATAR,label:'Toyota Yaris'};
     const person=personAvatarForName(name);return {kind:'walk',src:person,label:name};
   }
+  function canonicalPersonKey(name=''){
+    const n=String(name||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if(n.includes('jorge'))return 'person:jorge';if(n.includes('mathia'))return 'person:mathia';return n?'person:'+n.replace(/[^a-z0-9]+/g,'-'):'';
+  }
+  function isLocalFamilyMember(m){
+    const id=String(m?.member_id||''),localId=String(state.family.memberId||'');if(id&&localId&&id===localId)return true;
+    const local=canonicalPersonKey(currentDevicePersonName()),other=canonicalPersonKey(m?.display_name||'');return !!local&&local===other;
+  }
   function updateFamilyMarkers(){
     if(!state.map || !state.mapReady || typeof maplibregl==='undefined') return;
-    const active=new Set();
+    const freshest=new Map();
     for(const m of state.family.members||[]){
-      if(isFamilySystemRow(m)) continue;
-      const dlat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat); const dlon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);
-      if(!m.sharing || !Number.isFinite(dlat) || !Number.isFinite(dlon)) continue;
-      const id=String(m.member_id); active.add(id); let marker=state.family.markers.get(id);
-      const age=Date.now()-new Date(m._displayUpdatedAt||m.updated_at).getTime();
-      const name=String(m.display_name||'Membro'),av=familyTransportAvatar(m);
-      if(!marker){ const d=document.createElement('div'); marker=new maplibregl.Marker({element:d,rotationAlignment:'map'}).setLngLat([dlon,dlat]).addTo(state.map); state.family.markers.set(id,marker); }
-      marker.setLngLat([dlon,dlat]); const node=marker.getElement(); node.className='family-marker transport-'+av.kind+(id===state.family.memberId?' self':'')+(age>120000?' stale':''); node.innerHTML=av.src?`<img src="${av.src}" alt="${esc(av.label)}" draggable="false">`:familyInitials(name); node.title=`${name} · ${m._source||'GPS'} · ${age>120000?'posição alternativa/antiga':'ao vivo'}`;
+      if(isFamilySystemRow(m)||isLocalFamilyMember(m))continue; // ownship is represented only by state.positionMarker
+      const dlat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat),dlon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);
+      if(!m.sharing||!Number.isFinite(dlat)||!Number.isFinite(dlon))continue;
+      const key=canonicalPersonKey(m.display_name)||('member:'+String(m.member_id));
+      const ts=Date.parse(m._displayUpdatedAt||m.updated_at||0)||0,prev=freshest.get(key),prevTs=prev?(Date.parse(prev._displayUpdatedAt||prev.updated_at||0)||0):-1;
+      if(!prev||ts>prevTs)freshest.set(key,m);
+    }
+    const active=new Set();
+    for(const [key,m] of freshest){
+      const dlat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat),dlon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);active.add(key);
+      let marker=state.family.markers.get(key);const age=Date.now()-new Date(m._displayUpdatedAt||m.updated_at).getTime(),name=String(m.display_name||'Membro'),av=familyTransportAvatar(m);
+      if(!marker){const d=document.createElement('div');marker=new maplibregl.Marker({element:d,rotationAlignment:'map'}).setLngLat([dlon,dlat]).addTo(state.map);state.family.markers.set(key,marker);}
+      marker.setLngLat([dlon,dlat]);const node=marker.getElement();node.className='family-marker transport-'+av.kind+(age>120000?' stale':'');node.innerHTML=av.src?`<img src="${av.src}" alt="${esc(av.label)}" draggable="false">`:familyInitials(name);node.title=`${name} · ${m._source||'GPS'} · ${age>120000?'posição alternativa/antiga':'ao vivo'}`;
       if(av.kind!=='walk'&&Number.isFinite(Number(m.heading))&&marker.setRotation)marker.setRotation(Number(m.heading));else if(marker.setRotation)marker.setRotation(0);
     }
-    for(const [id,m] of state.family.markers){ if(!active.has(id)){try{m.remove()}catch(e){} state.family.markers.delete(id);} }
+    for(const [key,mk] of [...state.family.markers]){if(!active.has(key)){try{mk.remove()}catch(_){}state.family.markers.delete(key);}}
   }
   function fmtFamilyAge(ts){ if(!ts)return 'sem atualização'; const sec=Math.max(0,Math.round((Date.now()-new Date(ts).getTime())/1000)); if(sec<60)return `há ${sec}s`; if(sec<3600)return `há ${Math.floor(sec/60)} min`; return `há ${Math.floor(sec/3600)}h`; }
   function memberFamilyHTML(m){
@@ -3834,6 +3931,7 @@ body{min-height:var(--app-vh);margin:0}
     const call=esc(p.callsign||p.label||'Aeronave');
     const reg=esc(p.registration||'—');
     const type=esc(p.aircraftType||'—');
+    const airline=esc(p.airline||'—');
     const alt=p.altitude!==''&&p.altitude!=null?`${esc(p.altitude)} ft`:'—';
     const gs=p.gs!==''&&p.gs!=null?`${esc(p.gs)} kt`:'—';
     const trk=p.track!==''&&p.track!=null?`${esc(p.track)}°`:'—';
@@ -3841,10 +3939,11 @@ body{min-height:var(--app-vh);margin:0}
     const vr=p.verticalRate!==''&&p.verticalRate!=null?`${esc(p.verticalRate)} ft/min`:'—';
     const squawk=esc(p.squawk||'—');
     const hex=esc(String(p.hex||'—').toUpperCase());
+    const avatar=String(p.avatar||EMBEDDED_TRAFFIC_AVATAR);
     return `<div class="airport-popup traffic-popup" style="min-width:238px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         <div aria-hidden="true" style="width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#ef7d18;color:white;border:2px solid #ffd1a1;font-size:24px;box-shadow:0 0 0 3px #ef7d1833">✈</div>
-        <div><strong style="font-size:15px">${call}</strong><br><small>${type} · ${reg}</small></div>
+        <div><strong style="font-size:15px">${call}</strong><br><small>${airline}<br>${type} · ${reg}</small></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;font-size:12px">
         <span><b>Distância</b><br>${dist}</span><span><b>Altitude</b><br>${alt}</span>
@@ -3882,23 +3981,26 @@ body{min-height:var(--app-vh);margin:0}
     });
   }
 
+  function trafficEntityKey(a={}){return String(a.hex||normalizeFlightCallsign(a.flight||'')||a.r||'').trim().toUpperCase();}
   async function renderTrafficLayer(){
     if(!state.mapReady||!state.map||!addonEnabled('traffic')||state.mode!=='flight')return;
-    removeTrafficLayer();
-    const followed=normalizeFlightCallsign(state.family.flightCallsign||state.family.flightNumber||state.traffic.followedCallsign||'');
-    state.traffic.domMarkers=new Map();
+    if(!state.traffic.domMarkers)state.traffic.domMarkers=new Map();
+    const followed=normalizeFlightCallsign(state.family.flightCallsign||state.family.flightNumber||state.traffic.followedCallsign||''),active=new Set(),seen=new Set();
     for(const a of (state.traffic.aircraft||[]).filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lon))){
-      const call=normalizeFlightCallsign(a.flight||'');
-      const label=String(a.flight||a.r||a.hex||'AC').trim();
-      const isFollowed=!!followed&&call===followed;
-      const props={label,callsign:String(a.flight||label).trim(),registration:String(a.r||''),aircraftType:String(a.t||''),hex:String(a.hex||''),distanceNm:Number.isFinite(+a.distanceNm)?(+a.distanceNm).toFixed(1):'',altitude:a.displayAlt??'',gs:Number.isFinite(+a.gs)?Math.round(+a.gs):'',track:Number.isFinite(+a.track)?Math.round(+a.track):'',verticalRate:Number.isFinite(+a.baro_rate)?Math.round(+a.baro_rate):(Number.isFinite(+a.geom_rate)?Math.round(+a.geom_rate):''),squawk:String(a.squawk||'')};
-      const el=document.createElement('button');el.type='button';el.className='adsb-dom-marker'+(a.urgent?' urgent':'')+(isFollowed?' followed':'');el.setAttribute('aria-label',`Aeronave ${label}`);
+      const key=trafficEntityKey(a);if(!key||seen.has(key))continue;seen.add(key);active.add(key);
+      const call=normalizeFlightCallsign(a.flight||''),label=String(a.flight||a.r||a.hex||'AC').trim(),isFollowed=!!followed&&call===followed;if(isFollowed)continue;const airline=adsbAirlineFor(a),avatar=await airlineAvatarForTraffic(a);
+      const props={label,callsign:String(a.flight||label).trim(),registration:String(a.r||''),aircraftType:String(a.t||''),hex:String(a.hex||''),distanceNm:Number.isFinite(+a.distanceNm)?(+a.distanceNm).toFixed(1):'',altitude:a.displayAlt??'',gs:Number.isFinite(+a.gs)?Math.round(+a.gs):'',track:Number.isFinite(+a.track)?Math.round(+a.track):'',verticalRate:Number.isFinite(+a.baro_rate)?Math.round(+a.baro_rate):(Number.isFinite(+a.geom_rate)?Math.round(+a.geom_rate):''),squawk:String(a.squawk||''),airline:airline?.name||airline?.icao||'Companhia não identificada',avatar};
+      let mk=state.traffic.domMarkers.get(key),el;
+      if(!mk){
+        el=document.createElement('button');el.type='button';el.className='adsb-dom-marker';el.setAttribute('aria-label',`Aeronave ${label}`);mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([a.lon,a.lat]).addTo(state.map);state.traffic.domMarkers.set(key,mk);
+      }else el=mk.getElement();
+      el.className='adsb-dom-marker'+(a.urgent?' urgent':'')+(isFollowed?' followed':'');el.setAttribute('aria-label',`${airline?.name||'Aeronave'} ${label}`);
       const trk=Number.isFinite(+a.track)?Math.round(+a.track):0;
-      el.innerHTML=`<span class="adsb-plane-symbol" aria-hidden="true" style="transform:rotate(${trk}deg)">✈</span><span class="adsb-mini">${esc(label)}</span>`;
-      el.addEventListener('click',ev=>{ev.stopPropagation();new maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'310px'}).setLngLat([a.lon,a.lat]).setHTML(trafficPopupHtml(props)).addTo(state.map);});
-      const mk=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([a.lon,a.lat]).addTo(state.map);
-      state.traffic.domMarkers.set(String(a.hex||label||state.traffic.domMarkers.size),mk);
+      el.innerHTML=`<span class="adsb-traffic-halo" aria-hidden="true"></span><img class="adsb-airline-avatar" src="${avatar}" alt="${esc(airline?.name||'Aeronave')}" draggable="false" style="transform:rotate(${trk}deg)"><span class="adsb-mini">${esc(label)}${airline?.icao?` · ${esc(airline.icao)}`:''}</span>`;
+      el.onclick=ev=>{ev.stopPropagation();new maplibregl.Popup({closeButton:true,closeOnClick:true,maxWidth:'310px'}).setLngLat([a.lon,a.lat]).setHTML(trafficPopupHtml({...props,airline:props.airline})).addTo(state.map);};
+      mk.setLngLat([a.lon,a.lat]);
     }
+    for(const [key,mk] of [...state.traffic.domMarkers]){if(!active.has(key)){try{mk.remove()}catch(_){}state.traffic.domMarkers.delete(key);}}
   }
 
   async function fetchNearbyTraffic(manual=false){
@@ -3923,12 +4025,12 @@ body{min-height:var(--app-vh);margin:0}
       if(!r||!r.ok)throw (lastErr||new Error('Falha no feed ADS-B'));
       const j=await r.json();
       const ownAlt=Number.isFinite(p.altitude)?p.altitude*3.28084:null;
-      state.traffic.aircraft=(j.ac||[]).map(a=>{
-        const d=haversine(p,{lat:+a.lat,lon:+a.lon})/1852;
-        const alt=typeof a.alt_baro==='number'?a.alt_baro:(typeof a.alt_geom==='number'?a.alt_geom:null);
-        const urgent=d<5&&ownAlt!==null&&alt!==null&&Math.abs(alt-ownAlt)<1500;
-        return {...a,distanceNm:d,displayAlt:alt,urgent};
-      }).filter(a=>Number.isFinite(a.distanceNm)).sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,60);
+      const dedup=new Map();
+      for(const a of (j.ac||[])){
+        const d=haversine(p,{lat:+a.lat,lon:+a.lon})/1852,alt=typeof a.alt_baro==='number'?a.alt_baro:(typeof a.alt_geom==='number'?a.alt_geom:null),urgent=d<5&&ownAlt!==null&&alt!==null&&Math.abs(alt-ownAlt)<1500,x={...a,distanceNm:d,displayAlt:alt,urgent},key=trafficEntityKey(x);
+        if(!Number.isFinite(d)||!key)continue;const prev=dedup.get(key);if(!prev||Number(x.seen||99)<Number(prev.seen||99))dedup.set(key,x);
+      }
+      state.traffic.aircraft=[...dedup.values()].sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,60);
       state.traffic.followedCallsign=normalizeFlightCallsign(state.family.flightCallsign||state.family.flightNumber||'');
       state.traffic.updatedAt=Date.now();
       await renderTrafficLayer();
@@ -4748,6 +4850,66 @@ body{min-height:var(--app-vh);margin:0}
     const host=$('#screen-health');if(!host)return;const h=state.healthResults||{};const val=(k,okText,badText)=>h[k]===true?['ok',okText]:h[k]===false?['bad',badText]:['warn','A verificar'];const gps=val('gps','Posição recebida','Sem posição GPS');const net=val('network','Internet disponível','Sem Internet');const sw=val('sw','PWA/Service Worker ativo','PWA ainda não controlada');const fam=val('family','Family configurado','Family não configurado');const back=val('backend','Backend respondeu','Backend indisponível');const notif=val('notification','Notificações permitidas','Notificações bloqueadas');
     host.innerHTML=`<div class="panel-page"><div class="page-head"><div><h2>AERONAV Status</h2><p>Diagnóstico simples sem expor Railway, Supabase ou detalhes técnicos ao utilizador.</p></div><span class="badge info">HEALTH CHECK</span></div><div class="card"><div class="health-grid">${healthItem('GPS',gps[0],gps[1])}${healthItem('Internet',net[0],net[1])}${healthItem('Aplicação offline',sw[0],sw[1])}${healthItem('Family',fam[0],fam[1])}${healthItem('Servidor',back[0],back[1])}${healthItem('Notificações',notif[0],notif[1])}</div><div class="btn-row" style="margin-top:14px"><button class="primary-btn" id="healthRun">Executar diagnóstico</button><button class="secondary-btn" id="healthOffline">Preparar viagem offline</button></div></div><div class="notice good">Objetivo: se algo falhar durante uma viagem, esta página identifica rapidamente o componente afetado sem exigir conhecimento técnico.</div></div>`;$('#healthRun')?.addEventListener('click',runHealthDiagnostic);$('#healthOffline')?.addEventListener('click',prepareWholeTripOffline);
   }
+
+  function flightTrackingDefaults(){
+    const r=state.currentRoute?.kind==='flight'?state.currentRoute:null;
+    const routeCall=routeTrackingCallsign(r),familyCall=normalizeFlightCallsign(state.family.flightCallsign||'');
+    return {enabled:r?r.autoAdsbFallback===true:!!familyCall,callsign:routeCall||familyCall};
+  }
+  function flightTrackingHTML(){
+    const t=flightTrackingDefaults();
+    return `<div class="card" style="margin-top:12px">
+      <div class="page-head" style="margin-bottom:8px"><div><h3>📡 Callsign / segurança ADS-B para Mathia</h3><p>Opcional. Se o GPS do Jorge deixar de atualizar depois da descolagem, o Family Viewer da Mathia procura automaticamente esta aeronave pelo ADS-B.</p></div><span class="badge ${t.enabled&&t.callsign?'ok':'info'}">${t.enabled&&t.callsign?'ARMADO':'OPCIONAL'}</span></div>
+      <label class="family-switch-row" style="cursor:pointer"><div><strong>Usar callsign nesta rota</strong><div class="source-note">Ao ativar, o callsign fica guardado com a rota e é enviado ao Family antes da descolagem quando houver Internet.</div></div><input id="fltUseCallsign" type="checkbox" ${t.enabled?'checked':''}></label>
+      <div class="form-grid" style="margin-top:10px">
+        <div class="field"><label>Callsign ADS-B</label><input id="fltCallsign" value="${esc(t.callsign)}" placeholder="Ex.: DTA650, TAP087, SWR755L" autocomplete="off" style="text-transform:uppercase"><small class="source-note">Use o callsign transmitido no ADS-B, não apenas o número comercial do bilhete.</small></div>
+      </div>
+      <div class="btn-row"><button class="secondary-btn" id="fltPickCallsign">📡 Escolher ADS-B ativo</button><button class="soft-btn" id="fltNoCallsign">Sem callsign</button></div>
+      <div id="fltCallsignStatus" class="source-note" style="margin-top:8px">${t.enabled&&t.callsign?`Fallback preparado para <b>${esc(t.callsign)}</b>.`:'Sem callsign: esta rota não fará fallback ADS-B automático.'}</div>
+    </div>`;
+  }
+  function setFlightTrackingControls(enabled,callsign=''){
+    const use=$('#fltUseCallsign'),inp=$('#fltCallsign'),st=$('#fltCallsignStatus');
+    if(use)use.checked=!!enabled;
+    if(inp){inp.disabled=!enabled;inp.value=normalizeFlightCallsign(callsign||'');}
+    const c=normalizeFlightCallsign(inp?.value||callsign||'');
+    if(st)st.innerHTML=enabled&&c?`Fallback preparado para <b>${esc(c)}</b>. Será sincronizado com o Family quando houver Internet.`:'Sem callsign: esta rota não fará fallback ADS-B automático.';
+  }
+  async function armFamilyFlightTrackingFromRoute(route,{push=true,shareRoute=false}={}){
+    if(!route||route.kind!=='flight')return false;
+    const f=state.family,call=routeTrackingCallsign(route);
+    if(call){
+      f.flightCallsign=call;
+      f.adsbFallback=true;
+      f.airborneEnabled=true;
+      // Choosing this route-level safety feature is explicit consent to keep the
+      // Family location row shareable so Mathia can hand over to ADS-B if GPS stops.
+      f.sharing=true;
+      if(route.plannedArrivalAt)f.flightEta=route.plannedArrivalAt;
+    }else{
+      f.flightCallsign='';
+    }
+    saveFamilySettings();
+    if(push&&familyConfigured()&&navigator.onLine){
+      try{await pushFamilyLocation(true)}catch(_){}
+      if(shareRoute)try{await upsertFamilyJourney('ROUTE',{scheduled:true,trackingCallsign:call||null,adsbFallback:!!call})}catch(_){}
+    }
+    return !!call;
+  }
+  function applyFlightTrackingFromForm(route=state.currentRoute,{syncFamily=true,push=true}={}){
+    if(!route||route.kind!=='flight')return route;
+    const use=$('#fltUseCallsign')?.checked ?? route.autoAdsbFallback===true;
+    const raw=$('#fltCallsign')?.value ?? route.trackingCallsign ?? '';
+    const call=use?normalizeFlightCallsign(raw):'';
+    if(use&&!call)throw new Error('Escolha ou introduza um callsign ADS-B, ou selecione “Sem callsign”.');
+    route.autoAdsbFallback=!!(use&&call);
+    route.trackingCallsign=call;
+    route.familyTrackingArmed=!!call;
+    route.trackingConfiguredAt=Date.now();
+    if(syncFamily)armFamilyFlightTrackingFromRoute(route,{push,shareRoute:false}).catch(()=>{});
+    setFlightTrackingControls(!!call,call);
+    return route;
+  }
   function localDateTimeValue(iso){if(!iso)return '';const d=new Date(iso);if(!Number.isFinite(d.getTime()))return '';const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`}
   function routeTimingHTML(kind){const r=state.currentRoute,match=r&&((kind==='flight'&&r.kind==='flight')||(kind==='drive'&&r.kind==='road')),etd=match?localDateTimeValue(r.plannedStartAt):'',arr=match&&r.plannedArrivalAt?new Date(r.plannedArrivalAt).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Será calculada pelo ETE';return `<div class="card" style="margin-top:12px"><h3>${kind==='flight'?'Horário do voo':'Horário da viagem'}</h3><div class="sub">Defina o ${kind==='flight'?'ETD':'início previsto'}. Se sair antes, toque em INÍCIO AGORA e a chegada será recalculada e enviada à Mathia.</div><div class="form-grid" style="margin-top:10px"><div class="field"><label>${kind==='flight'?'ETD previsto':'Início previsto'}</label><input id="routeETD" type="datetime-local" value="${etd}"></div><div class="field"><label>${kind==='flight'?'Aterragem prevista':'Chegada prevista'}</label><input id="routeArrival" value="${esc(arr)}" readonly></div></div><div class="btn-row"><button class="secondary-btn" id="routeStartNow">▶ INÍCIO AGORA</button><button class="secondary-btn" id="routeCloseNow">⏹ FECHAR ROTA</button><button class="secondary-btn" id="routeSendFamily">👥 Enviar à Mathia</button><button class="secondary-btn" id="routeShareLink">↗ WhatsApp / Partilhar</button></div></div>`}
   function applyRouteTimingFromForm(route=state.currentRoute){if(!route)return;const raw=$('#routeETD')?.value||'';if(raw){const d=new Date(raw);if(Number.isFinite(d.getTime()))route.plannedStartAt=d.toISOString()}const start=route.actualStartAt||route.plannedStartAt;if(start&&Number(route.duration)>0)route.plannedArrivalAt=new Date(new Date(start).getTime()+Number(route.duration)*1000).toISOString();updateRouteTimingUI()}
@@ -4755,9 +4917,9 @@ body{min-height:var(--app-vh);margin:0}
   function encodeTripToken(obj){const bytes=new TextEncoder().encode(JSON.stringify(obj));let bin='';bytes.forEach(b=>bin+=String.fromCharCode(b));return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
   function familyTripShareUrl(){const r=activeJourneyRoute();if(!r)return '';const u=new URL('./family/',location.href);u.hash='trip='+encodeURIComponent(encodeTripToken({v:1,route:r}));return u.href}
   async function shareCurrentTrip(){if(!state.currentRoute)return toast('Crie uma rota primeiro.');applyRouteTimingFromForm();const url=familyTripShareUrl();if(!url)return;const r=activeJourneyRoute(),text=`AERONAV · ${r.from} → ${r.to}${r.plannedStartAt?' · início '+new Date(r.plannedStartAt).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}`;try{if(navigator.share)await navigator.share({title:'AERONAV · Rota',text,url});else{await navigator.clipboard.writeText(url);toast('Link da rota copiado. Envie-o pelo WhatsApp.')}}catch(e){if(e?.name!=='AbortError')toast('Não foi possível partilhar: '+(e?.message||e))}}
-  async function sendTripToFamily(){if(!state.currentRoute)return toast('Crie uma rota primeiro.');applyRouteTimingFromForm();state.family.journeyLastSig='';localStorage.removeItem('aeronav.family.journeyLastSig');const ok=await upsertFamilyJourney('ROUTE',{scheduled:true});toast(ok?'Rota enviada à Mathia.':'Rota guardada; a partilha Family necessita de Internet e ligação ativa.')}
-  async function startTripNow(){if(!state.currentRoute)return toast('Crie uma rota primeiro.');applyRouteTimingFromForm();if(state.currentRoute.kind==='flight')resetFamilyFlightPhaseForRoute();state.currentRoute.actualStartAt=new Date().toISOString();state.currentRoute.status='active';state.currentRoute.navigationActive=true;if(Number(state.currentRoute.duration)>0)state.currentRoute.plannedArrivalAt=new Date(Date.now()+Number(state.currentRoute.duration)*1000).toISOString();updateRouteTimingUI();await persistActiveRoute('start',true);await upsertFamilyJourney('STARTED',{startedAt:state.currentRoute.actualStartAt});toast('Viagem iniciada. A rota fica guardada mesmo que feche a AERONAV.')}
-  function wireRouteTiming(){const etd=$('#routeETD');etd?.addEventListener('change',()=>{applyRouteTimingFromForm();persistActiveRoute('timing',true).catch(()=>{});scheduleFamilyJourneyShare()});$('#routeStartNow')?.addEventListener('click',startTripNow);$('#routeCloseNow')?.addEventListener('click',requestCloseActiveRoute);$('#routeSendFamily')?.addEventListener('click',sendTripToFamily);$('#routeShareLink')?.addEventListener('click',shareCurrentTrip);updateRouteTimingUI()}
+  async function sendTripToFamily(){if(!state.currentRoute)return toast('Crie uma rota primeiro.');try{applyRouteTimingFromForm();if(state.currentRoute.kind==='flight'){applyFlightTrackingFromForm(state.currentRoute,{syncFamily:false,push:false});await armFamilyFlightTrackingFromRoute(state.currentRoute,{push:true,shareRoute:false})}state.family.journeyLastSig='';localStorage.removeItem('aeronav.family.journeyLastSig');const call=routeTrackingCallsign(state.currentRoute);const ok=await upsertFamilyJourney('ROUTE',{scheduled:true,trackingCallsign:call||null,adsbFallback:!!call});toast(ok?(call?`Rota enviada à Mathia · fallback ADS-B ${call} armado.`:'Rota enviada à Mathia.'):'Rota guardada; a partilha Family necessita de Internet e ligação ativa.')}catch(e){toast(e.message||String(e))}}
+  async function startTripNow(){if(!state.currentRoute)return toast('Crie uma rota primeiro.');try{applyRouteTimingFromForm();if(state.currentRoute.kind==='flight'){applyFlightTrackingFromForm(state.currentRoute,{syncFamily:false,push:false});await armFamilyFlightTrackingFromRoute(state.currentRoute,{push:true,shareRoute:false});resetFamilyFlightPhaseForRoute()}state.currentRoute.actualStartAt=new Date().toISOString();state.currentRoute.status='active';state.currentRoute.navigationActive=true;if(Number(state.currentRoute.duration)>0)state.currentRoute.plannedArrivalAt=new Date(Date.now()+Number(state.currentRoute.duration)*1000).toISOString();updateRouteTimingUI();await persistActiveRoute('start',true);const call=routeTrackingCallsign(state.currentRoute);await upsertFamilyJourney('STARTED',{startedAt:state.currentRoute.actualStartAt,trackingCallsign:call||null,adsbFallback:!!call});toast(call?`Viagem iniciada · ${call} preparado para fallback ADS-B automático na Mathia.`:'Viagem iniciada. A rota fica guardada mesmo que feche a AERONAV.')}catch(e){toast(e.message||String(e))}}
+  function wireRouteTiming(){const etd=$('#routeETD');etd?.addEventListener('change',()=>{applyRouteTimingFromForm();if(state.currentRoute?.kind==='flight')try{applyFlightTrackingFromForm(state.currentRoute,{syncFamily:true,push:true})}catch(_){}persistActiveRoute('timing',true).catch(()=>{});scheduleFamilyJourneyShare()});$('#routeStartNow')?.addEventListener('click',startTripNow);$('#routeCloseNow')?.addEventListener('click',requestCloseActiveRoute);$('#routeSendFamily')?.addEventListener('click',sendTripToFamily);$('#routeShareLink')?.addEventListener('click',shareCurrentTrip);updateRouteTimingUI()}
 
   function routePlannerSelectorHTML(){
     return `<div class="card route-planner-selector"><div class="page-head" style="margin-bottom:8px"><div><h3>Tipo de rota</h3><p>Escolha o que quer planear. Isto não depende de estar parado, a conduzir, a caminhar ou em voo.</p></div><span class="badge info">PLANEAMENTO</span></div><div class="segmented wide"><button class="seg ${state.routePlannerMode==='flight'?'active':''}" data-route-planner="flight">✈ ROTA DE VOO</button><button class="seg ${state.routePlannerMode==='drive'?'active':''}" data-route-planner="drive">🚗 ROTA DE CARRO</button></div></div>`;
@@ -4843,6 +5005,7 @@ body{min-height:var(--app-vh);margin:0}
             <div class="field"><label>Aeronave</label><select id="fltAircraft">${aircraftOptions(state.aircraftPref||'c152')}</select></div>
             <div class="field"><label>Altitude de cruzeiro (ft)</label><input id="fltCruiseAlt" type="number" min="1000" max="45000" step="500" value="${planningCruiseAltitudeFt(state.aircraftPref||'c152')}"><small class="source-note">Usada para obter ventos em altitude e corrigir GS/ETE.</small></div>
           </div>
+          ${flightTrackingHTML()}
           <div class="route-mode-grid"><div class="field"><label>Tipo de rota</label><select id="fltRouteMode"><option value="direct">DCT — direta</option><option value="waypoints">Via waypoints</option><option value="airways">Airways mundiais (auto)</option></select></div><div class="field airport-picker"><label>Waypoints / fixes (para modo Via)</label><input id="fltVia" autocomplete="off" placeholder="Ex.: KOPES DIBAX ULTEM  ·  use IDENT@REGIÃO para desambiguar"><div id="fltViaHints" class="airport-search-results"></div><div class="airport-selected">Comece a escrever um identificador para pesquisar. A rota AIRWAYS usa automaticamente a rede carregada.</div></div></div>
           ${routeTimingHTML('flight')}
           <div class="card" style="margin-top:12px"><h3>👥 Crew</h3><div class="sub">Associe a General Declaration a esta rota aérea.</div><div id="routeCrewSummary">${generalDeclarationSummaryHTML()}</div><div class="btn-row"><button class="secondary-btn" id="routeCrewImport">📄 General Declaration</button><button class="soft-btn" id="routeCrewOpen">Abrir Crew</button></div></div>
@@ -4941,7 +5104,8 @@ body{min-height:var(--app-vh);margin:0}
       const traffic=r.traffic||trafficMeta(r,r.alternatives||[]); const next=nextRoadStep(r); const lane=state.drive.showLaneAssist?roadLaneAdvice(next).map(x=>`<span class="lane-pill">${esc(x)}</span>`).join(''):'';
       return `<div class="route-summary"><div class="metric"><span>TIPO</span><strong>CARRO</strong></div><div class="metric"><span>DISTÂNCIA</span><strong>${fmtKm(r.distance)}</strong></div><div class="metric"><span>ETE</span><strong>${fmtTime(r.duration)}</strong></div></div><div class="result-box"><div class="drive-result-head"><div><strong>${esc(next?.instruction||'Siga em frente')}</strong><br><span style="color:#9cb5c6">${esc(traffic.message)}</span></div><div class="route-alt-meta"><span class="route-chip ${traffic.tone}">${esc(traffic.level.toUpperCase())}</span><span class="route-chip">${state.drive.routePreference.toUpperCase()}</span>${state.drive.showSpeedLimit?`<span class="route-chip">LIMITE ${esc(r.userSpeedLimitKmh||r.speedLimit||roadSpeedLimitEstimate(r))} KM/H</span>`:''}</div></div>${lane?`<div class="lane-row">${lane}</div>`:''}</div>${stepsHTML(r.steps)}`;
     }
-    return `<div class="route-summary"><div class="metric"><span>TIPO</span><strong>${r.kind==='flight'?(r.routeMode==='airways'?'AIRWAYS':r.routeMode==='waypoints'?'WAYPOINTS':'DCT'):'CARRO'}</strong></div><div class="metric"><span>DISTÂNCIA</span><strong>${r.kind==='flight'?fmtNm(r.distance):fmtKm(r.distance)}</strong></div><div class="metric"><span>ETE</span><strong>${fmtTime(r.duration)}</strong></div></div>${r.routeString?`<div class="result-box route-string"><strong>ROTA</strong><br>${esc(r.routeString)}</div>`:''}${r.kind==='flight'?routeWindSummaryHTML(r):''}${stepsHTML(r.steps)}`;
+    const call=r.kind==='flight'?routeTrackingCallsign(r):'';
+    return `<div class="route-summary"><div class="metric"><span>TIPO</span><strong>${r.kind==='flight'?(r.routeMode==='airways'?'AIRWAYS':r.routeMode==='waypoints'?'WAYPOINTS':'DCT'):'CARRO'}</strong></div><div class="metric"><span>DISTÂNCIA</span><strong>${r.kind==='flight'?fmtNm(r.distance):fmtKm(r.distance)}</strong></div><div class="metric"><span>ETE</span><strong>${fmtTime(r.duration)}</strong></div></div>${r.kind==='flight'?`<div class="result-box"><strong>RASTREAMENTO FAMILY</strong><br>${call?`📡 ${esc(call)} · fallback ADS-B automático armado`:'Sem callsign · fallback ADS-B desativado nesta rota'}</div>`:''}${r.routeString?`<div class="result-box route-string"><strong>ROTA</strong><br>${esc(r.routeString)}</div>`:''}${r.kind==='flight'?routeWindSummaryHTML(r):''}${stepsHTML(r.steps)}`;
   }
 
 
@@ -4955,6 +5119,12 @@ body{min-height:var(--app-vh);margin:0}
     wireAddressAutocomplete('roadFrom',{allowMyPosition:true}); wireAddressAutocomplete('roadTo'); wireAddressAutocomplete('fdStart'); wireAddressAutocomplete('fdEnd');
     updateWorldAirportStatus(); updateWorldNavStatus(); hydrateWorldNavCache().then(()=>{updateWorldNavStatus();wireWaypointRouteInput()}); wireWaypointRouteInput();
     $('#fltAircraft')?.addEventListener('change',e=>{state.aircraftPref=e.target.value;localStorage.setItem('aeronav.aircraftPref',state.aircraftPref);const alt=$('#fltCruiseAlt');if(alt)alt.value=String(defaultCruiseAltitudeFt(state.aircraftPref));if(state.mode==='flight'){state.positionMarkerMode='';updatePositionMarker();}});
+    const ft=flightTrackingDefaults();setFlightTrackingControls(ft.enabled,ft.callsign);
+    $('#fltUseCallsign')?.addEventListener('change',e=>setFlightTrackingControls(e.target.checked,$('#fltCallsign')?.value||''));
+    $('#fltCallsign')?.addEventListener('input',e=>{e.target.value=normalizeFlightCallsign(e.target.value);const st=$('#fltCallsignStatus');if(st&&$('#fltUseCallsign')?.checked)st.innerHTML=e.target.value?`Fallback preparado para <b>${esc(e.target.value)}</b>.`:'Escolha um callsign ou selecione “Sem callsign”.';});
+    $('#fltPickCallsign')?.addEventListener('click',()=>openAdsbCallsignPicker((call)=>{setFlightTrackingControls(true,call);}));
+    $('#fltNoCallsign')?.addEventListener('click',()=>setFlightTrackingControls(false,''));
+
     const routeHost=$('#screen-route'); const xpnav=routeHost?.querySelector('.xplane-nav-input'); if(xpnav)xpnav.onchange=async e=>{try{await importXplaneNavFiles(e.target.files);e.target.value='';updateWorldNavStatus()}catch(err){toast(err.message||String(err))}};
     ensureWorldAirports(false).then(()=>{['fltFrom','fltTo','fdFromAirport','fdToAirport'].forEach(id=>{const inp=$('#'+id);if(inp){const a=airportByKey(inp.dataset.airportKey);if(a)setAirportPicker(id,a)}})});
     $('#createFlightRoute')?.addEventListener('click',async()=>{
@@ -4968,7 +5138,7 @@ body{min-height:var(--app-vh);margin:0}
         state.routePlannerMode='flight'; localStorage.setItem('aeronav.routePlannerMode','flight');
         if(mode==='direct')state.currentRoute=flightRoute(a,b,ac);
         else{if(!state.worldNav?.loaded){const ok=await ensureWorldNav(false);if(!ok)throw new Error('A rede mundial de navegação ainda não está disponível.')} if(mode==='waypoints')state.currentRoute=routeViaWaypoints(a,b,ac,$('#fltVia')?.value||''); else state.currentRoute=airwayFlightRoute(a,b,ac);}
-        state.currentRoute._mapOpened=false;applyRouteTimingFromForm(state.currentRoute);
+        state.currentRoute._mapOpened=false;applyRouteTimingFromForm(state.currentRoute);applyFlightTrackingFromForm(state.currentRoute,{syncFamily:true,push:true});
         const cruiseAlt=Math.max(1000,Math.min(45000,Number($('#fltCruiseAlt')?.value)||planningCruiseAltitudeFt(ac?.id)));state.planning.cruiseAltFt=cruiseAlt;localStorage.setItem('aeronav.planning',JSON.stringify(state.planning));
         try{await applyRouteWindsAloft(state.currentRoute,cruiseAlt,true);}catch(wxErr){toast('Rota criada; vento em altitude não pôde ser aplicado: '+(wxErr.message||wxErr));}
         $('#routeResult').innerHTML=activeRouteSummaryHTML(); $('#eteValue').textContent=fmtTime(state.currentRoute.duration); renderOfflineSvg(state.currentRoute); toast(`Rota ${mode==='airways'?'por airways':mode==='waypoints'?'via waypoints':'direta'} criada com cálculo de vento em altitude. Guarde/edite primeiro; use “Abrir no mapa” quando quiser carregar.`);
@@ -5038,7 +5208,13 @@ body{min-height:var(--app-vh);margin:0}
 
   async function saveActiveRoute(){
     if(!state.currentRoute){toast('Crie ou abra uma rota primeiro.');return;}
-    await dbPut('routes',{...state.currentRoute,savedAt:Date.now()}); toast('Rota guardada. Não foi carregada no mapa.'); renderSavedRoutes(); renderOfflineScreen();
+    try{
+      applyRouteTimingFromForm();
+      if(state.currentRoute.kind==='flight')applyFlightTrackingFromForm(state.currentRoute,{syncFamily:true,push:true});
+      await dbPut('routes',{...state.currentRoute,savedAt:Date.now()});
+      toast(state.currentRoute.kind==='flight'&&routeTrackingCallsign(state.currentRoute)?`Rota guardada · ADS-B ${routeTrackingCallsign(state.currentRoute)} preparado para Mathia.`:'Rota guardada. Não foi carregada no mapa.');
+      renderSavedRoutes(); renderOfflineScreen();
+    }catch(e){toast(e.message||String(e))}
   }
   async function renderSavedRoutes(){
     const host=$('#savedRoutesList'); if(!host)return;
@@ -5046,7 +5222,7 @@ body{min-height:var(--app-vh);margin:0}
     if(state.routePlannerMode==='flight') list=list.filter(r=>r.kind==='flight'); else list=list.filter(r=>r.kind==='road');
     if(!list.length){host.innerHTML='<div class="empty">Ainda não há rotas guardadas neste modo.</div>';return;}
     host.innerHTML=list.map(r=>`<div class="list-item"><div class="item-icon">${r.kind==='flight'?'✈':'🚗'}</div><div class="item-main"><strong>${esc(r.name||'Rota guardada')}</strong><small>${r.kind==='flight'?fmtNm(r.distance):fmtKm(r.distance)} · ${fmtTime(r.duration)}${r.kind==='road'&&r.userSpeedLimitKmh?` · limite ${r.userSpeedLimitKmh} km/h`:''}</small></div><div class="item-actions"><button class="icon-btn" data-open-route="${r.id}">Editar</button><button class="icon-btn" data-del-route="${r.id}">×</button></div></div>`).join('');
-    host.querySelectorAll('[data-open-route]').forEach(b=>b.onclick=async()=>{ state.currentRoute=await dbGet('routes',b.dataset.openRoute);state.currentRoute._mapOpened=false; $('#routeResult').innerHTML=activeRouteSummaryHTML(); renderOfflineSvg(state.currentRoute); if(state.currentRoute.kind==='road'){routeAddressToInput($('#roadFrom'),state.currentRoute.from);routeAddressToInput($('#roadTo'),state.currentRoute.to);if($('#roadSpeedLimit'))$('#roadSpeedLimit').value=String(state.currentRoute.userSpeedLimitKmh||state.drive.userSpeedLimitKmh||'');} toast('Rota aberta para editar. Toque em “Abrir no mapa” apenas quando quiser carregá-la.'); });
+    host.querySelectorAll('[data-open-route]').forEach(b=>b.onclick=async()=>{ state.currentRoute=await dbGet('routes',b.dataset.openRoute);state.currentRoute._mapOpened=false; $('#routeResult').innerHTML=activeRouteSummaryHTML(); renderOfflineSvg(state.currentRoute); if(state.currentRoute.kind==='road'){routeAddressToInput($('#roadFrom'),state.currentRoute.from);routeAddressToInput($('#roadTo'),state.currentRoute.to);if($('#roadSpeedLimit'))$('#roadSpeedLimit').value=String(state.currentRoute.userSpeedLimitKmh||state.drive.userSpeedLimitKmh||'');}else if(state.currentRoute.kind==='flight'){const c=routeTrackingCallsign(state.currentRoute);setFlightTrackingControls(!!c,c);armFamilyFlightTrackingFromRoute(state.currentRoute,{push:true,shareRoute:false}).catch(()=>{});} toast('Rota aberta para editar. Toque em “Abrir no mapa” apenas quando quiser carregá-la.'); });
     host.querySelectorAll('[data-del-route]').forEach(b=>b.onclick=async()=>{ await dbDelete('routes',b.dataset.delRoute); renderSavedRoutes(); renderOfflineScreen(); });
   }
 

@@ -1,0 +1,32 @@
+AERONAV RC11.31 — OPTIONAL FLIGHT CALLSIGN + AUTOMATIC MATHIA ADS-B SAFETY HANDOVER
+
+Objetivo
+- Permitir escolher, por rota de voo, se haverá ou não um callsign ADS-B de segurança.
+- Se houver callsign, guardar esse callsign dentro da própria rota.
+- Sincronizar o callsign com o Family antes da descolagem quando houver Internet.
+- Se o GPS do Jorge deixar de atualizar depois da descolagem, o Family Viewer da Mathia passa automaticamente para ADS-B usando esse callsign.
+- Se a rota estiver configurada como "Sem callsign", não reutilizar callsign antigo de outra viagem.
+
+No Planeamento de voo
+1. Ative "Usar callsign nesta rota".
+2. Introduza o callsign ou use "Escolher ADS-B ativo".
+3. O botão de seleção permite também filtrar pela companhia aérea.
+4. Se não quiser fallback ADS-B nesta rota, escolha "Sem callsign".
+5. O estado fica visível no resumo da rota e é preservado ao guardar/reabrir a rota.
+
+Com callsign ativo
+- route.trackingCallsign guarda o identificador.
+- route.autoAdsbFallback=true.
+- Family ADS-B fallback e tracking airborne ficam armados.
+- A partilha Family é ativada para permitir o handover de segurança solicitado.
+- A linha Family recebe flight_number com o callsign antes do voo quando existe Internet.
+- TAKEOFF continua a causar handover imediato para ADS-B no Viewer da Mathia.
+- Se o evento TAKEOFF não chegar mas o GPS ficar antigo, o Viewer ainda pode fazer fallback pelo callsign já pré-sincronizado.
+
+Sem callsign
+- route.autoAdsbFallback=false.
+- familyTrackingFlightId() devolve vazio para esta rota e não reaproveita um callsign/voo antigo.
+
+Limitação operacional
+- ADS-B público não garante cobertura ou presença de todas as aeronaves.
+- Esta função é apenas de acompanhamento familiar e não substitui ATC, TCAS/ACAS ou sistemas certificados de rastreamento.

@@ -1,7 +1,7 @@
 {
-  "name": "AERONAV Family RC11.27",
+  "name": "AERONAV Family RC11.30",
   "short_name": "AERONAV Family",
-  "start_url": "./family/index.html",
+  "start_url": "./family-viewer.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#031316",
