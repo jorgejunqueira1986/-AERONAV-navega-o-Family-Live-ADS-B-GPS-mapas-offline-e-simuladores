@@ -1,0 +1,10 @@
+AERONAV RC11.32
+
+- Jorge and Mathia now use transparent-background 3D PNG avatars.
+- Person markers are 30% larger than the previous version.
+- Main ownship A PÉ: 50px -> 65px.
+- Family map person marker: 42px -> 55px.
+- Family Viewer person marker: 44px -> 57px.
+- Family cards: 42px -> 55px (main) and 38px -> 50px (viewer).
+- Car and aircraft marker sizing is unchanged.
+- Device identity rules remain: Jorge device = Jorge avatar; Mathia device = Mathia avatar.

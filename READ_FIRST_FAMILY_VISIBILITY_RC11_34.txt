@@ -1,0 +1,11 @@
+AERONAV Family Visibility RC11.34
+
+Visibility rule:
+- Mathia client MUST NOT display or process Wendler/Wendy rows even when both belong to the same Family room.
+- Jorge main AERONAV is unchanged and continues to see both Mathia and Wendler.
+- Wendler client uses a stable member_id prefix "wendler-" for new pairings/installs.
+- Mathia viewer filters Wendler at the PostgREST request and again in client logic as a defensive layer.
+- Hidden scope includes normal member position, battery/system rows, SOS/call/journey rows when identified as Wendler, map markers and member cards.
+
+Important security note:
+This prevents Wendler data from being exposed by the Mathia application UX and requests. Strong authorization against a technically modified client still requires backend/RLS per-device permissions.

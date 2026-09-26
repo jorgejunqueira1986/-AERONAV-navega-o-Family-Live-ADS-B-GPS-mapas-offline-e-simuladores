@@ -1,11 +1,11 @@
-/* AERONAV — RC11.31 Optional Flight Callsign + Mathia ADS-B Safety Handover
+/* AERONAV — RC11.34 3D Jorge/Mathia Avatars + 30% Size
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_31-flight-callsign-safety-handover-20260926-1';
+const CACHE='aeronav-RC11_34-family-visibility-wendler-20260926-1';
 const LOCAL=[
   './',
   './index.html',

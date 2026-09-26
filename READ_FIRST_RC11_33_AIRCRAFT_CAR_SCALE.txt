@@ -1,0 +1,18 @@
+AERONAV RC11.33
+
+Changes in this release:
+- Aircraft avatars increased by approximately 30% on map views.
+- Car avatars reduced by approximately 10% on map views.
+- Applied to the main app map, Family Map, Family Viewer, and ADS-B traffic aircraft markers.
+- Jorge ADS-B focus aircraft in the Family Viewer was also enlarged to stay visually consistent.
+- Person avatar sizing from RC11.32 remains unchanged.
+
+Approximate size updates:
+- Main ownship aircraft: 92x68 -> 120x88 px.
+- Main ownship car image: 60x60 -> 54x54 px.
+- Family Map aircraft: 72x54 -> 94x70 px.
+- Family Map car: 58x58 -> 52x52 px.
+- Main ADS-B traffic aircraft: 64x48 -> 83x62 px.
+- Family Viewer aircraft: 72x54 -> 94x70 px.
+- Family Viewer car: 58x58 -> 52x52 px.
+- Family Viewer ADS-B traffic aircraft: 64x48 -> 83x62 px.

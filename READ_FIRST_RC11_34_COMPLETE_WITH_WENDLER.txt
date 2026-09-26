@@ -1,0 +1,33 @@
+AERONAV RC11.34 — PACOTE COMPLETO COM WENDLER
+
+CONTEÚDO
+1. Aplicação principal do Jorge
+   - abrir pela raiz do GitHub Pages: /index.html
+
+2. Aplicação/Viewer da Mathia
+   - /family-viewer.html
+   - /family/ redireciona para o Viewer da Mathia
+   - regra de privacidade: Mathia não vê Wendler
+
+3. Aplicação cliente do Wendler
+   - /wendler/
+   - visual azul-ciano
+   - botão “Aonde está o papá?”
+   - não contém a função “Criar rota para Jorge”
+
+REGRAS DE VISIBILIDADE
+- Jorge vê Mathia e Wendler.
+- Mathia não vê Wendler.
+- Wendler usa o seu cliente separado.
+
+INCLUI TAMBÉM
+- avatares 3D de Jorge e Mathia
+- avião aumentado ~30%
+- carro reduzido ~10%
+- ADS-B/callsign/fallback Family
+- Family Viewer
+- X-Plane/MSFS bridge
+- mapas, rotas, cartas e restante AERONAV existente
+
+INSTALAÇÃO NO GITHUB
+Extraia este ZIP e carregue TODO o conteúdo para a raiz do repositório, mantendo as pastas.
