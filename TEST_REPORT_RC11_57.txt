@@ -1,0 +1,32 @@
+AERONAV RC11.57 — TEST REPORT
+
+APROVADO — 22/22 verificações estáticas
+
+CORREÇÕES PRINCIPAIS
+PASS — Jorge mantém a aplicação principal independente.
+PASS — Mathia mantém /mathia/ independente.
+PASS — Wendler mantém /wendler/ independente.
+PASS — Jorge passa a reconhecer Wendler como identidade própria.
+PASS — Jorge mostra membro emparelhado mesmo antes do primeiro fix GPS.
+PASS — Mapa da Família abre dentro da aplicação principal do Jorge.
+PASS — Mapa da Família já não redireciona para o perfil da Mathia.
+PASS — family-viewer.html passa a abrir o mapa da família do Jorge.
+PASS — Marcadores/popups Family continuam associados ao membro correto.
+PASS — Mathia continua a excluir Wendler no cliente independente.
+PASS — Wendler continua a excluir Mathia no cliente independente.
+
+VALIDAÇÃO TÉCNICA
+PASS — JavaScript inline index.html: sintaxe OK.
+PASS — JavaScript inline mathia/index.html: sintaxe OK.
+PASS — JavaScript inline wendler/index.html: sintaxe OK.
+PASS — sw.js: sintaxe OK.
+PASS — family-call.js: sintaxe OK.
+PASS — cockpit-audio.js: sintaxe OK.
+PASS — mathia/sw.js: sintaxe OK.
+PASS — wendler/sw.js: sintaxe OK.
+PASS — manifests Jorge/Mathia/Wendler: JSON válido.
+PASS — recursos locais referenciados pelo SW principal existem.
+PASS — estrutura abaixo de 100 ficheiros.
+
+NOTA
+Um membro emparelhado sem permissão GPS aparece no painel como EMPARELHADO / GPS AGUARDANDO. O marcador só pode aparecer no mapa depois de existir uma posição partilhada válida.

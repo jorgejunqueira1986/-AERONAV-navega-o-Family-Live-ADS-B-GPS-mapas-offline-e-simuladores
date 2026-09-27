@@ -1,0 +1,19 @@
+AERONAV RC11.58 — TEST REPORT
+
+PASS — Main has visibility manager
+PASS — Six visibility relations
+PASS — Default Mathia cannot see Wendler
+PASS — Default Wendler cannot see Mathia
+PASS — Main applies visibility row
+PASS — Main map respects Jorge visibility
+PASS — Mathia reads visibility matrix
+PASS — Mathia no SQL hard exclusion
+PASS — Wendler reads visibility matrix
+PASS — Wendler no SQL hard exclusion
+PASS — Wendler default rule hides Mathia
+PASS — Wendler map no unconditional Mathia exclusion
+PASS — Cache Jorge bumped
+PASS — Cache Mathia bumped
+PASS — Cache Wendler bumped
+
+TOTAL: 15 PASS / 0 FAIL

@@ -1,12 +1,10 @@
-AERONAV RC11.53 — MATHIA ROSA CLARO + WENDLER PRETO
+AERONAV RC11.58 — FAMILY VISIBILITY MATRIX RESTORED
 
-- Mantém três clientes independentes: Jorge /, Mathia /mathia/, Wendler /wendler/.
-- Mathia recebe interface completa em rosa claro, alinhada com o mockup aprovado.
-- Wendler recebe interface preta, independente e sem elementos da Mathia.
-- Ambos usam cabeçalho AERONAV, modos VOO/CARRO/A PÉ, HUD de dados sobre o mapa e navegação inferior Início/Mapa/Viagem/Família/Mais.
-- VOO é modo de acompanhamento do Jorge; não adiciona ferramentas de pilotagem aos clientes.
-- Mathia mantém CARRO/A PÉ, criação de rota terrestre para Jorge, Family Call, SOS, histórico e privacidade.
-- Wendler mantém localização obrigatória na aplicação, Family Call, SOS, histórico e privacidade.
-- Mathia passa a usar namespace localStorage aeronav.mathia.*, com migração automática dos dados antigos aeronav.viewer.*.
-- Manifests, theme colors, ícones e caches são próprios de cada cliente.
-- ADS-B multi-source/failover e backend comum preservados.
+- Jorge continua administrador e vê Mathia e Wendler por padrão.
+- Menu "Quem pode ver quem" restaurado com 6 relações independentes.
+- Padrão: Jorge→Mathia ON; Jorge→Wendler ON; Mathia→Jorge ON; Wendler→Jorge ON; Mathia→Wendler OFF; Wendler→Mathia OFF.
+- Wendler NÃO vê Mathia por padrão.
+- Mathia NÃO vê Wendler por padrão.
+- Jorge pode alterar cada relação explicitamente e guardar; as regras são sincronizadas pelo Family.
+- Mapa da Família continua dentro da aplicação principal de Jorge.
+- Membros emparelhados continuam visíveis a Jorge mesmo enquanto o GPS aguarda, respeitando a regra Jorge→membro.

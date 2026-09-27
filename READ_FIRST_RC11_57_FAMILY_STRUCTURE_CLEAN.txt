@@ -1,0 +1,5 @@
+AERONAV RC11.57 — CORREÇÃO DA ESTRUTURA FAMILY
+
+Objetivo: eliminar mistura entre Jorge, Mathia e Wendler.
+
+A aplicação principal é a do Jorge. Mathia e Wendler continuam como clientes independentes. O painel do Jorge passa a mostrar membros emparelhados mesmo antes do primeiro GPS, e o Mapa da Família abre dentro da aplicação principal em vez de redirecionar para Mathia.

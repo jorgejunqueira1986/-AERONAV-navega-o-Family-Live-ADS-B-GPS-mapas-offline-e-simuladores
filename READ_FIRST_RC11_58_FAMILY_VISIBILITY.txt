@@ -1,0 +1,14 @@
+AERONAV RC11.58 — CORREÇÃO DE PRIVACIDADE/VISUALIZAÇÃO
+
+Não apagar as aplicações. Substituir apenas os ficheiros do patch nos mesmos caminhos.
+
+Padrão de visibilidade:
+- Jorge vê Mathia: SIM
+- Jorge vê Wendler: SIM
+- Mathia vê Jorge: SIM
+- Mathia vê Wendler: NÃO
+- Wendler vê Jorge: SIM
+- Wendler vê Mathia: NÃO
+
+O menu "Quem pode ver quem" fica na aplicação Jorge > Família > Ligação segura.
+Cada uma das 6 relações pode ser alterada separadamente pelo Jorge.
