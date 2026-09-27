@@ -1,0 +1,23 @@
+{
+  "name": "AERONAV Wendler · Family Client",
+  "short_name": "AERONAV Wendler",
+  "description": "Cliente familiar Wendler da AERONAV, ligado por convite QR do Jorge.",
+  "id": "./wendler.html?app=wendler",
+  "start_url": "./wendler.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#050505",
+  "icons": [
+    {
+      "src": "./wendler-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./wendler-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

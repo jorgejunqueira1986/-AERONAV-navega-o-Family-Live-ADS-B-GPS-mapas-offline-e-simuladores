@@ -1,19 +1,21 @@
 {
-  "name": "AERONAV Family RC11.39",
-  "short_name": "AERONAV Family",
+  "name": "AERONAV Mathia · Family Client",
+  "short_name": "AERONAV Mathia",
+  "description": "Cliente familiar Mathia da AERONAV, ligado por convite QR do Jorge.",
+  "id": "./family-viewer.html?app=mathia",
   "start_url": "./family-viewer.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#031316",
-  "theme_color": "#063b3d",
+  "background_color": "#fff3f7",
+  "theme_color": "#f7c8d9",
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "./mathia-icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "./mathia-icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
