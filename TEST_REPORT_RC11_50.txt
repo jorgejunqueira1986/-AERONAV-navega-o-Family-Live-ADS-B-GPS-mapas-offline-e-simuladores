@@ -1,7 +1,30 @@
-TEST REPORT RC11.50
-PASS — wendler.html criado na raiz.
-PASS — QR/link generator do Wendler aponta para ./wendler.html.
-PASS — Service Worker inclui ./wendler.html.
-PASS — JavaScript inline wendler.html sem erros de sintaxe.
-PASS — JavaScript principal sem erros de sintaxe.
-PASS — sw.js sem erros de sintaxe.
+AERONAV RC11.50 — TEST REPORT
+
+Testes estáticos/funcionais de código:
+PASS — Rota mantém geometria no reacquire GPS
+PASS — Wake Lock da rota
+PASS — Notificação única da rota
+PASS — Wendler root disponível
+PASS — QR Wendler aponta para root
+PASS — Wendler root usa assets corretos
+PASS — SW inclui Wendler root
+PASS — Placeholder de aeroporto correto
+PASS — Partida/destino sem default
+PASS — Secção Crew removida
+PASS — Fly & Drive código postal
+PASS — Planeamento avançado desdobrável
+PASS — GPS Fusion ativo
+PASS — Evento único de ativação
+PASS — Deduplicação Mathia
+PASS — Deduplicação Wendler
+PASS — Rota sync offline preservada
+PASS — Fecho remoto limpa Wake Lock
+PASS — Restauro offline retoma proteção
+PASS — ADS-B resilience preservada
+PASS — Referências relativas completas
+
+Resultado: 21/21 PASS
+Referências em falta: 0
+
+Nota iOS: uma PWA não consegue desenhar o mapa por cima do ecrã fisicamente bloqueado. A RC11.50 usa Screen Wake Lock quando suportado, notificação de rota ativa, persistência local e restauro automático ao desbloquear.
+Nota GPS: GPS Fusion usa várias aquisições da API de localização e fallback coerente do outro dispositivo Jorge; não seleciona diretamente receptores GNSS físicos do iOS.

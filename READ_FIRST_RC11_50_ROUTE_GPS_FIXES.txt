@@ -1,0 +1,11 @@
+AERONAV RC11.50
+
+1. Rota mantém a geometria planeada durante perda de GPS; ao recuperar, a posição é reajustada e existe período de graça antes de qualquer recálculo terrestre.
+2. Rota ativa usa Screen Wake Lock quando suportado e uma única notificação de rota ativa por rota/dispositivo; estado fica guardado para recuperação.
+3. Novo cliente direto /wendler.html além de /wendler/index.html para evitar 404 de diretório.
+4. Plano de voo inicia sem aeroportos pré-selecionados, com placeholder ICAO/NOME DO AEROPORTO.
+5. Secção Crew removida da interface e do menu.
+6. Fly & Drive aceita pesquisa terrestre por morada/local/código postal; pesquisa estruturada de postal code adicionada.
+7. Planeamento avançado convertido em menu desdobrável.
+8. GPS Fusion: watch contínuo + múltiplas sondagens high-accuracy + último fix + fallback temporário pelo outro dispositivo Jorge quando coerente com a rota.
+9. Ativação da mesma rota usa activationEventId e impede notificações STARTED repetidas; notificação de lock screen usa tag única.

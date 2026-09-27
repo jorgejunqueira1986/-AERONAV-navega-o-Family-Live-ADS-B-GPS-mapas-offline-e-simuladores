@@ -5,11 +5,17 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_49-adsb-resilience-hotfix-20260926-1';
+const CACHE='aeronav-RC11_50-route-continuity-gps-fusion-20260927-1';
 const LOCAL=[
   './',
   './index.html',
   './family-viewer.html',
+  './wendler.html',
+  './wendler/index.html',
+  './wendler/manifest.json',
+  './wendler/family-call.js',
+  './wendler/icons/icon-192.png',
+  './wendler/icons/icon-512.png',
   './family/family-call.js',
   './family/family-manifest.json',
   './family-viewer-preview.html',
@@ -96,7 +102,8 @@ async function networkFirst(request){
     const exact=await c.match(request,{ignoreSearch:false}) || await c.match(url.pathname==='/'?'./index.html':url.pathname.replace(/^\//,'./'));
     if(exact) return exact;
     const familyPath=/\/family\/?(?:index\.html)?$/.test(url.pathname);
-    const fallback=await c.match(familyPath?'./family-viewer.html':'./index.html');
+    const wendlerPath=/\/wendler\/?(?:index\.html)?$/.test(url.pathname)||/\/wendler\.html$/.test(url.pathname);
+    const fallback=await c.match(wendlerPath?'./wendler.html':familyPath?'./family-viewer.html':'./index.html');
     if(fallback) return fallback;
     throw err;
   }
@@ -167,9 +174,14 @@ self.addEventListener('message',event=>{
 });
 
 self.addEventListener('notificationclick',event=>{
-  event.notification.close();
+  const data=event.notification?.data||{};event.notification.close();
   event.waitUntil((async()=>{
     const all=await clients.matchAll({type:'window',includeUncontrolled:true});
+    if(data.type==='active-route'){
+      const main=all.find(c=>!/\/family\/?(?:index\.html)?$/.test(new URL(c.url).pathname)&&!/\/wendler(?:\/index\.html|\.html)?$/.test(new URL(c.url).pathname));
+      if(main){try{await main.focus();main.postMessage?.({type:'AERONAV_OPEN_ACTIVE_ROUTE'});return;}catch(_){}}
+      try{await clients.openWindow(new URL('./index.html',self.location.href).href);}catch(_){}return;
+    }
     const family=all.find(c=>/\/family\/?(?:index\.html)?(?:[?#].*)?$/.test(new URL(c.url).pathname));
     if(family){try{await family.focus();return;}catch(_){}}
     try{await clients.openWindow(new URL('./family/',self.location.href).href);}catch(_){}
