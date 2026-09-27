@@ -5,40 +5,10 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-RC11_50-route-continuity-gps-fusion-20260927-1';
+const CACHE='aeronav-jorge-RC11_53-client-themes-20260927-1';
 const LOCAL=[
-  './',
-  './index.html',
-  './family-viewer.html',
-  './wendler.html',
-  './wendler/index.html',
-  './wendler/manifest.json',
-  './wendler/family-call.js',
-  './wendler/icons/icon-192.png',
-  './wendler/icons/icon-512.png',
-  './family/family-call.js',
-  './family/family-manifest.json',
-  './family-viewer-preview.html',
-  './family-manifest.json',
-  './cockpit-audio.js',
-  './family-call.js',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './assets/aeronav-hero.jpg',
-  './assets/people/jorge-avatar.jpeg',
-  './assets/people/mathia-avatar.jpeg',
-  './assets/people/jorge-avatar-3d.png',
-  './assets/people/mathia-avatar-3d.png',
-  './assets/aircraft/cessna-152.png',
-  './assets/aircraft/taag-dash8-q400.png',
-  './assets/aircraft/taag-a220-300.png',
-  './assets/aircraft/taag-b787-9.png',
-  './assets/aircraft/taag-b787-10.png',
-  './assets/aircraft/taag-b777-300er.png',
-  './assets/aircraft/traffic-generic.png',
-  './assets/vehicles/toyota-yaris-ld-37-23-fm.png'
-];
+  './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png'
+]
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js',
@@ -116,7 +86,7 @@ self.addEventListener('install',event=>{
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
-    await Promise.all(keys.filter(k=>k!==CACHE && (k.startsWith('app-nav-')||k.startsWith('aeronav-'))).map(k=>caches.delete(k)));
+    await Promise.all(keys.filter(k=>k!==CACHE && (k.startsWith('app-nav-')||(k.startsWith('aeronav-')&&!k.startsWith('aeronav-mathia-')&&!k.startsWith('aeronav-wendler-')))).map(k=>caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -126,6 +96,8 @@ self.addEventListener('fetch',event=>{
   if(req.method!=='GET') return;
   const url=new URL(req.url);
   if(url.protocol!=='http:' && url.protocol!=='https:') return;
+  const p=url.pathname;
+  if(/\/mathia\//.test(p)||/\/wendler\//.test(p)) return;
 
   // Browser navigations need a cached shell fallback when offline.
   if(req.mode==='navigate'){
@@ -184,6 +156,6 @@ self.addEventListener('notificationclick',event=>{
     }
     const family=all.find(c=>/\/family\/?(?:index\.html)?(?:[?#].*)?$/.test(new URL(c.url).pathname));
     if(family){try{await family.focus();return;}catch(_){}}
-    try{await clients.openWindow(new URL('./family/',self.location.href).href);}catch(_){}
+    try{await clients.openWindow(new URL('./mathia/',self.location.href).href);}catch(_){}
   })());
 });

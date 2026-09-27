@@ -1,6 +1,6 @@
 {
-  "name": "AERONAV RC11.44 · Jorge 3D Avatar Approved",
-  "short_name": "AERONAV RC11.44",
+  "name": "AERONAV Jorge · RC11.52 Independent Family Clients",
+  "short_name": "AERONAV Jorge",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#06131f",
@@ -16,5 +16,6 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "id": "./"
 }

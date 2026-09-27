@@ -1,0 +1,11 @@
+AERONAV RC11.53 — CLIENT THEMES
+
+Publicar todo o conteúdo deste pacote na raiz do repositório GitHub Pages.
+
+LINKS
+Jorge: /
+Mathia: /mathia/
+Wendler: /wendler/
+
+Após publicar, recomenda-se abrir cada cliente no Safari, atualizar e reinstalar o atalho/PWA se o iOS mantiver o ícone/tema antigo.
+Mathia e Wendler continuam ligados por convite QR criado pelo administrador Jorge.

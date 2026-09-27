@@ -751,7 +751,8 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.50 RC11.50 · Route Continuity + GPS Fusion + UI Cleanup';
+  const APP_VERSION = '7.53 RC11.53 · Mathia Pink + Wendler Black';
+  const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
     ['TAAG Angola Airlines','DT','DTA','Angola'],['TAP Air Portugal','TP','TAP','Portugal'],['Azores Airlines','S4','RZO','Portugal'],['SATA Air Açores','SP','SAT','Portugal'],
@@ -2897,14 +2898,14 @@ body{min-height:var(--app-vh);margin:0}
     if(/failed to fetch|network|load failed|internet/i.test(raw))return 'Sem resposta do serviço ADS-B. Verifique a Internet; a rota e o callsign continuam guardados.';
     return raw&&!/^HTTP\s+\d+/i.test(raw)?raw:'ADS-B temporariamente indisponível. Tente novamente em alguns segundos.';
   }
-  function saveAdsbNearbyCache(rows=[]){try{localStorage.setItem(ADSB_NEARBY_CACHE_KEY,JSON.stringify({at:Date.now(),rows:Array.isArray(rows)?rows:[]}));}catch(_){}}
+  function saveAdsbNearbyCache(rows=[],provider=''){try{localStorage.setItem(ADSB_NEARBY_CACHE_KEY,JSON.stringify({at:Date.now(),rows:Array.isArray(rows)?rows:[],provider:String(provider||'')}));}catch(_){}}
   function loadAdsbNearbyCache(p,maxAgeMs=300000){
     try{
       const c=JSON.parse(localStorage.getItem(ADSB_NEARBY_CACHE_KEY)||'null');
       if(!c||!Array.isArray(c.rows)||!Number.isFinite(Number(c.at))||Date.now()-Number(c.at)>maxAgeMs)return null;
       const ownAlt=Number.isFinite(state.currentPosition?.altitude)?state.currentPosition.altitude*3.28084:null;
       const rows=c.rows.map(a=>{const lat=+a.lat,lon=+a.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;const d=haversine({lat:+p.lat,lon:+p.lon},{lat,lon})/1852;const alt=typeof a.alt_baro==='number'?a.alt_baro:(typeof a.alt_geom==='number'?a.alt_geom:null);const urgent=d<5&&ownAlt!==null&&alt!==null&&Math.abs(alt-ownAlt)<1500;return {...a,distanceNm:d,displayAlt:alt,urgent};}).filter(Boolean).sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,100);
-      return {rows,at:Number(c.at)};
+      return {rows,at:Number(c.at),provider:String(c.provider||'CACHE')};
     }catch(_){return null}
   }
   async function refreshAdsbPickerTraffic(){
@@ -2918,7 +2919,7 @@ body{min-height:var(--app-vh);margin:0}
         const j=await r.json(),rawRows=Array.isArray(j.ac)?j.ac:[];
         const ownAlt=Number.isFinite(state.currentPosition?.altitude)?state.currentPosition.altitude*3.28084:null;
         state.traffic.aircraft=rawRows.map(a=>{const lat=+a.lat,lon=+a.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;const d=haversine({lat:+p.lat,lon:+p.lon},{lat,lon})/1852;const alt=typeof a.alt_baro==='number'?a.alt_baro:(typeof a.alt_geom==='number'?a.alt_geom:null);const urgent=d<5&&ownAlt!==null&&alt!==null&&Math.abs(alt-ownAlt)<1500;return {...a,distanceNm:d,displayAlt:alt,urgent};}).filter(Boolean).sort((a,b)=>a.distanceNm-b.distanceNm).slice(0,100);
-        state.traffic.updatedAt=Date.now();state.traffic.fromCache=false;state.traffic.cacheAgeMs=0;saveAdsbNearbyCache(rawRows);return state.traffic.aircraft;
+        state.traffic.updatedAt=Date.now();state.traffic.fromCache=false;state.traffic.cacheAgeMs=0;state.traffic.provider=String(j.provider||'ADS-B');saveAdsbNearbyCache(rawRows,state.traffic.provider);return state.traffic.aircraft;
       }catch(e){
         lastErr=e;const status=Number(e?.status)||Number((String(e?.message||'').match(/HTTP\s+(\d+)/i)||[])[1]);
         if(status&&![429,502,503,504].includes(status))break;
@@ -2926,7 +2927,7 @@ body{min-height:var(--app-vh);margin:0}
       }
     }
     const cached=loadAdsbNearbyCache(p,300000);
-    if(cached?.rows?.length){state.traffic.aircraft=cached.rows;state.traffic.updatedAt=cached.at;state.traffic.fromCache=true;state.traffic.cacheAgeMs=Date.now()-cached.at;return cached.rows;}
+    if(cached?.rows?.length){state.traffic.aircraft=cached.rows;state.traffic.updatedAt=cached.at;state.traffic.fromCache=true;state.traffic.cacheAgeMs=Date.now()-cached.at;state.traffic.provider=String(cached.provider||'CACHE');return cached.rows;}
     throw new Error(friendlyAdsbError(lastErr));
   }
   function selectedAirlineLabel(){const f=state.family;if(!f.flightAirlineName&&!f.flightAirlineIcao)return 'Todas as companhias';return `${f.flightAirlineName||f.flightAirlineIcao}${f.flightAirlineIata?` · ${f.flightAirlineIata}`:''}${f.flightAirlineIcao?` / ${f.flightAirlineIcao}`:''}`;}
@@ -2946,7 +2947,7 @@ body{min-height:var(--app-vh);margin:0}
     catch(e){adsbNotice=friendlyAdsbError(e)+' Pode manter o callsign introduzido manualmente e continuar a configurar a rota.';}
     document.querySelector('.adsb-picker-overlay')?.remove();
     const f=state.family,o=document.createElement('div');o.className='pairing-overlay adsb-picker-overlay';
-    o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true" style="max-width:720px"><h2>Escolher voo ADS-B</h2><p>Mostra aeronaves recebidas com callsign. Companhia: <strong>${esc(selectedAirlineLabel())}</strong>.</p>${adsbNotice?`<div class="notice" id="adsbPickerNotice" style="margin:8px 0">${esc(adsbNotice)}</div>`:''}<input id="adsbPickerSearch" placeholder="Pesquisar callsign, matrícula ou tipo" style="width:100%;margin:8px 0 10px"><div class="family-actions"><button class="soft-btn" id="adsbPickerAirline">Companhias aéreas</button><button class="soft-btn" id="adsbPickerRefresh">↻ Atualizar</button><button class="soft-btn" id="adsbPickerClose">Fechar</button></div><div id="adsbPickerList" style="margin-top:10px;max-height:min(56vh,520px);overflow:auto"></div></div>`;
+    o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true" style="max-width:720px"><h2>Escolher voo ADS-B</h2><p>Mostra aeronaves recebidas com callsign. Companhia: <strong>${esc(selectedAirlineLabel())}</strong>${state.traffic.provider?` · Fonte: <strong>${esc(state.traffic.provider)}</strong>`:''}.</p>${adsbNotice?`<div class="notice" id="adsbPickerNotice" style="margin:8px 0">${esc(adsbNotice)}</div>`:''}<input id="adsbPickerSearch" placeholder="Pesquisar callsign, matrícula ou tipo" style="width:100%;margin:8px 0 10px"><div class="family-actions"><button class="soft-btn" id="adsbPickerAirline">Companhias aéreas</button><button class="soft-btn" id="adsbPickerRefresh">↻ Atualizar</button><button class="soft-btn" id="adsbPickerClose">Fechar</button></div><div id="adsbPickerList" style="margin-top:10px;max-height:min(56vh,520px);overflow:auto"></div></div>`;
     document.body.appendChild(o);
     const list=o.querySelector('#adsbPickerList'),search=o.querySelector('#adsbPickerSearch');
     const candidateRows=()=>{const q=search.value.trim().toLowerCase(),icao=String(f.flightAirlineIcao||'').toUpperCase(),name=String(f.flightAirlineName||'').toLowerCase();return (state.traffic.aircraft||[]).filter(a=>adsbCallsignOf(a)).filter(a=>{const al=adsbAirlineFor(a),call=adsbCallsignOf(a);if(icao&&!(call.startsWith(icao)||al?.icao===icao))return false;if(name&&al?.name&&!al.name.toLowerCase().includes(name)&&!name.includes(al.name.toLowerCase()))return false;const hay=`${call} ${a.r||''} ${a.t||''} ${a.ownOp||''} ${al?.name||''}`.toLowerCase();return !q||hay.includes(q);}).sort((a,b)=>a.distanceNm-b.distanceNm);};
@@ -2963,7 +2964,7 @@ body{min-height:var(--app-vh);margin:0}
         try{
           const r=await fetch(`${FAMILY_BOOTSTRAP_SERVER}/adsb/callsign/${encodeURIComponent(call)}`,{cache:'no-store'});if(!r.ok){const e=new Error('ADS-B '+r.status);e.status=r.status;throw e;}
           const j=await r.json(),ac=(j.ac||[]).filter(x=>Number.isFinite(Number(x.lat))&&Number.isFinite(Number(x.lon))).sort((a,b)=>(Number(a.seen)||999)-(Number(b.seen)||999))[0];if(!ac)break;
-          const age=Math.max(0,Number(ac.seen)||0),data={lat:Number(ac.lat),lon:Number(ac.lon),altitude:Number.isFinite(Number(ac.alt_baro))?Number(ac.alt_baro)*0.3048:null,speed:Number.isFinite(Number(ac.gs))?Number(ac.gs)/1.943844492:null,heading:Number.isFinite(Number(ac.track))?Number(ac.track):null,updatedAt:new Date(Date.now()-age*1000).toISOString(),callsign:call,source:'ADS-B'};
+          const age=Math.max(0,Number(ac.seen)||0),data={lat:Number(ac.lat),lon:Number(ac.lon),altitude:Number.isFinite(Number(ac.alt_baro))?Number(ac.alt_baro)*0.3048:null,speed:Number.isFinite(Number(ac.gs))?Number(ac.gs)/1.943844492:null,heading:Number.isFinite(Number(ac.track))?Number(ac.track):null,updatedAt:new Date(Date.now()-age*1000).toISOString(),callsign:call,source:'ADS-B',provider:String(j.provider||'ADS-B')};
           state.family.adsbCache.set(call,{at:Date.now(),data});try{localStorage.setItem(diskKey,JSON.stringify({at:Date.now(),data}));}catch(_){}return data;
         }catch(e){const status=Number(e?.status)||Number((String(e?.message||'').match(/(\d{3})/)||[])[1]);if(status&&![429,502,503,504].includes(status))break;if(attempt<2)await new Promise(res=>setTimeout(res,attempt===0?450:1100));}
       }
@@ -3074,7 +3075,7 @@ body{min-height:var(--app-vh);margin:0}
     if(body!==null)init.body=JSON.stringify(body);
     const r=await fetch(FAMILY_BOOTSTRAP_SERVER+path,init);let j={};try{j=await r.json()}catch(_){}if(!r.ok)throw new Error(j?.error||`Family HTTP ${r.status}`);return j;
   }
-  function familyPairPublicBase(client='mathia'){const rel=client==='wendler'?'./wendler.html':'./family/';try{return new URL(rel,location.href).href}catch(_){return location.origin+location.pathname.replace(/[^/]*$/,'')+rel.replace('./','')}}
+  function familyPairPublicBase(client='mathia'){const rel=client==='wendler'?'./wendler/':'./mathia/';try{return new URL(rel,location.href).href}catch(_){return location.origin+location.pathname.replace(/[^/]*$/,'')+rel.replace('./','')}}
   async function createFamilyPairLink(label='Mathia',client='mathia'){
     const j=await familyAuthorizedApi('/family/pair-link/create',{body:{label}});const token=String(j?.pair_token||'').trim();if(!token)throw new Error('Servidor não devolveu token de emparelhamento.');
     const u=new URL(familyPairPublicBase(client));u.hash='pair='+encodeURIComponent(token);return {url:u.href,expiresAt:j.expires_at||null};
@@ -3133,7 +3134,7 @@ body{min-height:var(--app-vh);margin:0}
     q('#pairRequest').onclick=async()=>{const email=q('#pairEmail').value.trim(),code=q('#pairCode').value.trim(),code2=q('#pairCode2').value.trim();if(!/^\S+@\S+\.\S+$/.test(email)){msg.textContent='Introduza um e-mail válido.';return}if(!familyCodeValid(code)){msg.textContent='O Código da Família deve ter entre 8 e 64 caracteres.';return}if(code!==code2){msg.textContent='Os dois códigos não coincidem.';return}try{q('#pairRequest').disabled=true;msg.textContent='A enviar e-mail…';if(isSetup)await familyPairingApi('/family/setup/request',{email,new_code:code});else await familyPairingApi('/family/recovery/request',{email});q('#pairOtpWrap').classList.add('show');q('#pairConfirm').style.display='inline-flex';msg.textContent='Foi enviado um código de 6 dígitos. Introduza-o abaixo. Se não chegar, verifique Spam/Lixo.';}catch(e){msg.textContent=e?.message||String(e)}finally{q('#pairRequest').disabled=false}};
     q('#pairConfirm').onclick=async()=>{const email=q('#pairEmail').value.trim(),code=q('#pairCode').value.trim(),otp=q('#pairOtp').value.trim();if(!/^\d{6}$/.test(otp)){msg.textContent='Introduza o código de 6 dígitos recebido por e-mail.';return}try{q('#pairConfirm').disabled=true;msg.textContent='A confirmar…';if(isSetup)await familyPairingApi('/family/setup/confirm',{email,otp});else await familyPairingApi('/family/recovery/confirm',{email,otp,new_code:code});const f=state.family;f.familyKey=code;f.familyHash='';localStorage.setItem('aeronav.family.key',code);sessionStorage.setItem('aeronav.cockpit.familyCode',code);const boot=await familyBootstrapConfig(code);f.supabaseUrl=boot.url;f.anonKey=boot.anon;f.enabled=true;saveFamilySettings();closeFamilyPairingModal();startFamilySync();await familySyncCycle();renderFamilyScreen();toast(isSetup?'Código da Família criado e confirmado.':'Código alterado. Introduza o novo código no telefone da Mathia.');}catch(e){msg.textContent=e?.message||String(e)}finally{q('#pairConfirm').disabled=false}};
   }
-  function familyViewerUrl(){try{return new URL('./family-viewer.html',location.href).href}catch(_){return location.origin+location.pathname.replace(/[^/]*$/,'')+'family-viewer.html'}}
+  function familyViewerUrl(){try{return new URL('./mathia/',location.href).href}catch(_){return location.origin+location.pathname.replace(/[^/]*$/,'')+'mathia/'}}
   function openFamilyViewer(){const u=familyViewerUrl();try{window.location.assign(u)}catch(_){location.href=u}}
   async function shareFamilyViewer(){ return showFamilyPairLink(); }
   async function sha256TextHex(text){

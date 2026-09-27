@@ -1,12 +1,23 @@
-AERONAV RC11.53 — TEST REPORT
+AERONAV RC11.53 TEST REPORT
 
-PASS — Mathia is not a default Family member.
-PASS — legacy local Mathia member/history/marker state is removed immediately.
-PASS — main app requests server-side /family/member/remove until the purge succeeds.
-PASS — existing Railway endpoint revokes Mathia devices and removes location/system and stay-history rows.
-PASS — cleanup key is set only after successful server removal; offline failures retry.
-PASS — stale Mathia stay history is not loaded without an active authorised Mathia device.
-PASS — Mathia route-share and go-to controls are hidden until she is paired again.
-PASS — “Adicionar Mathia por QR” remains available for a future explicit re-add.
-PASS — Wendler privacy behaviour preserved.
-PASS — package remains below GitHub web upload 100-file limit.
+PASS — Mathia RC11.53 title
+PASS — Mathia rosa claro CSS
+PASS — Mathia modo VOO/CARRO/A PÉ
+PASS — Mathia HUD
+PASS — Mathia bottom nav novo
+PASS — Mathia namespace próprio
+PASS — Mathia rota rosa
+PASS — Wendler RC11.53 title
+PASS — Wendler preto CSS
+PASS — Wendler modo VOO/CARRO/A PÉ
+PASS — Wendler HUD
+PASS — Wendler bottom nav novo
+PASS — Wendler rota branca
+PASS — Mathia não recebe Wendler
+PASS — Wendler não mostra Mathia
+PASS — Mathia SW cache separado
+PASS — Wendler SW cache separado
+PASS — Mathia manifest rosa
+PASS — Wendler manifest preto
+
+TOTAL: 19 PASS / 0 FAIL

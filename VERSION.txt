@@ -1,31 +1,12 @@
-AERONAV RC11.46 — IPHONE/IPAD ROUTE SYNC
+AERONAV RC11.53 — MATHIA ROSA CLARO + WENDLER PRETO
 
-- Mantém RC11.45: avatares cruzados e avatares ADS-B em todas as aplicações.
-- iPhone e iPad de Jorge sincronizam a mesma rota através da mesma Família AERONAV.
-- Criação, abertura, alteração, início, recálculo e fecho da rota são propagados entre os dois dispositivos.
-- O dispositivo recetor aplica a rota sem criar uma rota duplicada.
-- O fecho da rota num dispositivo fecha a mesma rota no outro.
-- Sincronização cloud usa um registo técnico oculto e encriptado com AES-GCM derivado do Código da Família de Jorge.
-- Mathia e Wendler não mostram nem processam o registo técnico de sincronização.
-- Requer Internet para sincronização entre dispositivos; a rota local continua disponível offline conforme as funções existentes.
-RC11.47 PATCH
-- Ao traçar rota, pergunta com quem partilhar: Mathia, Wendler, ambos ou ninguém.
-- iPhone e iPad de Jorge tratados como o mesmo perfil; a rota sincroniza entre ambos automaticamente.
-- O segundo dispositivo de Jorge deixa de aparecer como membro separado na lista do Jorge.
-RC11.48 PATCH
-- Separação rígida entre ROTA DE AVIÃO e ROTA DE CARRO; uma rota aérea nunca força contexto de carro e vice-versa.
-- Menu principal Rotas com submenus ROTA DE AVIÃO e ROTA DE CARRO.
-- Rotas guardadas: Editar, Abrir no mapa e Apagar.
-- Wendler deixa de receber/mostrar Mathia e aplica filtro redundante na consulta, lista e mapa.
-- Wendler não pode pausar/desligar a localização nem desemparelhar-se pela própria aplicação; remoção fica sob administração de Jorge. A permissão do sistema iOS continua sob controlo do próprio iOS.
-- Novo dispositivo administrador Jorge requer confirmação no outro dispositivo Jorge já ligado antes de sincronizar rota/localização ou gerir membros.
-- iPhone/iPad mantêm a rota recebida em cache local; se ficarem offline, reabrem a rota com o mapa offline instalado (ou fallback offline interno quando não existir pacote PMTiles local).
-- Cartões de rota de Mathia e Wendler identificam explicitamente ROTA DE AVIÃO ou ROTA DE CARRO.
-RC11.49 PATCH
-- Corrige a mensagem bruta “ADS-B: HTTP 502”.
-- Seletor ADS-B: até 4 tentativas automáticas para falhas temporárias 429/502/503/504/rede.
-- Cache local da última lista ADS-B válida durante até 5 minutos.
-- O seletor permanece aberto se o feed falhar; o callsign manual continua utilizável e a rota não é bloqueada.
-- Rastreamento por callsign: até 3 tentativas e cache local de 2 minutos.
-- Tráfego do mapa usa a última lista válida quando o feed está temporariamente indisponível.
-AERONAV RC11.50 — ROUTE CONTINUITY + GPS FUSION + WENDLER ROOT LINK
+- Mantém três clientes independentes: Jorge /, Mathia /mathia/, Wendler /wendler/.
+- Mathia recebe interface completa em rosa claro, alinhada com o mockup aprovado.
+- Wendler recebe interface preta, independente e sem elementos da Mathia.
+- Ambos usam cabeçalho AERONAV, modos VOO/CARRO/A PÉ, HUD de dados sobre o mapa e navegação inferior Início/Mapa/Viagem/Família/Mais.
+- VOO é modo de acompanhamento do Jorge; não adiciona ferramentas de pilotagem aos clientes.
+- Mathia mantém CARRO/A PÉ, criação de rota terrestre para Jorge, Family Call, SOS, histórico e privacidade.
+- Wendler mantém localização obrigatória na aplicação, Family Call, SOS, histórico e privacidade.
+- Mathia passa a usar namespace localStorage aeronav.mathia.*, com migração automática dos dados antigos aeronav.viewer.*.
+- Manifests, theme colors, ícones e caches são próprios de cada cliente.
+- ADS-B multi-source/failover e backend comum preservados.
