@@ -1,0 +1,23 @@
+{
+  "name": "AERONAV Mathia · Family Client",
+  "short_name": "AERONAV Mathia",
+  "description": "Cliente familiar independente da Mathia, emparelhado por QR com a Família AERONAV.",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fff7fb",
+  "theme_color": "#f4a6c2",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
