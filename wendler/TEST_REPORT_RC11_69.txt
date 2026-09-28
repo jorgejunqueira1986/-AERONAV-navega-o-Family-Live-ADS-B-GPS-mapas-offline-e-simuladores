@@ -1,0 +1,12 @@
+AERONAV RC11.69 — TEST REPORT
+
+PASSOU — JavaScript inline: index.html, mathia/index.html e wendler/index.html validados com node --check.
+PASSOU — rota: drawRouteOnMap já não bloqueia rota planeada por _mapOpened=false; rotas novas ficam map-ready imediatamente.
+PASSOU — Mathia: interface usa Código da Família e persiste token no armazenamento da PWA.
+PASSOU — Wendler: interface usa Código da Família e persiste token no armazenamento da PWA.
+PASSOU — backend: /family/profile/pair presente e max_active_devices=1.
+PASSOU — SQL: função aeronav_pair_profile_device revoga o aparelho anterior antes de inserir o novo.
+PASSOU — avatares: endpoints /family/profile/avatar e /family/profile/avatars presentes; cache local + sincronização backend.
+PASSOU — total de ficheiros muito abaixo do limite de 100 do GitHub.
+
+Nota de compilação do backend: a verificação TypeScript local só reporta dependências externas/Bun ausentes no ambiente de teste (hono, livekit-server-sdk, tipos Bun/Buffer); não reportou erros sintáticos novos.

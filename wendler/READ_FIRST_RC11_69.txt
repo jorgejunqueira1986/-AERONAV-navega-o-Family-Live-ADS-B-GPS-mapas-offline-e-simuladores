@@ -1,0 +1,25 @@
+AERONAV RC11.69 — CÓDIGO DA FAMÍLIA + ROTA + 1 APARELHO + AVATARES
+
+ALTERAÇÕES
+1. A linha da rota volta a aparecer no mapa logo após calcular uma rota na aplicação principal.
+2. Mathia e Wendler deixam de depender de QR. Cada aplicação tem “Introduzir Código da Família” e usa o mesmo Código da Família configurado na aplicação do Jorge.
+3. Wendler aceita apenas 1 aparelho ativo. Se o Código da Família for usado para emparelhar o perfil Wendler noutro aparelho, o anterior é revogado.
+4. Mathia aceita apenas 1 aparelho ativo, com a mesma regra.
+5. Jorge, Mathia e Wendler podem alterar manualmente o próprio avatar. O avatar fica guardado localmente e, quando a Família está ligada, é sincronizado pelo backend para os outros perfis.
+
+ORDEM DE PUBLICAÇÃO RECOMENDADA
+1. SUPABASE: executar server/RC11_69_SINGLE_DEVICE_PAIRING.sql uma vez no SQL Editor.
+2. RAILWAY: substituir o index.tsx atual pelo conteúdo de server/server_RC11_69_index.tsx e fazer Deploy.
+3. GITHUB: substituir index.html, sw.js, mathia/ e wendler/ pelos ficheiros desta versão. Preserve outros assets existentes no repositório.
+
+NOVO FLUXO DE EMPARELHAMENTO
+- Mathia: abrir a PWA Mathia instalada > Introduzir Código da Família > escrever o código do Jorge > Ligar este aparelho.
+- Wendler: abrir a PWA Wendler instalada > Introduzir Código da Família > escrever o código do Jorge > Ligar este aparelho.
+- Não é necessário gerar nem ler QR.
+- O Código da Família não é guardado no perfil cliente depois do emparelhamento; é trocado por um token de dispositivo.
+- Ao emparelhar o mesmo perfil num novo aparelho, o token do aparelho anterior é revogado.
+
+AVATARES
+- Jorge altera o seu avatar na área Família da aplicação principal.
+- Mathia e Wendler alteram o próprio avatar na janela de ligação/configuração de cada PWA.
+- A imagem é comprimida antes de guardar/sincronizar.
