@@ -1,6 +1,6 @@
-/* AERONAV RC11.60 — persistent mathia client pairing */
-const CACHE='aeronav-mathia-RC11_60-pairing-persistence-20260928-1';
-const CORE=['./','./index.html','./manifest.json','./family-call.js','./icons/icon-192.png','./icons/icon-512.png'];
+/* AERONAV RC11.65 — persistent Mathia auth + 404 hotfix */
+const CACHE='aeronav-mathia-RC11_65-404-hotfix-20260928-1';
+const CORE=['./','./index.html','./manifest.json','./family-call.js','./icon-192.png','./icon-512.png'];
 async function warm(){const c=await caches.open(CACHE);for(const u of CORE){try{const r=await fetch(u,{cache:'reload'});if(r.ok)await c.put(u,r.clone());}catch(_){}}}
 self.addEventListener('install',e=>e.waitUntil(warm().then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('aeronav-mathia-')&&k!==CACHE).map(k=>caches.delete(k)));await self.clients.claim();})()));

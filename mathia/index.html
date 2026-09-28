@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#050505" />
 <meta name="robots" content="noindex,nofollow" />
 <link rel="manifest" href="./manifest.json" />
-<title>AERONAV Mathia · RC11.64</title>
+<title>AERONAV Mathia · RC11.65</title>
 <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
 <style>
 :root{color-scheme:dark;--bg:#06131f;--panel:#0a1d2c;--panel2:#0e2638;--line:#1e4055;--text:#eef7ff;--muted:#9fb2c1;--cyan:#2fd1ff;--green:#57e6b4;--amber:#ffca63;--red:#ff6f7d}
@@ -154,7 +154,7 @@ html,body{background:linear-gradient(180deg,#fff9fc,#fdeaf3 58%,#fff7fb)!importa
 .family-bottom{background:rgba(255,248,252,.97)!important;border-top-color:#f0bfd2!important}.family-bottom button{color:#80576a!important}.family-bottom button b{color:#d85c92!important}
 </style>
 
-<!-- AERONAV MATHIA RC11.64 · NO PAIRING / NO QR REQUIRED -->
+<!-- AERONAV MATHIA RC11.65 · PERSISTENT AUTH · 404 HOTFIX -->
 </head>
 <body>
 <header class="top"><div class="brand"><button type="button" id="viewerBack" aria-label="Voltar" title="Voltar" style="position:absolute;left:0;width:42px;height:42px;border-radius:13px;border:1px solid #2d6485;background:#0a2d49;color:#fff;font-size:28px">‹</button><h1><span class="family-mark">✈</span>AERONAV <small>Família · Mathia</small></h1><span id="status" class="status">A CONFIGURAR</span></div></header>
@@ -356,7 +356,7 @@ async function updateRealTrafficAroundFollowed(){
   }catch(_){ }finally{trafficBusy=false}
 }
 
-function configured(){return true}
+function configured(){return !!(cfg.url&&cfg.anon&&cfg.deviceToken&&cfg.roomHash)}
 function syncNativeFamilyAuth(){
   if(!cfg.deviceToken)return;
   try{localStorage.setItem('aeronav.mathia.deviceToken',cfg.deviceToken)}catch(_){}
@@ -550,7 +550,7 @@ $('#stayToday').onclick=()=>{cfg.historyDays=1;localStorage.setItem(LS.historyDa
 $('#forgetBtn').onclick=()=>showMsg('Este dispositivo só pode ser removido da Família pela aplicação administradora do Jorge.');
 bindHold($('#viewerSosBtn'),()=>sendSos(true));$('#viewerSosCancel').onclick=()=>sendSos(false);$('#viewerSosAlerts').onclick=enableSosAlerts;$('#viewerCallStart').onclick=startViewerCall;$('#viewerCallEnd').onclick=endViewerCall;$('#viewerShareGps').onclick=()=>toggleViewerGps();$('#viewerJourneyNotify').onclick=enableViewerJourneyNotifications;$('#modeDrive').onclick=()=>setGroundMode('drive');$('#modeWalk').onclick=()=>setGroundMode('walk');$('#modeFlight').onclick=()=>{document.querySelectorAll('.ground-mode').forEach(x=>x.classList.remove('flight-view'));$('#modeFlight').classList.add('flight-view');try{$('#fitBtn')?.click()}catch(_){}setTimeout(()=>$('#modeFlight')?.classList.remove('flight-view'),1800)};updateSosUi();updateCallUi();updateViewerJourneyButtons();updateGroundModeUi();if(configured())startViewerGps();
 window.addEventListener('online',()=>pull(true));window.addEventListener('offline',()=>setStatus('SEM INTERNET','bad'));window.addEventListener('pagehide',()=>{if(configured())persistPairing().catch(()=>{})});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&configured())persistPairing().catch(()=>{})});
-renderViewerStayHistory();syncNativeFamilyAuth();(async()=>{const restoredPairing=false;restoreSharedTrip();const tripLoaded=consumeTripLinkFromHash();const paired=false;initMap();if(lastSharedRoute){drawSharedRoute(lastSharedRoute);const h=$('#journeyPanel');if(tripLoaded&&h){const r=lastSharedRoute;h.innerHTML=`<div class="route-card"><div class="route-title">${esc(r.from||'Origem')} → ${esc(r.to||'Destino')}</div><div class="route-line"><span class="route-dot"></span><strong>${r.mode==='flight'?'✈ ROTA DE AVIÃO':'🚗 ROTA DE CARRO'} · Rota recebida por link</strong></div><div class="info-strip"><div class="info-box"><span>${r.mode==='flight'?'ETD':'INÍCIO'}</span><strong>${r.plannedStartAt?new Date(r.plannedStartAt).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}</strong></div><div class="info-box"><span>${r.mode==='flight'?'ATERRAGEM':'CHEGADA'}</span><strong>${r.eta?new Date(r.eta).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}</strong></div><div class="info-box"><span>DISTÂNCIA</span><strong>${Number.isFinite(Number(r.distanceKm))?Number(r.distanceKm).toLocaleString('pt-PT')+' km':'—'}</strong></div></div></div>`}}start();if(restoredPairing&&configured()){hideModal();showMsg('✓ Emparelhamento recuperado automaticamente. Não é necessário ler o QR novamente.');startViewerGps();}if(paired){cfg.sharing=true;localStorage.setItem(LS.sharing,'1');startViewerGps();hideModal();showMsg('✓ Este telefone ficou emparelhado com o Jorge. A localização obrigatória está ativa e a ligação permanecerá até ser revogada.');await pull(true);}else if(tripLoaded){hideModal();showMsg('✓ Rota carregada no AERONAV Family. Se este telefone estiver emparelhado, o acompanhamento ao vivo será atualizado automaticamente.');}})();
+renderViewerStayHistory();syncNativeFamilyAuth();(async()=>{const restoredPairing=await restorePersistedPairing();restoreSharedTrip();const tripLoaded=consumeTripLinkFromHash();const paired=await consumePairLinkFromHash();initMap();if(lastSharedRoute){drawSharedRoute(lastSharedRoute);const h=$('#journeyPanel');if(tripLoaded&&h){const r=lastSharedRoute;h.innerHTML=`<div class="route-card"><div class="route-title">${esc(r.from||'Origem')} → ${esc(r.to||'Destino')}</div><div class="route-line"><span class="route-dot"></span><strong>${r.mode==='flight'?'✈ ROTA DE AVIÃO':'🚗 ROTA DE CARRO'} · Rota recebida por link</strong></div><div class="info-strip"><div class="info-box"><span>${r.mode==='flight'?'ETD':'INÍCIO'}</span><strong>${r.plannedStartAt?new Date(r.plannedStartAt).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}</strong></div><div class="info-box"><span>${r.mode==='flight'?'ATERRAGEM':'CHEGADA'}</span><strong>${r.eta?new Date(r.eta).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}</strong></div><div class="info-box"><span>DISTÂNCIA</span><strong>${Number.isFinite(Number(r.distanceKm))?Number(r.distanceKm).toLocaleString('pt-PT')+' km':'—'}</strong></div></div></div>`}}start();if(restoredPairing&&configured()){hideModal();showMsg('✓ Emparelhamento recuperado automaticamente. Não é necessário ler o QR novamente.');startViewerGps();}if(paired){cfg.sharing=true;localStorage.setItem(LS.sharing,'1');startViewerGps();hideModal();showMsg('✓ Este telefone ficou emparelhado com o Jorge. A localização obrigatória está ativa e a ligação permanecerá até ser revogada.');await pull(true);}else if(tripLoaded){hideModal();showMsg('✓ Rota carregada no AERONAV Family. Se este telefone estiver emparelhado, o acompanhamento ao vivo será atualizado automaticamente.');}})();
 })();
 </script>
 <script src="./family-call.js"></script>
