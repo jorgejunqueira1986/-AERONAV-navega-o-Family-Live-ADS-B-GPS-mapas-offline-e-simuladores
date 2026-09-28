@@ -514,6 +514,7 @@ body{min-height:var(--app-vh);margin:0}
 }
 </style>
 
+<!-- AERONAV MAIN QR HOTFIX RC11.61 · multi-CDN QR fallback -->
 </head>
 <body>
   <div id="app">
@@ -751,7 +752,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.57 RC11.58 · Family Structure Clean';
+  const APP_VERSION = '7.57 RC11.57 · Family Structure Clean';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -3077,36 +3078,48 @@ body{min-height:var(--app-vh);margin:0}
     if(body!==null)init.body=JSON.stringify(body);
     const r=await fetch(FAMILY_BOOTSTRAP_SERVER+path,init);let j={};try{j=await r.json()}catch(_){}if(!r.ok)throw new Error(j?.error||`Family HTTP ${r.status}`);return j;
   }
-
-  // ---------- RC11.58 Family visibility matrix ----------
-  function familyCanonicalName(v=''){return String(v||'').trim().toLowerCase();}
-  function familyVisibilityDefaults(){return {jorge:{mathia:true,wendler:true},mathia:{jorge:true,wendler:false},wendler:{jorge:true,mathia:false}};}
-  function familyVisibilityNormalize(v){const d=familyVisibilityDefaults(),src=v&&typeof v==='object'?v:{};for(const a of ['jorge','mathia','wendler'])for(const b of ['jorge','mathia','wendler'])if(a!==b&&typeof src?.[a]?.[b]==='boolean')d[a][b]=src[a][b];return d;}
-  function familyVisibilityReadLocal(){try{return familyVisibilityNormalize(JSON.parse(localStorage.getItem('aeronav.family.visibility')||'null'))}catch(_){return familyVisibilityDefaults()}}
-  function familyVisibilitySaveLocal(v){const n=familyVisibilityNormalize(v);state.family.visibilityRules=n;state.family.visibilityLastAt=Date.now();localStorage.setItem('aeronav.family.visibility',JSON.stringify(n));return n;}
-  function familyVisibilityEncode(v){try{return 'VISIBILITY:'+btoa(JSON.stringify(familyVisibilityNormalize(v))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}catch(_){return 'VISIBILITY:'}}
-  function familyVisibilityDecode(v){try{let x=String(v||'').replace(/^VISIBILITY:/,'').replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';return familyVisibilityNormalize(JSON.parse(atob(x)))}catch(_){return null}}
-  function familyVisibilityRoleFromName(v=''){const n=familyCanonicalName(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(n.includes('jorge'))return 'jorge';if(n.includes('mathia'))return 'mathia';if(n.includes('wendler')||n.includes('wendy'))return 'wendler';return '';}
-  function familyVisibilityCan(viewer,target){if(!viewer||!target||viewer===target)return true;const r=state.family.visibilityRules||familyVisibilityReadLocal();return r?.[viewer]?.[target]!==false;}
-  function isFamilyVisibilityRow(m){return /__VISIBILITY$/.test(String(m?.member_id||''))||/^VISIBILITY:/.test(String(m?.transport||''));}
-  function familyVisibilityApplyRows(rows=[]){let newest=null,ts=-1;for(const x of rows||[]){if(!isFamilyVisibilityRow(x))continue;const t=Date.parse(x.updated_at||0)||0;if(t>=ts){newest=x;ts=t}}if(newest){const r=familyVisibilityDecode(newest.transport);if(r)familyVisibilitySaveLocal(r)}else if(!state.family.visibilityRules)familyVisibilitySaveLocal(familyVisibilityReadLocal());return state.family.visibilityRules;}
-  async function pushFamilyVisibility(force=true){const f=state.family;if(!familyConfigured()||!navigator.onLine)return false;await ensureFamilyHash();const rules=familyVisibilitySaveLocal(f.visibilityRules||familyVisibilityReadLocal()),body={room_hash:f.familyHash,member_id:String(f.memberId)+'__VISIBILITY',display_name:'AERONAV Privacy',sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:familyVisibilityEncode(rules),flight_number:null,flight_eta:null,updated_at:new Date().toISOString()};const r=await fetch(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:{...familyHeaders(),'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(body),cache:'no-store'});if(!r.ok){if(force)throw new Error('Privacidade Family HTTP '+r.status);return false}return true;}
-  function familyVisibilityToggleRow(viewer,target,label){const r=state.family.visibilityRules||familyVisibilityReadLocal(),on=r?.[viewer]?.[target]!==false;return `<div class="family-switch-row"><div><strong>${label}</strong><small style="display:block;color:#91aebe;margin-top:3px">${on?'Pode ver':'Não pode ver'}</small></div><input type="checkbox" data-family-vis="${viewer}:${target}" ${on?'checked':''}></div>`;}
-  async function showFamilyVisibilityManager(){
-    if(!adminCanManageMembers())return toast(state.family.adminPeerDenied?'Este dispositivo foi recusado como administrador.':'Confirme primeiro este dispositivo como administrador Jorge.');
-    state.family.visibilityRules=familyVisibilityNormalize(state.family.visibilityRules||familyVisibilityReadLocal());document.querySelector('.family-visibility-overlay')?.remove();
-    const o=document.createElement('div');o.className='pairing-overlay family-visibility-overlay';o.innerHTML=`<div class="pairing-card" role="dialog" aria-modal="true"><h2>👁 Quem pode ver quem</h2><p>O Jorge decide separadamente quem pode visualizar cada membro no Family.</p><div class="pairing-note" style="margin-bottom:10px"><strong>Padrão atual:</strong> Jorge vê Mathia e Wendler; Mathia vê Jorge; Wendler vê Jorge; Mathia e Wendler não se veem entre si.</div><h3 style="margin:14px 0 6px">Jorge</h3>${familyVisibilityToggleRow('jorge','mathia','Jorge vê Mathia')}${familyVisibilityToggleRow('jorge','wendler','Jorge vê Wendler')}<h3 style="margin:14px 0 6px">Mathia</h3>${familyVisibilityToggleRow('mathia','jorge','Mathia vê Jorge')}${familyVisibilityToggleRow('mathia','wendler','Mathia vê Wendler')}<h3 style="margin:14px 0 6px">Wendler</h3>${familyVisibilityToggleRow('wendler','jorge','Wendler vê Jorge')}${familyVisibilityToggleRow('wendler','mathia','Wendler vê Mathia')}<div class="pairing-actions"><button class="primary" id="familyVisibilitySave">Guardar privacidade</button><button id="familyVisibilityRecommended">Repor padrão</button><button id="familyVisibilityClose">Fechar</button></div><div class="pairing-note" id="familyVisibilityMsg" style="margin-top:10px">Estado atual carregado.</div></div>`;document.body.appendChild(o);
-    const msg=o.querySelector('#familyVisibilityMsg');const collect=()=>{const n=familyVisibilityDefaults();o.querySelectorAll('[data-family-vis]').forEach(x=>{const [a,b]=x.dataset.familyVis.split(':');n[a][b]=!!x.checked});return familyVisibilityNormalize(n)};
-    o.querySelector('#familyVisibilityClose').onclick=()=>o.remove();o.addEventListener('click',e=>{if(e.target===o)o.remove()});
-    o.querySelector('#familyVisibilityRecommended').onclick=()=>{state.family.visibilityRules=familyVisibilityDefaults();o.querySelectorAll('[data-family-vis]').forEach(x=>{const [a,b]=x.dataset.familyVis.split(':');x.checked=state.family.visibilityRules[a][b]!==false});msg.textContent='Padrão carregado. Wendler não vê Mathia e Mathia não vê Wendler. Toque em Guardar privacidade.'};
-    o.querySelector('#familyVisibilitySave').onclick=async()=>{try{state.family.visibilityRules=familyVisibilitySaveLocal(collect());msg.textContent='A guardar…';await pushFamilyVisibility(true);msg.textContent='✓ Privacidade guardada. As aplicações recebem a regra automaticamente.';await pullFamilyLocations(true).catch(()=>{});if(state.activeTab==='family')renderFamilyScreen();}catch(e){msg.textContent='Erro: '+(e?.message||e)}};
-  }
   function familyPairPublicBase(client='mathia'){const rel=client==='wendler'?'./wendler/':'./mathia/';try{return new URL(rel,location.href).href}catch(_){return location.origin+location.pathname.replace(/[^/]*$/,'')+rel.replace('./','')}}
   async function createFamilyPairLink(label='Mathia',client='mathia'){
     const j=await familyAuthorizedApi('/family/pair-link/create',{body:{label}});const token=String(j?.pair_token||'').trim();if(!token)throw new Error('Servidor não devolveu token de emparelhamento.');
     const u=new URL(familyPairPublicBase(client));u.hash='pair='+encodeURIComponent(token);return {url:u.href,expiresAt:j.expires_at||null};
   }
-  function loadQrLib(){if(window.QRCode)return Promise.resolve(window.QRCode);return new Promise((resolve,reject)=>{const id='aeronav-qrcode-lib',old=document.getElementById(id);if(old){old.addEventListener('load',()=>resolve(window.QRCode),{once:true});old.addEventListener('error',()=>reject(new Error('QR indisponível')),{once:true});return}const sc=document.createElement('script');sc.id=id;sc.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';sc.async=true;sc.onload=()=>window.QRCode?resolve(window.QRCode):reject(new Error('QR indisponível'));sc.onerror=()=>reject(new Error('Não foi possível carregar o gerador QR.'));document.head.appendChild(sc)})}
+  async function loadQrLib(){
+    if(window.QRCode)return window.QRCode;
+    const sources=[
+      'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+      'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js'
+    ];
+    let lastErr=null;
+    for(let i=0;i<sources.length;i++){
+      if(window.QRCode)return window.QRCode;
+      try{
+        await new Promise((resolve,reject)=>{
+          const id='aeronav-qrcode-lib-'+i;
+          let sc=document.getElementById(id);
+          const done=(ok,err)=>{
+            clearTimeout(timer);
+            if(ok&&window.QRCode)resolve(window.QRCode);
+            else reject(err||new Error('QR indisponível'));
+          };
+          const timer=setTimeout(()=>done(false,new Error('Tempo esgotado ao carregar o gerador QR.')),6500);
+          if(sc){
+            if(window.QRCode){done(true);return}
+            sc.addEventListener('load',()=>done(true),{once:true});
+            sc.addEventListener('error',()=>done(false,new Error('Falha ao carregar QR.')),{once:true});
+            return;
+          }
+          sc=document.createElement('script');
+          sc.id=id;sc.src=sources[i];sc.async=true;sc.crossOrigin='anonymous';
+          sc.onload=()=>done(true);
+          sc.onerror=()=>done(false,new Error('Falha ao carregar '+sources[i]));
+          document.head.appendChild(sc);
+        });
+        if(window.QRCode)return window.QRCode;
+      }catch(e){lastErr=e}
+    }
+    throw lastErr||new Error('Não foi possível carregar o gerador QR.');
+  }
   async function showFamilyPairLink(label='Mathia',client='mathia'){
     try{
       if(!adminCanManageMembers())throw new Error(state.family.adminPeerDenied?'Este dispositivo foi recusado como administrador.':'Confirme primeiro este dispositivo no outro aparelho do Jorge.');
@@ -3115,7 +3128,7 @@ body{min-height:var(--app-vh);margin:0}
       o.querySelector('#familyPairClose').onclick=()=>o.remove();o.addEventListener('click',e=>{if(e.target===o)o.remove()});
       o.querySelector('#familyPairShare').onclick=async()=>{try{if(navigator.share)await navigator.share({title:`AERONAV Family · Emparelhar ${who}`,text:`Abra este link no telefone de ${who} para emparelhar a AERONAV Family.`,url:pair.url});else if(navigator.clipboard){await navigator.clipboard.writeText(pair.url);toast('Link copiado.')}else prompt('Copie o link:',pair.url)}catch(e){if(e?.name!=='AbortError')toast(e?.message||e)}};
       o.querySelector('#familyPairCopy').onclick=async()=>{try{await navigator.clipboard.writeText(pair.url);toast('Link copiado.')}catch(_){prompt('Copie o link:',pair.url)}};
-      try{const QR=await loadQrLib();const host=o.querySelector('#familyPairQr');host.innerHTML='';new QR(host,{text:pair.url,width:220,height:220,correctLevel:QR.CorrectLevel.M});}catch(e){o.querySelector('#familyPairQr').innerHTML='<div class="pairing-note">QR indisponível neste momento. Use “Partilhar link”.</div>'}
+      try{const QR=await loadQrLib();const host=o.querySelector('#familyPairQr');host.innerHTML='';new QR(host,{text:pair.url,width:220,height:220,correctLevel:QR.CorrectLevel.M});}catch(e){o.querySelector('#familyPairQr').innerHTML='<div class="pairing-note"><strong>QR temporariamente indisponível.</strong><br>O link de emparelhamento abaixo continua válido. Toque em “Partilhar link” ou “Copiar link” e tente novamente.</div>'}
     }catch(e){toast('Emparelhamento: '+(e?.message||e))}
   }
   function familyClientForName(name=''){
@@ -3192,13 +3205,12 @@ body{min-height:var(--app-vh);margin:0}
     for(const m of f.members||[]){
       if(isFamilySystemRow(m)||isLocalFamilyMember(m))continue;
       const role=familyPairedRole(m.display_name),known=role==='mathia'||role==='wendler';
-      if(known&&!familyVisibilityCan('jorge',role))continue;
       if(f.pairedMembersLastAt>0&&known){const active=activeByRole.get(role);if(!active)continue;if(active._deviceId&&String(m.member_id)!==String(active._deviceId))continue;}
       const key=canonicalPersonKey(m.display_name)||('member:'+String(m.member_id)),ts=Date.parse(m._displayUpdatedAt||m.updated_at||0)||0,prev=chosen.get(key),pts=prev?(Date.parse(prev._displayUpdatedAt||prev.updated_at||0)||0):-1;
       if(!prev||ts>=pts)chosen.set(key,m);
     }
     const out=[...chosen.values()],liveRoles=new Set(out.map(m=>familyPairedRole(m.display_name)));
-    for(const p of paired){const role=familyPairedRole(p.display_name);if(role&&!familyVisibilityCan('jorge',role))continue;if(!liveRoles.has(role))out.push(p);}
+    for(const p of paired){const role=familyPairedRole(p.display_name);if(!liveRoles.has(role))out.push(p);}
     return out;
   }
   function openFamilyMap(){
@@ -3344,7 +3356,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
   function isFamilyCallRow(m){ return /__CALL$/.test(String(m?.member_id||'')) || /^CALL_/.test(String(m?.transport||'')); }
-  function isFamilySystemRow(m){ return isFamilySosRow(m)||isFamilyCallRow(m)||isFamilyJourneyRow(m)||isFamilyBatteryRow(m)||isFamilyRouteSyncRow(m)||isFamilyAdminVerifyRow(m)||isFamilyVisibilityRow(m); }
+  function isFamilySystemRow(m){ return isFamilySosRow(m)||isFamilyCallRow(m)||isFamilyJourneyRow(m)||isFamilyBatteryRow(m)||isFamilyRouteSyncRow(m)||isFamilyAdminVerifyRow(m); }
   function parseFamilyCall(m){const x=/^CALL_(RINGING|ACCEPTED|DECLINED|ENDED):([A-Za-z0-9_-]{10,80})$/.exec(String(m?.transport||''));return x?{status:x[1],id:x[2]}:null;}
   function activeJourneyRoute(){
     const r=state.currentRoute,coords=r?.geometry?.coordinates;if(!coords?.length)return null;
@@ -3648,7 +3660,7 @@ body{min-height:var(--app-vh);margin:0}
     try{
       const q=`aeronav_locations?room_hash=eq.${encodeURIComponent(f.familyHash)}&select=member_id,display_name,sharing,lat,lon,accuracy,altitude,speed,heading,transport,flight_number,flight_eta,updated_at`;
       const r=await fetch(familyRest(q),{headers:familyHeaders()}); if(!r.ok) throw new Error(`servidor ${r.status}`);
-      f.members=await r.json(); familyVisibilityApplyRows(f.members); await refreshPairedFamilyMembers(force).catch(()=>{}); await checkAdminPeerVerification(f.members).catch(()=>false); await resolveFamilyFallbacks(f.members.filter(m=>!isFamilySystemRow(m))); adoptPeerJorgeGpsIfLocalStale(); checkFamilySosAlerts(f.members); checkFamilyCalls(f.members); checkFamilyJourneyAlerts(f.members); checkFamilyBatteryAlerts(f.members); f.lastPullAt=Date.now(); if(f.status!=='gps') f.status='ligado'; updateFamilyMarkers(); checkSavedPlaceArrivals();
+      f.members=await r.json(); await refreshPairedFamilyMembers(force).catch(()=>{}); await checkAdminPeerVerification(f.members).catch(()=>false); await resolveFamilyFallbacks(f.members.filter(m=>!isFamilySystemRow(m))); adoptPeerJorgeGpsIfLocalStale(); checkFamilySosAlerts(f.members); checkFamilyCalls(f.members); checkFamilyJourneyAlerts(f.members); checkFamilyBatteryAlerts(f.members); f.lastPullAt=Date.now(); if(f.status!=='gps') f.status='ligado'; updateFamilyMarkers(); checkSavedPlaceArrivals();
     }catch(e){f.status='erro'; if(force) toast('Family: '+(e.message||e));}
     finally{f.syncing=false; if(state.activeTab==='family') maybeRenderFamilyScreen();}
   }
@@ -3716,7 +3728,6 @@ body{min-height:var(--app-vh);margin:0}
     const freshest=new Map();
     for(const m of state.family.members||[]){
       if(isFamilySystemRow(m)||isLocalFamilyMember(m))continue; // ownship is represented only by state.positionMarker
-      const visRole=familyPairedRole(m.display_name);if(visRole&&!familyVisibilityCan('jorge',visRole))continue;
       const dlat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat),dlon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);
       if(!m.sharing||!Number.isFinite(dlat)||!Number.isFinite(dlon))continue;
       const key=canonicalPersonKey(m.display_name)||('member:'+String(m.member_id));
@@ -3776,7 +3787,7 @@ body{min-height:var(--app-vh);margin:0}
           <label class="full">Código da Família<input id="familyKey" type="password" value="${esc(f.familyKey)}" placeholder="o mesmo código que a Mathia vai introduzir"></label>
           <div class="family-pairing-hint">Se esta família já existe noutro aparelho do Jorge, introduza aqui o mesmo Código da Família e toque em “Entrar nesta Família”. Só use “Criar nova Família” na primeira configuração de sempre.</div><div class="source-note full">Perfil Family: <strong>Jorge</strong> · iPhone e iPad são tratados como o mesmo perfil. Este aparelho: <strong>${esc(f.deviceLabel||'Dispositivo de Jorge')}</strong> · administrador: <strong>${f.adminPeerDenied?'RECUSADO':f.adminPeerVerified?'CONFIRMADO':'A CONFIRMAR'}</strong>.</div>
           <div class="family-pairing-shortcuts"><button class="primary-btn" id="familyJoinExisting">Entrar nesta Família</button><button class="soft-btn" id="familyPairingCreate">Criar nova Família</button><button class="soft-btn" id="familyPairingRecover">Esqueci o código</button></div>
-          <div class="family-actions" style="margin-top:10px"><button class="primary-btn" id="familyMemberManager">👥 Gerir membros por QR</button><button class="soft-btn" id="familyVisibilityManager">👁 Quem pode ver quem</button><button class="soft-btn" id="familyPairDevice">▦ Adicionar Mathia por QR</button><button class="soft-btn" id="familyPairWendler">▦ Adicionar Wendler por QR</button></div>
+          <div class="family-actions" style="margin-top:10px"><button class="primary-btn" id="familyMemberManager">👥 Gerir membros por QR</button><button class="soft-btn" id="familyPairDevice">▦ Adicionar Mathia por QR</button><button class="soft-btn" id="familyPairWendler">▦ Adicionar Wendler por QR</button></div>
           <div class="source-note" style="margin-top:6px">QR/link de utilização única · expira em cerca de 15 minutos.</div>
           <details class="family-advanced full"><summary>Configuração técnica avançada</summary><div class="family-form" style="margin-top:9px"><label class="full">Supabase URL<input id="familyUrl" value="${esc(f.supabaseUrl)}" placeholder="preenchido automaticamente"></label><label class="full">Anon key<input id="familyAnon" type="password" value="${esc(f.anonKey)}" placeholder="preenchido automaticamente"></label></div></details>
           <label>Voo atual (opcional)<input id="familyFlight" value="${esc(f.flightNumber)}" placeholder="DT 650"></label>
@@ -3822,7 +3833,7 @@ body{min-height:var(--app-vh);margin:0}
     $('#familySync').onclick=async()=>{await pushFamilyLocation(true);await pushFamilyBattery(true);await refreshPairedFamilyMembers(true);await pullFamilyLocations(true);};
     host.querySelectorAll('[data-family-member-info]').forEach(b=>b.addEventListener('click',()=>showFamilyMemberDetails(b.dataset.familyMemberInfo)));
     $('#familyViewerOpen')?.addEventListener('click',openFamilyViewer);
-    $('#familyPairDevice')?.addEventListener('click',()=>showFamilyPairLink('Mathia','mathia'));$('#familyPairWendler')?.addEventListener('click',()=>showFamilyPairLink('Wendler','wendler'));$('#familyMemberManager')?.addEventListener('click',showFamilyMemberManager);$('#familyVisibilityManager')?.addEventListener('click',showFamilyVisibilityManager);
+    $('#familyPairDevice')?.addEventListener('click',()=>showFamilyPairLink('Mathia','mathia'));$('#familyPairWendler')?.addEventListener('click',()=>showFamilyPairLink('Wendler','wendler'));$('#familyMemberManager')?.addEventListener('click',showFamilyMemberManager);
     $('#familyDevicesTop')?.addEventListener('click',showFamilyDevices);
     $('#familyDevices')?.addEventListener('click',showFamilyDevices);
     $('#familyExportTrack')?.addEventListener('click',exportRealTrackGeoJSON);

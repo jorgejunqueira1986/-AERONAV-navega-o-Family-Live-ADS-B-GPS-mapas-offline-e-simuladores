@@ -1,0 +1,8 @@
+{
+  "version": "RC11.61",
+  "source": "index(10).html",
+  "change": "QR generator now retries jsDelivr, cdnjs and unpkg with timeout; pairing link remains available as fallback.",
+  "inline_scripts_checked": 3,
+  "syntax_ok": true,
+  "errors": []
+}
