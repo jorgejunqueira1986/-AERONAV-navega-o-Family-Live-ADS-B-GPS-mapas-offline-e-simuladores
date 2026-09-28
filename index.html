@@ -6,7 +6,27 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC11.70</title>
+  <title>AERONAV — RC11.71</title>
+  <script id="aeronav-client-scope-guard">
+  (()=>{
+    const p=location.pathname.toLowerCase();
+    const m=p.match(/\/(wendler|mathia)(?:\/index\.html|\/|\.html)$/);
+    if(!m)return;
+    const client=m[1];
+    document.documentElement.style.visibility='hidden';
+    const raw=location.pathname;let basePath=raw;
+    if(/\/index\.html$/i.test(basePath))basePath=basePath.replace(/index\.html$/i,'');
+    else if(/\/(?:wendler|mathia)\.html$/i.test(basePath))basePath=basePath.replace(/(?:wendler|mathia)\.html$/i,client+'/');
+    else if(!basePath.endsWith('/'))basePath+='/';
+    const target=location.origin+basePath+'index.html?client='+encodeURIComponent(client)+'&build=RC11_71&t='+Date.now();
+    fetch(target,{cache:'reload',credentials:'same-origin'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text()}).then(html=>{
+      const sig=client==='wendler'?'AERONAV Wendler':'AERONAV Mathia';
+      if(!html.includes(sig))throw new Error('wrong client shell');
+      try{history.replaceState(null,'',basePath)}catch(_){ }
+      document.open();document.write(html);document.close();
+    }).catch(()=>{location.replace(target)});
+  })();
+  </script>
   <style>
 :root{
   color-scheme:dark;
@@ -514,7 +534,7 @@ body{min-height:var(--app-vh);margin:0}
 }
 </style>
 
-<!-- AERONAV RC11.70 · guaranteed route overlay + code pairing + editable avatars -->
+<!-- AERONAV RC11.71 · guaranteed route overlay + code pairing + editable avatars -->
 </head>
 <body>
   <div id="app">
@@ -3304,7 +3324,7 @@ body{min-height:var(--app-vh);margin:0}
   function familyJourneyMemberId(memberId,audience='mathia'){const a=String(audience||'mathia').toLowerCase()==='wendler'?'WENDLER':'MATHIA';return String(memberId||'member')+'__JOURNEY_'+a;}
   function isFamilyJourneyRow(m){return /__JOURNEY(?:_(?:MATHIA|WENDLER))?$/.test(String(m?.member_id||''))||/^JOURNEY:/.test(String(m?.transport||''));}
   function normalizeRouteAudience(v=''){return String(v||'').toLowerCase()==='wendler'?'wendler':'mathia'}
-  function routeShareTargets(route=state.currentRoute){const s=route?.familyShareTargets||{};return {mathia:!!s.mathia,wendler:!!s.wendler}}
+  function routeShareTargets(route=state.currentRoute){const s=route?.familyShareTargets||{};return {mathia:!!s.mathia,wendler:s.wendler===undefined?true:!!s.wendler}}
   function setRouteShareTarget(route,audience,on=true){if(!route)return;const a=normalizeRouteAudience(audience);route.familyShareTargets={...(route.familyShareTargets||{}),[a]:!!on};route.familyShareUpdatedAt=new Date().toISOString();}
   function journeyEncode(o){try{const b=new TextEncoder().encode(JSON.stringify(o||{}));let x='';b.forEach(v=>x+=String.fromCharCode(v));return btoa(x).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}catch(_){return ''}}
   function journeyDecode(m){try{let x=String(m?.transport||'');if(!x.startsWith('JOURNEY:'))return null;x=x.slice(8).replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';const bin=atob(x),b=Uint8Array.from(bin,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(b))}catch(_){return null}}
@@ -3480,11 +3500,14 @@ body{min-height:var(--app-vh);margin:0}
   }
   function scheduleFamilyJourneyShare(){
     const f=state.family,r=activeJourneyRoute();if(!r)return;
+    const targets=routeShareTargets(state.currentRoute);
+    // RC11.71: a nova rota do Jorge é enviada ao Wendler por padrão.
+    if(targets.wendler&&!f.journeyEnabled){f.journeyEnabled=true;localStorage.setItem('aeronav.family.journeyEnabled','1')}
     const sig=`${r.id}|${r.from}|${r.to}|${r.durationMin}|${r.plannedStartAt||''}|${r.actualStartAt||''}|${r.trackingCallsign||''}`;
     const localSig=localStorage.getItem('aeronav.journey.routeSig')||'';
     if(localSig!==sig){localStorage.setItem('aeronav.journey.routeSig',sig);logLocalJourneyEvent('ROUTE',{place:r.to})}
     if(!f.journeyEnabled)return;
-    const targets=routeShareTargets(state.currentRoute);if(!targets.mathia&&!targets.wendler)return;
+    if(!targets.mathia&&!targets.wendler)return;
     if(sig===f.journeyLastSig||sig===f.journeyPendingSig)return;
     f.journeyPendingSig=sig;f.journeyOriginLeft=false;localStorage.setItem('aeronav.family.journeyOriginLeft','0');localStorage.removeItem('aeronav.family.journeyHotelRoute');
     setTimeout(async()=>{if(await upsertFamilyJourney('ROUTE',{}, {allowLegacyMathia:false})){f.journeyLastSig=sig;localStorage.setItem('aeronav.family.journeyLastSig',sig)}f.journeyPendingSig=''},100)
