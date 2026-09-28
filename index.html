@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC11.69</title>
+  <title>AERONAV — RC11.70</title>
   <style>
 :root{
   color-scheme:dark;
@@ -514,7 +514,7 @@ body{min-height:var(--app-vh);margin:0}
 }
 </style>
 
-<!-- AERONAV RC11.69 · route line + code pairing + editable avatars -->
+<!-- AERONAV RC11.70 · guaranteed route overlay + code pairing + editable avatars -->
 </head>
 <body>
   <div id="app">
@@ -2433,25 +2433,92 @@ body{min-height:var(--app-vh);margin:0}
 
   function setLayer(layer){ state.layer=layer; localStorage.setItem('aeronav.layer',layer); syncSegments(); updateAviationVisibility(); }
 
+  function routeCoordinates(route){
+    const raw=route?.geometry?.coordinates;
+    if(!Array.isArray(raw))return [];
+    return raw.map(c=>{
+      if(!Array.isArray(c)||c.length<2)return null;
+      const lon=Number(c[0]),lat=Number(c[1]);
+      if(!Number.isFinite(lon)||!Number.isFinite(lat)||lat<-90||lat>90)return null;
+      return [lon,lat];
+    }).filter(Boolean);
+  }
   function routeFeature(route){
-    if(!route?.geometry?.coordinates?.length)return null;
-    return {type:'Feature',properties:{kind:route.kind||'route'},geometry:route.geometry};
+    const coordinates=routeCoordinates(route);
+    if(coordinates.length<2)return null;
+    return {type:'Feature',properties:{kind:route?.kind||'route'},geometry:{type:'LineString',coordinates}};
+  }
+  function ensureRouteOverlay(){
+    const host=$('#map');if(!host)return null;
+    let svg=host.querySelector('.aeronav-route-overlay');
+    if(!svg){
+      const ns='http://www.w3.org/2000/svg';
+      svg=document.createElementNS(ns,'svg');svg.classList.add('aeronav-route-overlay');
+      Object.assign(svg.style,{position:'absolute',inset:'0',width:'100%',height:'100%',pointerEvents:'none',zIndex:'8',overflow:'hidden'});
+      svg.setAttribute('aria-hidden','true');
+      const halo=document.createElementNS(ns,'path');halo.setAttribute('data-route-halo','1');halo.setAttribute('fill','none');halo.setAttribute('stroke','#03121b');halo.setAttribute('stroke-opacity','.92');halo.setAttribute('stroke-width','11');halo.setAttribute('stroke-linecap','round');halo.setAttribute('stroke-linejoin','round');halo.setAttribute('vector-effect','non-scaling-stroke');
+      const line=document.createElementNS(ns,'path');line.setAttribute('data-route-line','1');line.setAttribute('fill','none');line.setAttribute('stroke','#36d9ff');line.setAttribute('stroke-opacity','1');line.setAttribute('stroke-width','5.5');line.setAttribute('stroke-linecap','round');line.setAttribute('stroke-linejoin','round');line.setAttribute('vector-effect','non-scaling-stroke');
+      svg.append(halo,line);host.appendChild(svg);
+    }
+    return svg;
+  }
+  function clearRouteOverlay(){
+    const svg=$('#map')?.querySelector('.aeronav-route-overlay');if(!svg)return;
+    svg.querySelectorAll('path').forEach(p=>p.setAttribute('d',''));
+  }
+  function renderRouteOverlay(){
+    try{
+      if(!state.map||!state.mapReady||$('#map').classList.contains('hidden')){clearRouteOverlay();return;}
+      const route=state.currentRoute,coords=routeCoordinates(route);
+      if(route?.status==='completed'||coords.length<2){clearRouteOverlay();return;}
+      const svg=ensureRouteOverlay();if(!svg)return;
+      const canvas=state.map.getCanvas?.();const w=Math.max(1,canvas?.clientWidth||$('#map').clientWidth||1),h=Math.max(1,canvas?.clientHeight||$('#map').clientHeight||1);
+      svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.setAttribute('preserveAspectRatio','none');
+      const pts=[];
+      for(const c of coords){
+        const p=state.map.project(c);if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;pts.push([p.x,p.y]);
+      }
+      if(pts.length<2){clearRouteOverlay();return;}
+      const d=pts.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+      svg.querySelector('[data-route-halo]')?.setAttribute('d',d);
+      const line=svg.querySelector('[data-route-line]');line?.setAttribute('d',d);
+      const driveStyle=state.mode==='drive'?(DRIVE_MAP_STYLES[state.drive.mapStyle]||DRIVE_MAP_STYLES.classic):null;
+      if(line){line.setAttribute('stroke',driveStyle?.routeColor||'#36d9ff');line.setAttribute('stroke-width',String(Math.max(5.5,Number(driveStyle?.routeWidth||0))));}
+    }catch(e){console.warn('AERONAV route overlay render failed',e);}
+  }
+  function bindRouteOverlayUpdates(){
+    const map=state.map;if(!map||state._routeOverlayBoundMap===map)return;
+    state._routeOverlayBoundMap=map;
+    const repaint=()=>{if(state.currentRoute)requestAnimationFrame(renderRouteOverlay);};
+    ['move','zoom','rotate','pitch','resize','styledata'].forEach(ev=>{try{map.on(ev,repaint)}catch(_){}});
+  }
+  function promoteRouteLayers(){
+    if(!state.map)return;
+    ['alt-route-0','alt-route-1','alt-route-2','active-route-halo','active-route','route-start'].forEach(id=>{try{if(state.map.getLayer(id))state.map.moveLayer(id)}catch(_){}});
+    renderRouteOverlay();
   }
 
   function drawRouteOnMap(){
-    updateLiveNavigation(); renderDriveNavCard();
-    if(!state.mapReady || $('#map').classList.contains('hidden')) return;
-    ['active-route','alt-route-0','alt-route-1','alt-route-2','route-start','route-end'].forEach(id=>{ if(state.map.getLayer(id)) state.map.removeLayer(id); if(state.map.getSource(id)) state.map.removeSource(id); });
+    updateLiveNavigation(); renderDriveNavCard(); bindRouteOverlayUpdates();
+    if(!state.mapReady || $('#map').classList.contains('hidden')){renderRouteOverlay();return;}
     const route=state.currentRoute;
-    if(route?.status==='completed')return;
+    if(route?.status==='completed'){clearRouteOverlay();return;}
     const feature=routeFeature(route);
-    if(!feature)return;
+    if(!feature){clearRouteOverlay();return;}
     scheduleFamilyJourneyShare();
-    (route.alternatives||[]).slice(0,3).forEach((alt,i)=>{ const f=routeFeature(alt); if(!f) return; state.map.addSource('alt-route-'+i,{type:'geojson',data:f}); state.map.addLayer({id:'alt-route-'+i,type:'line',source:'alt-route-'+i,layout:{'line-join':'round','line-cap':'round'},paint:{'line-width':4,'line-color':'#7f97a4','line-opacity':.55,'line-dasharray':[2,2]}}); });
-    state.map.addSource('active-route',{type:'geojson',data:feature});
-    const driveStyle=state.mode==='drive'?(DRIVE_MAP_STYLES[state.drive.mapStyle]||DRIVE_MAP_STYLES.classic):null;state.map.addLayer({id:'active-route',type:'line',source:'active-route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-width':driveStyle?driveStyle.routeWidth:5,'line-color':driveStyle?driveStyle.routeColor:'#39d4ff','line-opacity':.92}});
-    const coords=route?.geometry?.coordinates||[]; if(coords.length>=2){ const pts={type:'FeatureCollection',features:[{type:'Feature',properties:{kind:'start'},geometry:{type:'Point',coordinates:coords[0]}},{type:'Feature',properties:{kind:'end'},geometry:{type:'Point',coordinates:coords[coords.length-1]}}]}; state.map.addSource('route-start',{type:'geojson',data:pts}); state.map.addLayer({id:'route-start',type:'circle',source:'route-start',paint:{'circle-radius':['match',['get','kind'],'start',6,7],'circle-color':['match',['get','kind'],'start','#57e6b4','#2fd1ff'],'circle-stroke-width':2,'circle-stroke-color':'#ecfbff'}}); }
-    if(state.mode==='drive') setTimeout(()=>{applyDriveMapView(true);renderDriveAssistMapLayers();},60);
+    try{
+      ['active-route','active-route-halo','alt-route-0','alt-route-1','alt-route-2','route-start','route-end'].forEach(id=>{ if(state.map.getLayer(id)) state.map.removeLayer(id); if(state.map.getSource(id)) state.map.removeSource(id); });
+      (route.alternatives||[]).slice(0,3).forEach((alt,i)=>{ const f=routeFeature(alt); if(!f) return; state.map.addSource('alt-route-'+i,{type:'geojson',data:f}); state.map.addLayer({id:'alt-route-'+i,type:'line',source:'alt-route-'+i,layout:{'line-join':'round','line-cap':'round'},paint:{'line-width':4,'line-color':'#7f97a4','line-opacity':.55,'line-dasharray':[2,2]}}); });
+      state.map.addSource('active-route',{type:'geojson',data:feature});
+      const driveStyle=state.mode==='drive'?(DRIVE_MAP_STYLES[state.drive.mapStyle]||DRIVE_MAP_STYLES.classic):null,routeColor=driveStyle?.routeColor||'#36d9ff',routeWidth=Math.max(5.5,Number(driveStyle?.routeWidth||0));
+      state.map.addLayer({id:'active-route-halo',type:'line',source:'active-route',layout:{'line-join':'round','line-cap':'round','visibility':'visible'},paint:{'line-width':routeWidth+6,'line-color':'#03121b','line-opacity':.88}});
+      state.map.addLayer({id:'active-route',type:'line',source:'active-route',layout:{'line-join':'round','line-cap':'round','visibility':'visible'},paint:{'line-width':routeWidth,'line-color':routeColor,'line-opacity':1}});
+      const coords=feature.geometry.coordinates;
+      if(coords.length>=2){ const pts={type:'FeatureCollection',features:[{type:'Feature',properties:{kind:'start'},geometry:{type:'Point',coordinates:coords[0]}},{type:'Feature',properties:{kind:'end'},geometry:{type:'Point',coordinates:coords[coords.length-1]}}]}; state.map.addSource('route-start',{type:'geojson',data:pts}); state.map.addLayer({id:'route-start',type:'circle',source:'route-start',paint:{'circle-radius':['match',['get','kind'],'start',6,7],'circle-color':['match',['get','kind'],'start','#57e6b4','#2fd1ff'],'circle-stroke-width':2,'circle-stroke-color':'#ecfbff'}}); }
+    }catch(e){console.warn('AERONAV MapLibre route layer failed; SVG overlay remains active',e);}
+    renderRouteOverlay();
+    [0,120,450,1200].forEach(ms=>setTimeout(promoteRouteLayers,ms));
+    if(state.mode==='drive') setTimeout(()=>{applyDriveMapView(true);renderDriveAssistMapLayers();promoteRouteLayers();},60);
   }
 
   function bboxFromCoords(coords){

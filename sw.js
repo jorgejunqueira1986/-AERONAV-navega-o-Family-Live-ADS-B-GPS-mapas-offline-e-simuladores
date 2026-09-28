@@ -1,11 +1,11 @@
-/* AERONAV — RC11.69 Family Code + Route + Avatars
+/* AERONAV — RC11.70 Guaranteed Route Overlay + Family Code + Avatars
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC11_69-family-code-route-avatar-20260928-2';
+const CACHE='aeronav-jorge-RC11_70-guaranteed-route-overlay-20260928-1';
 const LOCAL=[
   './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png'
 ]
