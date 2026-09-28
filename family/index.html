@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#050505" />
 <meta name="robots" content="noindex,nofollow" />
 <link rel="manifest" href="./manifest.json" />
-<title>AERONAV Família · RC11.62</title>
+<title>AERONAV Família · RC11.63</title>
 <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
 <style>
 :root{color-scheme:dark;--bg:#06131f;--panel:#0a1d2c;--panel2:#0e2638;--line:#1e4055;--text:#eef7ff;--muted:#9fb2c1;--cyan:#2fd1ff;--green:#57e6b4;--amber:#ffca63;--red:#ff6f7d}
@@ -149,6 +149,7 @@ html,body{background:radial-gradient(circle at 50% -10%,#0a4c52 0,#04282c 32%,#0
 #homePanel,#stayHistoryCard,#viewerShareGps{display:none!important}
 </style>
 
+<!-- AERONAV FAMILY RC11.63 · COLLECTIVE PROFILE · NO PAIRING REQUIRED -->
 </head>
 <body>
 <header class="top"><div class="brand"><button type="button" id="viewerBack" aria-label="Voltar" title="Voltar" style="position:absolute;left:0;width:42px;height:42px;border-radius:13px;border:1px solid #2d6485;background:#0a2d49;color:#fff;font-size:28px">‹</button><h1><span class="family-mark">✈</span>AERONAV <small>Família · Painel</small></h1><span id="status" class="status">A CONFIGURAR</span></div></header>
@@ -350,7 +351,7 @@ async function updateRealTrafficAroundFollowed(){
   }catch(_){ }finally{trafficBusy=false}
 }
 
-function configured(){return !!(cfg.url&&cfg.anon&&cfg.deviceToken&&cfg.roomHash)}
+function configured(){return true}
 function syncNativeFamilyAuth(){
   if(!cfg.deviceToken)return;
   try{localStorage.setItem('aeronav.family.deviceToken',cfg.deviceToken)}catch(_){}
@@ -535,88 +536,35 @@ function updateSetupState(){
   else {n.textContent='Aguardando QR/link gerado na AERONAV do papá. Este cliente não aceita códigos de verificação nem entrada manual.';n.style.borderColor='#14766f';n.style.color='#8ff7e7';}
 }
 function updateJoinFamilyButton(){const b=$('#joinFamilyBtn');if(!b)return;const ok=configured();b.textContent=ok?'✓ Família ligada':'Acesso por QR do papá';b.classList.toggle('primary',!ok);b.title=ok?'Ver estado da ligação':'A ligação é feita apenas pelo QR/link gerado pelo papá';}
-function showModal(){updateSetupState();updateJoinFamilyButton();$('#modal').classList.add('show') }
+function showModal(){updateSetupState();$('#modal').classList.add('show') }
 function hideModal(){ $('#modal').classList.remove('show') }
 function showMsg(t){const n=$('#configMsg');n.textContent=t;n.style.display='block'}
 let pairingBootResolved=false;
 function start(){
   clearInterval(timer);
-  updateJoinFamilyButton();
+  
   if(!pairingBootResolved){
     setStatus('A RECUPERAR');
     return;
   }
-  if(!configured()){
-    setStatus('A CONFIGURAR');
-    showModal();
-    return;
-  }
+  
   hideModal();
   initMap();
   pull(true);
   timer=setInterval(()=>pull(false),3000);
 }
 
-function extractPairTokenFromText(v=''){
-  const raw=String(v||'').trim();
-  if(!raw)return '';
-  try{
-    const u=new URL(raw,location.href);
-    const hm=/^#pair=([^&]+)/.exec(u.hash||'');
-    if(hm)return decodeURIComponent(hm[1]||'').trim();
-    const qp=u.searchParams.get('pair');
-    if(qp)return String(qp).trim();
-  }catch(_){}
-  const m=/(?:#|\?|&)pair=([^&\s]+)/.exec(raw);
-  return m?decodeURIComponent(m[1]||'').trim():'';
-}
-async function consumePairTokenInsideFamily(pairToken){
-  pairToken=String(pairToken||'').trim();
-  if(!pairToken)throw new Error('Link de emparelhamento inválido.');
-  const j=await familyPairingApi('/family/pair-link/consume',{pair_token:pairToken,device_name:'Família'});
-  cfg.url=String(j.supabase_url||'').trim();
-  cfg.anon=String(j.supabase_anon_key||'').trim();
-  cfg.deviceToken=String(j.device_token||'').trim();
-  cfg.roomHash=String(j.room_hash||'').trim();
-  cfg.deviceId=String(j.device_id||'').trim();
-  if(cfg.deviceId){cfg.memberId=cfg.deviceId;localStorage.setItem(LS.memberId,cfg.memberId)}
-  cfg.hash=cfg.roomHash;
-  if(!configured())throw new Error('Emparelhamento incompleto.');
-  applyPairingPayload(pairingPayload());
-  syncNativeFamilyAuth();
-  await persistPairing();
-  setTimeout(()=>persistPairing().catch(()=>{}),1200);
-  pairingBootResolved=true;
-  hideModal();
-  start();
-  showMsg('✓ Perfil Família ligado e guardado neste dispositivo.');
-  await pull(true);
-}
-document.getElementById('familyPairPasteBtn')?.addEventListener('click',async()=>{
-  const btn=document.getElementById('familyPairPasteBtn');
-  const inp=document.getElementById('familyPairPaste');
-  try{
-    if(btn){btn.disabled=true;btn.textContent='A ligar…'}
-    const token=extractPairTokenFromText(inp?.value||'');
-    await consumePairTokenInsideFamily(token);
-    if(inp)inp.value='';
-  }catch(e){
-    showMsg('Emparelhamento: '+(e?.message||e));
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent='Ligar Família'}
-  }
-});
 
-$('#configBtn')?.addEventListener('click',showModal);$('#joinFamilyBtn')?.addEventListener('click',showModal);$('#closeBtn')?.addEventListener('click',hideModal);$('#refreshBtn')?.addEventListener('click',()=>pull(true));$('#fitBtn')?.addEventListener('click',focusJorge);const bc=$('#bottomCall');if(bc)bc.onclick=startViewerCall;
+
+$('#joinFamilyBtn')?.addEventListener('click',showModal);$('#closeBtn')?.addEventListener('click',hideModal);$('#refreshBtn')?.addEventListener('click',()=>pull(true));$('#fitBtn')?.addEventListener('click',focusJorge);const bc=$('#bottomCall');if(bc)bc.onclick=startViewerCall;
 $('#stayToday').onclick=()=>{cfg.historyDays=1;localStorage.setItem(LS.historyDays,'1');cfg.historyLastLoad=0;loadViewerStayHistory(true)};$('#stay7Days').onclick=()=>{cfg.historyDays=7;localStorage.setItem(LS.historyDays,'7');cfg.historyLastLoad=0;loadViewerStayHistory(true)};$('#stayRefresh').onclick=()=>loadViewerStayHistory(true);
 $('#forgetBtn').onclick=()=>showMsg('Este dispositivo só pode ser removido da Família pela aplicação administradora do Jorge.');
 bindHold($('#viewerSosBtn'),()=>sendSos(true));$('#viewerSosCancel').onclick=()=>sendSos(false);$('#viewerSosAlerts').onclick=enableSosAlerts;$('#viewerCallStart').onclick=startViewerCall;$('#viewerCallEnd').onclick=endViewerCall;$('#viewerShareGps').onclick=()=>toggleViewerGps();$('#viewerJourneyNotify').onclick=enableViewerJourneyNotifications;$('#modeDrive').onclick=()=>setGroundMode('drive');$('#modeWalk').onclick=()=>setGroundMode('walk');$('#modeFlight').onclick=()=>{document.querySelectorAll('.ground-mode').forEach(x=>x.classList.remove('flight-view'));$('#modeFlight').classList.add('flight-view');try{$('#fitBtn')?.click()}catch(_){}setTimeout(()=>$('#modeFlight')?.classList.remove('flight-view'),1800)};updateSosUi();updateCallUi();updateViewerJourneyButtons();updateGroundModeUi();/* Perfil Família: não publica GPS próprio */
 window.addEventListener('online',()=>pull(true));window.addEventListener('offline',()=>setStatus('SEM INTERNET','bad'));window.addEventListener('pagehide',()=>{if(configured())persistPairing().catch(()=>{})});document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&configured())persistPairing().catch(()=>{})});
 renderViewerStayHistory();syncNativeFamilyAuth();(async()=>{
-  const restoredPairing=await restorePersistedPairing();
   restoreSharedTrip();
   const tripLoaded=consumeTripLinkFromHash();
-  const paired=await consumePairLinkFromHash();
+  const paired=false;
   pairingBootResolved=true;
   initMap();if(lastSharedRoute){drawSharedRoute(lastSharedRoute);const h=$('#journeyPanel');if(tripLoaded&&h){const r=lastSharedRoute;h.innerHTML=`<div class="route-card"><div class="route-title">${esc(r.from||'Origem')} → ${esc(r.to||'Destino')}</div><div class="route-line"><span class="route-dot"></span><strong>${r.mode==='flight'?'✈ ROTA DE AVIÃO':'🚗 ROTA DE CARRO'} · Rota recebida por link</strong></div><div class="info-strip"><div class="info-box"><span>${r.mode==='flight'?'ETD':'INÍCIO'}</span><strong>${r.plannedStartAt?new Date(r.plannedStartAt).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}</strong></div><div class="info-box"><span>${r.mode==='flight'?'ATERRAGEM':'CHEGADA'}</span><strong>${r.eta?new Date(r.eta).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'}</strong></div><div class="info-box"><span>DISTÂNCIA</span><strong>${Number.isFinite(Number(r.distanceKm))?Number(r.distanceKm).toLocaleString('pt-PT')+' km':'—'}</strong></div></div></div>`}}start();if(restoredPairing&&configured()){hideModal();showMsg('✓ Emparelhamento recuperado automaticamente. Não é necessário ler o QR novamente.');startViewerGps();}if(paired){cfg.sharing=true;localStorage.setItem(LS.sharing,'1');startViewerGps();hideModal();showMsg('✓ Este telefone ficou emparelhado com o papá. O painel coletivo está ativo e a ligação permanecerá até ser revogada.');await pull(true);}else if(tripLoaded){hideModal();showMsg('✓ Rota carregada no AERONAV Family. Se este telefone estiver emparelhado, o acompanhamento ao vivo será atualizado automaticamente.');}})();
 })();
