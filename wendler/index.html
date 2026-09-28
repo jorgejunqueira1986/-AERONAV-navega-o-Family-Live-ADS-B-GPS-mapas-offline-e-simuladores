@@ -203,7 +203,8 @@ html,body{background:linear-gradient(180deg,#000,#080808 55%,#020202)!important;
   <button data-nav="family" onclick="document.getElementById('familyPanel').scrollIntoView({behavior:'smooth'})"><b>♧</b>Família</button>
   <button data-nav="more" onclick="document.getElementById('stayHistoryCard').scrollIntoView({behavior:'smooth'})"><b>•••</b>Mais</button>
 </nav>
-<div class="modal" id="modal" aria-hidden="true"><div class="sheet"><h2>Acesso por QR do papá</h2><p id="setupHelp">Este telefone só pode ser ligado à Família através do QR/link gerado na AERONAV do papá. Não existe código de verificação nem entrada manual.</p><div id="setupState" class="notice" style="margin-top:12px">Aguardando leitura do QR gerado pelo papá.</div><div class="btns" style="margin-top:14px"><button class="btn" id="closeBtn">Fechar</button><button class="btn" id="forgetBtn" disabled title="A remoção deste membro é feita pelo administrador Jorge">Remoção gerida pelo papá</button></div><div id="configMsg" class="notice" style="display:none"></div></div></div>
+<div class="modal" id="modal" aria-hidden="true"><div class="sheet"><h2>Acesso por QR do papá</h2><p id="setupHelp">Este telefone só pode ser ligado à Família através do QR/link gerado na AERONAV do papá. Depois de emparelhar uma vez dentro desta aplicação, não será necessário ler o QR novamente.</p><div id="setupState" class="notice" style="margin-top:12px">Aguardando leitura do QR gerado pelo papá.</div><div id="pairQrHelp" class="notice" style="margin-top:12px;border-color:#7a5b13;color:#ffe39a"><strong>Importante:</strong> use o botão abaixo e fotografe o QR dentro da aplicação Wendler. Não use a Câmara do iPhone fora da aplicação, porque isso pode abrir o Safari e guardar o emparelhamento no sítio errado.</div><div class="btns" style="margin-top:14px"><button class="btn primary" id="scanPairQrBtn">📷 Ler QR do papá</button><button class="btn" id="closeBtn">Fechar</button><button class="btn" id="forgetBtn" disabled title="A remoção deste membro é feita pelo administrador Jorge">Remoção gerida pelo papá</button></div><input id="pairQrPhoto" type="file" accept="image/*" capture="environment" style="display:none"><canvas id="pairQrCanvas" style="display:none"></canvas><div id="configMsg" class="notice" style="display:none"></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
 <script>
 (()=>{'use strict';
@@ -237,6 +238,8 @@ function readViewerJson(k){try{return JSON.parse(localStorage.getItem(k)||'null'
 cfg.stayCandidate=readViewerJson(LS.stayCandidate);cfg.activeStay=readViewerJson(LS.activeStay);
 
 
+// RC11.60 — emparelhamento persistente do Wendler dentro da própria PWA.
+// O QR é lido no contexto da aplicação instalada para evitar que o Safari fique com as credenciais.
 // RC11.59 — emparelhamento persistente do Wendler.
 // Guarda a autorização em três camadas do mesmo dispositivo/origem (localStorage,
 // IndexedDB e Cache Storage) para sobreviver ao fecho/reabertura da PWA e a
@@ -302,17 +305,34 @@ importSetupFromLink();
 function decodeTripToken(token=''){try{let b64=String(token).replace(/-/g,'+').replace(/_/g,'/');while(b64.length%4)b64+='=';const bin=atob(b64),bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(bytes))}catch(_){return null}}
 function consumeTripLinkFromHash(){const m=/(?:^#|&)trip=([^&]+)/.exec(location.hash||'');if(!m)return false;const data=decodeTripToken(decodeURIComponent(m[1]||''));if(!data||data.v!==1||!data.route)return false;lastSharedRoute=data.route;localStorage.setItem(LS.sharedTrip,JSON.stringify(data.route));try{history.replaceState(null,'',location.pathname+location.search)}catch(_){}return true}
 function restoreSharedTrip(){try{const r=JSON.parse(localStorage.getItem(LS.sharedTrip)||'null');if(r&&r.path)lastSharedRoute=r}catch(_){}}
+function extractPairTokenFromQr(raw=''){
+  const value=String(raw||'').trim();if(!value)return '';
+  try{const u=new URL(value,location.href);const m=/^#pair=([^&]+)/.exec(u.hash||'');if(m)return decodeURIComponent(m[1]||'').trim();const q=u.searchParams.get('pair');if(q)return String(q).trim()}catch(_){}
+  const m=/(?:^|[#?&])pair=([^&]+)/.exec(value);return m?decodeURIComponent(m[1]||'').trim():'';
+}
+async function pairWendlerWithToken(pairToken=''){
+  pairToken=String(pairToken||'').trim();if(!pairToken)throw new Error('QR sem token de emparelhamento.');
+  const j=await familyPairingApi('/family/pair-link/consume',{pair_token:pairToken,device_name:'Wendler'});
+  cfg.url=String(j.supabase_url||'').trim();cfg.anon=String(j.supabase_anon_key||'').trim();cfg.deviceToken=String(j.device_token||'').trim();cfg.roomHash=String(j.room_hash||'').trim();cfg.deviceId=String(j.device_id||'').trim();if(cfg.deviceId){cfg.memberId=cfg.deviceId;localStorage.setItem(LS.memberId,cfg.memberId)}cfg.hash=cfg.roomHash;setupImported=true;
+  if(!/^https:\/\//i.test(cfg.url)||!cfg.anon||!cfg.deviceToken||!cfg.roomHash)throw new Error('Emparelhamento incompleto.');
+  localStorage.setItem(LS.url,cfg.url);localStorage.setItem(LS.anon,cfg.anon);localStorage.setItem(LS.deviceToken,cfg.deviceToken);localStorage.setItem(LS.roomHash,cfg.roomHash);localStorage.setItem(LS.deviceId,cfg.deviceId);localStorage.setItem(LS.pairedAt,String(Date.now()));syncNativeFamilyAuth();
+  await persistPairing();
+  return true;
+}
 async function consumePairLinkFromHash(){
   const m=/^#pair=([^&]+)/.exec(location.hash||'');if(!m)return false;const pairToken=decodeURIComponent(m[1]||'').trim();if(!pairToken)return false;
-  try{
-    const j=await familyPairingApi('/family/pair-link/consume',{pair_token:pairToken,device_name:'Wendler'});
-    cfg.url=String(j.supabase_url||'').trim();cfg.anon=String(j.supabase_anon_key||'').trim();cfg.deviceToken=String(j.device_token||'').trim();cfg.roomHash=String(j.room_hash||'').trim();cfg.deviceId=String(j.device_id||'').trim();if(cfg.deviceId){cfg.memberId=cfg.deviceId;localStorage.setItem(LS.memberId,cfg.memberId)}cfg.hash=cfg.roomHash;setupImported=true;
-    if(!/^https:\/\//i.test(cfg.url)||!cfg.anon||!cfg.deviceToken||!cfg.roomHash)throw new Error('Emparelhamento incompleto.');
-    localStorage.setItem(LS.url,cfg.url);localStorage.setItem(LS.anon,cfg.anon);localStorage.setItem(LS.deviceToken,cfg.deviceToken);localStorage.setItem(LS.roomHash,cfg.roomHash);localStorage.setItem(LS.deviceId,cfg.deviceId);localStorage.setItem(LS.pairedAt,String(Date.now()));syncNativeFamilyAuth();
-    await persistPairing();
-    try{history.replaceState(null,'',location.pathname+location.search)}catch(_){ }
-    return true;
-  }catch(e){showMsg('Emparelhamento: '+(e?.message||e));return false;}
+  try{await pairWendlerWithToken(pairToken);try{history.replaceState(null,'',location.pathname+location.search)}catch(_){}return true}catch(e){showMsg('Emparelhamento: '+(e?.message||e));return false}
+}
+function loadPairImage(file){return new Promise((resolve,reject)=>{const u=URL.createObjectURL(file),img=new Image();img.onload=()=>{URL.revokeObjectURL(u);resolve(img)};img.onerror=()=>{URL.revokeObjectURL(u);reject(new Error('Não foi possível abrir a imagem do QR.'))};img.src=u})}
+async function scanPairQrFile(file){
+  if(!file)return false;if(typeof window.jsQR!=='function')throw new Error('Leitor QR indisponível. Confirme a ligação à Internet e tente novamente.');
+  const img=await loadPairImage(file),max=1800,scale=Math.min(1,max/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height)),w=Math.max(1,Math.round((img.naturalWidth||img.width)*scale)),h=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
+  const c=document.getElementById('pairQrCanvas'),ctx=c.getContext('2d',{willReadFrequently:true});c.width=w;c.height=h;ctx.drawImage(img,0,0,w,h);const data=ctx.getImageData(0,0,w,h);const code=window.jsQR(data.data,w,h,{inversionAttempts:'attemptBoth'});if(!code?.data)throw new Error('QR não reconhecido. Aproxime o telefone e fotografe novamente.');
+  const token=extractPairTokenFromQr(code.data);if(!token)throw new Error('Este QR não é um QR de emparelhamento AERONAV Wendler.');
+  await pairWendlerWithToken(token);return true;
+}
+async function beginPairQrCapture(){
+  const input=document.getElementById('pairQrPhoto');if(!input)return;input.value='';input.click();
 }
 let map,markers=new Map(),trafficMarkers=new Map(),members=[],timer=null,firstFit=true,pulling=false,lastSharedRoute=null,lastTrafficAt=0,trafficBusy=false;
 const $=s=>document.querySelector(s); const esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
@@ -520,14 +540,14 @@ async function viewerUnpair(){if(cfg.deviceToken){try{await fetch(FAMILY_BOOTSTR
 function updateSetupState(){
   const n=$('#setupState'); if(!n)return;
   if(configured()){n.textContent='✓ Emparelhado permanentemente neste telefone. Não é necessário ler o QR novamente ao fechar ou reabrir a aplicação.';n.style.borderColor='#14766f';n.style.color='#8ff7e7';}
-  else {n.textContent='Aguardando QR/link gerado na AERONAV do papá. Este cliente não aceita códigos de verificação nem entrada manual.';n.style.borderColor='#14766f';n.style.color='#8ff7e7';}
+  else {n.textContent='Aguardando QR do papá. Toque em “Ler QR do papá” e fotografe o QR dentro desta aplicação.';n.style.borderColor='#14766f';n.style.color='#8ff7e7';}
 }
 function updateJoinFamilyButton(){const b=$('#joinFamilyBtn');if(!b)return;const ok=configured();b.textContent=ok?'✓ Família ligada':'Acesso por QR do papá';b.classList.toggle('primary',!ok);b.title=ok?'Ver estado da ligação':'A ligação é feita apenas pelo QR/link gerado pelo papá';}
 function showModal(){updateSetupState();updateJoinFamilyButton();$('#modal').classList.add('show') }
 function hideModal(){ $('#modal').classList.remove('show') }
 function showMsg(t){const n=$('#configMsg');n.textContent=t;n.style.display='block'}
 function start(){clearInterval(timer);updateJoinFamilyButton();if(!configured()){setStatus('A CONFIGURAR');showModal();return}initMap();pull(true);timer=setInterval(()=>pull(false),3000)}
-$('#configBtn')?.addEventListener('click',showModal);$('#joinFamilyBtn')?.addEventListener('click',showModal);$('#closeBtn')?.addEventListener('click',hideModal);$('#refreshBtn')?.addEventListener('click',()=>pull(true));$('#fitBtn')?.addEventListener('click',focusJorge);const bc=$('#bottomCall');if(bc)bc.onclick=startViewerCall;
+$('#configBtn')?.addEventListener('click',showModal);$('#joinFamilyBtn')?.addEventListener('click',showModal);$('#closeBtn')?.addEventListener('click',hideModal);$('#scanPairQrBtn')?.addEventListener('click',beginPairQrCapture);$('#pairQrPhoto')?.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;showMsg('A ler QR e a emparelhar este telefone…');try{await scanPairQrFile(f);hideModal();updateJoinFamilyButton();setStatus('LIGADO','good');startViewerGps();start();showMsg('✓ Wendler emparelhado dentro desta aplicação. Pode fechá-la e voltar a abrir sem ler o QR novamente.');await pull(true)}catch(err){showMsg('QR: '+(err?.message||err));showModal()}finally{e.target.value=''}});$('#refreshBtn')?.addEventListener('click',()=>pull(true));$('#fitBtn')?.addEventListener('click',focusJorge);const bc=$('#bottomCall');if(bc)bc.onclick=startViewerCall;
 $('#stayToday').onclick=()=>{cfg.historyDays=1;localStorage.setItem(LS.historyDays,'1');cfg.historyLastLoad=0;loadViewerStayHistory(true)};$('#stay7Days').onclick=()=>{cfg.historyDays=7;localStorage.setItem(LS.historyDays,'7');cfg.historyLastLoad=0;loadViewerStayHistory(true)};$('#stayRefresh').onclick=()=>loadViewerStayHistory(true);
 $('#forgetBtn').onclick=()=>showMsg('Este dispositivo só pode ser removido da Família pela aplicação administradora do Jorge.');
 bindHold($('#viewerSosBtn'),()=>sendSos(true));$('#viewerSosCancel').onclick=()=>sendSos(false);$('#viewerSosAlerts').onclick=enableSosAlerts;$('#viewerCallStart').onclick=startViewerCall;$('#viewerCallEnd').onclick=endViewerCall;$('#viewerShareGps').onclick=()=>toggleViewerGps();$('#viewerJourneyNotify').onclick=enableViewerJourneyNotifications;$('#modeDrive').onclick=()=>setGroundMode('drive');$('#modeWalk').onclick=()=>setGroundMode('walk');$('#modeFlight').onclick=()=>{document.querySelectorAll('.ground-mode').forEach(x=>x.classList.remove('flight-view'));$('#modeFlight').classList.add('flight-view');try{$('#fitBtn')?.click()}catch(_){}setTimeout(()=>$('#modeFlight')?.classList.remove('flight-view'),1800)};updateSosUi();updateCallUi();updateViewerJourneyButtons();updateGroundModeUi();if(configured())startViewerGps();
