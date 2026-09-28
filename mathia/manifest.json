@@ -1,7 +1,7 @@
 {
   "name": "AERONAV Mathia · Family Client",
   "short_name": "AERONAV Mathia",
-  "description": "Cliente familiar independente da Mathia, emparelhado por QR com a Família AERONAV.",
+  "description": "Cliente familiar independente da Mathia, com emparelhamento persistente por QR e reconexão automática à Família AERONAV.",
   "id": "./",
   "start_url": "./index.html",
   "scope": "./",
