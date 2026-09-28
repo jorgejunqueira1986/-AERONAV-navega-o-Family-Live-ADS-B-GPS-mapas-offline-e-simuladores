@@ -1,5 +1,5 @@
-/* AERONAV RC11.67 — persistent Mathia pairing + automatic reconnect */
-const CACHE='aeronav-mathia-RC11_67-reconnect-20260928-1';
+/* AERONAV RC11.69 — mathia Family Code + one-device profile + editable avatar */
+const CACHE='aeronav-mathia-RC11_69-family-code-20260928-2';
 const CORE=['./','./index.html','./manifest.json','./family-call.js','./icon-192.png','./icon-512.png'];
 async function warm(){const c=await caches.open(CACHE);for(const u of CORE){try{const r=await fetch(u,{cache:'reload'});if(r.ok)await c.put(u,r.clone());}catch(_){}}}
 self.addEventListener('install',e=>e.waitUntil(warm().then(()=>self.skipWaiting())));
