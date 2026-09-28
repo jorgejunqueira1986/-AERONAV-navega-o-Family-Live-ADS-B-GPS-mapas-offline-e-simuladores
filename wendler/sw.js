@@ -1,5 +1,5 @@
-/* AERONAV RC11.60 — in-app QR pairing + persistent Wendler client pairing */
-const CACHE='aeronav-wendler-RC11_60-inapp-qr-pairing-20260928-1';
+/* AERONAV RC11.61 — iOS native QR input + persistent Wendler pairing */
+const CACHE='aeronav-wendler-RC11_61-ios-qr-pairing-20260928-1';
 const CORE=['./','./index.html','./manifest.json','./family-call.js','./icons/icon-192.png','./icons/icon-512.png'];
 async function warm(){const c=await caches.open(CACHE);for(const u of CORE){try{const r=await fetch(u,{cache:'reload'});if(r.ok)await c.put(u,r.clone());}catch(_){}}}
 self.addEventListener('install',e=>e.waitUntil(warm().then(()=>self.skipWaiting())));
