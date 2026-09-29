@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <!-- RC11.79 LUANDA 3D INTEGRATION -->
-<title>AERONAV — RC11.79 Luanda 3D</title>
+  <!-- RC11.80 LUANDA 3D MAP VISUAL HOTFIX -->
+<title>AERONAV — RC11.80 Luanda 3D</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -1297,8 +1297,9 @@ body{min-height:var(--app-vh);margin:0}
     const moving=!walking&&speed>=1.2;
     const lookAhead=moving?Math.max(24,Math.min(115,34+speed*2.4)):0;
     const center=walking?[Number(p.lon),Number(p.lat)]:pointAhead(p,heading,lookAhead);
-    const targetZoom=walking?17:(kmh>95?14.8:kmh>65?15.2:kmh>35?15.7:16.2);
-    const pitch=walking?0:Math.min(52,cfg.view==='2d'?0:cfg.pitch);
+    const onLuanda3D=isLuanda3DRecord(state.offlineMapRecord);
+    const targetZoom=walking?(onLuanda3D?17.2:17):(onLuanda3D?(kmh>95?15.3:kmh>65?15.7:kmh>35?16.1:16.7):(kmh>95?14.8:kmh>65?15.2:kmh>35?15.7:16.2));
+    const pitch=walking?0:(onLuanda3D?(cfg.view==='2d'?0:Math.min(60,Math.max(55,cfg.pitch))):Math.min(52,cfg.view==='2d'?0:cfg.pitch));
     const bearing=walking?0:heading;
     try{state.map.easeTo({center,zoom:targetZoom,pitch,bearing,duration:instant?0:520,easing:t=>1-Math.pow(1-t,3)});}catch(_){}
   }
@@ -2218,6 +2219,39 @@ body{min-height:var(--app-vh);margin:0}
       {id:'sb-street-labels',type:'symbol',source:'offline','source-layer':'street_labels',minzoom:12,layout:{'symbol-placement':'line','symbol-spacing':300,'text-field':['coalesce',['get','name'],['get','ref']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],12,9,16,11,19,13],'text-max-angle':35},paint:{'text-color':'#c9d9de','text-halo-color':'#071a24','text-halo-width':1.4}}
     ];
   }
+  function luandaShortbreadNavigationLayers(){
+    const roadMinor=['service','residential','unclassified','living_street','pedestrian','track','footway','path','cycleway','steps','busway','bus_guideway'];
+    const roadMedium=['tertiary','secondary'];
+    const roadMajor=['motorway','trunk','primary'];
+    return [
+      {id:'lu-bg-land',type:'background',paint:{'background-color':'#e9edef'}},
+      {id:'lu-ocean',type:'fill',source:'offline','source-layer':'ocean',paint:{'fill-color':'#72b2cf','fill-opacity':1}},
+      {id:'lu-land',type:'fill',source:'offline','source-layer':'land',paint:{'fill-color':['match',['get','kind'],'forest','#c9dbc7',['grass','meadow'],'#d5e2cf','orchard','#d1dfcb','vineyard','#d8dfcc','#e9edef'],'fill-opacity':0.98}},
+      {id:'lu-sites',type:'fill',source:'offline','source-layer':'sites',paint:{'fill-color':['match',['get','kind'],'parking','#d7dcdf',['school','university','college'],'#e4e0d5','hospital','#eadbdc','construction','#dfd8cb','#e2e6e7'],'fill-opacity':0.88}},
+      {id:'lu-water-polygons',type:'fill',source:'offline','source-layer':'water_polygons',paint:{'fill-color':'#69aac7','fill-opacity':0.98}},
+      {id:'lu-water-lines',type:'line',source:'offline','source-layer':'water_lines',paint:{'line-color':'#5b9ab8','line-width':['interpolate',['linear'],['zoom'],7,0.7,14,2.4,18,4.5]}},
+      {id:'lu-boundaries',type:'line',source:'offline','source-layer':'boundaries',paint:{'line-color':'#8b979d','line-width':['case',['==',['get','admin_level'],2],1.4,0.7],'line-opacity':0.46,'line-dasharray':[3,2]}},
+      {id:'lu-buildings-flat',type:'fill',source:'offline','source-layer':'buildings',minzoom:13,paint:{'fill-color':'#cdd3d6','fill-opacity':0.96,'fill-outline-color':'#aeb9be'}},
+      {id:'luanda-buildings-3d',type:'fill-extrusion',source:'offline','source-layer':'buildings',minzoom:13.5,metadata:{'aeronav:drive-keep-3d':true},paint:{
+        'fill-extrusion-color':['interpolate',['linear'],['zoom'],13.5,'#cfd5d8',16,'#b7c0c5',19,'#9eabb2'],
+        'fill-extrusion-height':['interpolate',['linear'],['zoom'],13.5,7,15,10,17,13,19,16],
+        'fill-extrusion-base':0,
+        'fill-extrusion-opacity':0.96,
+        'fill-extrusion-vertical-gradient':true
+      }},
+      {id:'lu-road-minor-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMinor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#9aa4a9','line-width':['interpolate',['linear'],['zoom'],11,1.6,14,5.0,17,10.5]}},
+      {id:'lu-road-minor',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMinor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#f7f8f8','line-width':['interpolate',['linear'],['zoom'],11,0.9,14,3.4,17,7.8]}},
+      {id:'lu-road-medium-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMedium,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#8d999f','line-width':['interpolate',['linear'],['zoom'],8,2.0,13,6.0,17,12.5]}},
+      {id:'lu-road-medium',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMedium,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':['interpolate',['linear'],['zoom'],8,1.1,13,4.0,17,9.2]}},
+      {id:'lu-road-major-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMajor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#7d878c','line-width':['interpolate',['linear'],['zoom'],5,2.5,11,7.0,16,15.5]}},
+      {id:'lu-road-major',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMajor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['match',['get','kind'],'motorway','#f1c65a','trunk','#f3d77d','primary','#f4e4a7','#ffffff'],'line-width':['interpolate',['linear'],['zoom'],5,1.4,11,4.8,16,11.7]}},
+      {id:'lu-street-labels',type:'symbol',source:'offline','source-layer':'street_labels',minzoom:12,layout:{'symbol-placement':'line','symbol-spacing':260,'text-field':['coalesce',['get','name'],['get','ref']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],12,10,15,12,18,14],'text-max-angle':38,'text-letter-spacing':0.01},paint:{'text-color':'#38474e','text-halo-color':'rgba(255,255,255,0.96)','text-halo-width':2}},
+      {id:'lu-place-labels',type:'symbol',source:'offline','source-layer':'place_labels',minzoom:3,layout:{'text-field':['coalesce',['get','name_pt'],['get','name'],['get','name_en']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],4,11,8,13,12,15,16,18],'text-max-width':10,'text-allow-overlap':false},paint:{'text-color':'#24343c','text-halo-color':'rgba(255,255,255,0.96)','text-halo-width':2}},
+      {id:'lu-pois-dot',type:'circle',source:'offline','source-layer':'pois',minzoom:14,paint:{'circle-radius':['interpolate',['linear'],['zoom'],14,2.5,17,4.5],'circle-color':'#3b8ec2','circle-stroke-color':'#ffffff','circle-stroke-width':1.3}},
+      {id:'lu-pois-label',type:'symbol',source:'offline','source-layer':'pois',minzoom:15,layout:{'text-field':['coalesce',['get','name_pt'],['get','name'],['get','name_en']],'text-font':['Noto Sans Regular'],'text-size':11,'text-offset':[0,1.1],'text-anchor':'top','text-allow-overlap':false},paint:{'text-color':'#33464f','text-halo-color':'rgba(255,255,255,0.96)','text-halo-width':1.8}}
+    ];
+  }
+
   function openmaptilesPmtilesLayers(){
     return [
       {id:'omt-landcover',type:'fill',source:'offline','source-layer':'landcover',paint:{'fill-color':'#17352f','fill-opacity':0.45}},
@@ -2238,16 +2272,18 @@ body{min-height:var(--app-vh);margin:0}
     if(sourceType==='raster') return applyMapQualityProfile({version:8,sources:{offline:source},layers:[{id:'offline-raster',type:'raster',source:'offline',paint:{'raster-opacity':1,'raster-resampling':state.mapQuality==='eco'?'nearest':'linear'}}]});
     const schema=detectPmtilesSchema(metadata);
     let dataLayers;
-    if(schema==='shortbread') dataLayers=shortbreadPmtilesLayers();
+    const isLuanda=/LUANDA_3D\.pmtiles/i.test(String(key||''));
+    if(isLuanda){
+      dataLayers=luandaShortbreadNavigationLayers();
+    }else if(schema==='shortbread') dataLayers=shortbreadPmtilesLayers();
     else if(schema==='openmaptiles') dataLayers=openmaptilesPmtilesLayers();
     else {
       // Vector PMTiles are required by the PMTiles v3 spec to advertise vector_layers metadata.
       // If the producer omitted it, try Shortbread first because BBBike uses it for PM vector extracts.
       dataLayers=shortbreadPmtilesLayers();
     }
-    const isLuanda=/LUANDA_3D\.pmtiles/i.test(String(key||''));
     if(!isLuanda) dataLayers=dataLayers.filter(l=>!/^luanda-/.test(l.id||''));
-    return applyMapQualityProfile({version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',sources:{offline:source},layers:[{id:'background',type:'background',paint:{'background-color':'#071a24'}},...dataLayers],metadata:{'aeronav:pmtiles-schema':schema,'aeronav:quality':state.mapQuality,'aeronav:luanda3d':isLuanda}});
+    return applyMapQualityProfile({version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',sources:{offline:source},layers:[...dataLayers],metadata:{'aeronav:pmtiles-schema':schema,'aeronav:quality':state.mapQuality,'aeronav:luanda3d':isLuanda}});
   }
   async function getOfflineMapRecord(kind,position=state.currentPosition){
     const list=await dbAll('maps');
@@ -2281,7 +2317,7 @@ body{min-height:var(--app-vh);margin:0}
         state.pmtilesProtocol.add(src); key=file.name; state._luandaTerrainKey=key;
       }
       if(!state.map.getSource('luanda-terrain-dem')) state.map.addSource('luanda-terrain-dem',{type:'raster-dem',url:`pmtiles://${key}`,tileSize:256,encoding:'terrarium',maxzoom:12,attribution:'Mapterhorn / Terrarium DEM'});
-      state.map.setTerrain?.({source:'luanda-terrain-dem',exaggeration:1.08});
+      state.map.setTerrain?.({source:'luanda-terrain-dem',exaggeration:1.0});
       return true;
     }catch(e){console.warn('AERONAV Luanda terrain',e);return false;}
   }
@@ -6106,7 +6142,7 @@ body{min-height:var(--app-vh);margin:0}
         <div class="card"><div class="kpi-grid"><div class="kpi"><span>CARTAS PDF</span><strong>${charts.length}</strong></div><div class="kpi"><span>ROTAS</span><strong>${routes.length}</strong></div><div class="kpi"><span>MAPAS .PMTILES</span><strong>${maps.length}</strong></div></div></div>
         <div class="card"><h3>Disponível sem Internet</h3><div class="mini-grid"><div class="mini-card"><strong>✓ App e interface</strong><small>Service worker guarda o núcleo da PWA após instalação.</small></div><div class="mini-card"><strong>✓ Cartas importadas</strong><small>PDFs ficam em IndexedDB.</small></div><div class="mini-card"><strong>✓ Rotas guardadas</strong><small>Geometria, distância, ETE e instruções.</small></div><div class="mini-card"><strong>✓ GPS do dispositivo</strong><small>Não depende de Internet, desde que o sistema forneça posição.</small></div></div></div>
         <div class="card"><h3>Qualidade cartográfica inteligente</h3><div class="sub">Escolha o equilíbrio entre fluidez e detalhe. AERONAV mantém apenas as camadas necessárias ao modo atual.</div><div class="map-quality-seg" style="margin-top:10px"><button data-map-quality="eco" class="${state.mapQuality==='eco'?'active':''}">LEVE</button><button data-map-quality="balanced" class="${state.mapQuality==='balanced'?'active':''}">EQUILIBRADA</button><button data-map-quality="high" class="${state.mapQuality==='high'?'active':''}">ALTA</button></div><div class="format-note">Atual: <b>${mapQualityLabel()}</b>. Em iPhone, EQUILIBRADA é a recomendação normal; ALTA é mais indicada para cartas raster detalhadas e tablets.</div><div style="margin-top:12px">${mapFormatsGuideHTML()}</div></div>
-        <div class="card"><div class="page-head"><div><h3>Luanda 3D · CARRO/A PÉ</h3><p>Pacote oficial desta RC: ruas, edifícios 3D e terreno, guardados no próprio dispositivo.</p></div><span class="badge ${luandaReady?'ok':'info'}">${luandaReady?'INSTALADO':'DISPONÍVEL'}</span></div><div class="preflight-grid"><div class="preflight-item"><span>VETOR</span><strong>${luandaVector?'PRONTO':'11,2 MB'}</strong><small>Ruas, edifícios, bairros e POIs.</small></div><div class="preflight-item"><span>TERRENO</span><strong>${luandaTerrain?'PRONTO':'9,3 MB'}</strong><small>DEM Terrarium para relevo 3D.</small></div><div class="preflight-item"><span>MODO</span><strong>3D MODERNO</strong><small>Ativação automática em CARRO/A PÉ dentro de Luanda.</small></div></div><div class="btn-row"><button class="primary-btn" id="installLuanda3DBtn">${luandaReady?'Reinstalar Luanda 3D':'Instalar Luanda 3D'}</button>${luandaReady?'<button class="secondary-btn" id="openLuanda3DBtn">Abrir Luanda 3D</button>':''}</div><div class="notice good" style="margin-top:10px">Não requer Bash, PowerShell ou importação manual. A primeira instalação requer Internet; depois os dois PMTiles ficam em IndexedDB e funcionam offline.</div></div>
+        <div class="card"><div class="page-head"><div><h3>Luanda 3D · CARRO/A PÉ</h3><p>Pacote oficial desta RC: ruas, edifícios 3D e terreno, guardados no próprio dispositivo.</p></div><span class="badge ${luandaReady?'ok':'info'}">${luandaReady?'INSTALADO':'DISPONÍVEL'}</span></div><div class="preflight-grid"><div class="preflight-item"><span>VETOR</span><strong>${luandaVector?'PRONTO':'11,2 MB'}</strong><small>Ruas, edifícios, bairros e POIs.</small></div><div class="preflight-item"><span>TERRENO</span><strong>${luandaTerrain?'PRONTO':'9,3 MB'}</strong><small>DEM Terrarium usado apenas para elevação, nunca como mapa-base.</small></div><div class="preflight-item"><span>MODO</span><strong>3D MODERNO</strong><small>Estradas claras + edifícios 3D + terreno em CARRO/A PÉ.</small></div></div><div class="btn-row"><button class="primary-btn" id="installLuanda3DBtn">${luandaReady?'Reinstalar Luanda 3D':'Instalar Luanda 3D'}</button>${luandaReady?'<button class="secondary-btn" id="openLuanda3DBtn">Abrir Luanda 3D</button>':''}</div><div class="notice good" style="margin-top:10px">Não requer Bash, PowerShell ou importação manual. A primeira instalação requer Internet; depois os dois PMTiles ficam em IndexedDB e funcionam offline.</div></div>
         <div class="card"><h3>Mapas offline por dispositivo</h3><div class="sub">VOO e CONDUÇÃO têm pacotes separados. Prefira PMTiles vetorial; para cartas-imagem, prefira PMTiles WebP/AVIF por região.</div><div class="mini-grid"><div class="mini-card"><strong>✈ Aeronáutico mundial</strong><small>Baixe o mundo por países/regiões ou importe um pacote PMTiles. A camada DECEA Brasil fica separada e pode ser atualizada por AIRAC.</small><div class="field" style="margin-top:10px"><label>URL PMTiles do pacote</label><input id="aviationPmtilesUrl" placeholder="https://fornecedor/.../brasil.pmtiles"></div><div class="btn-row"><button class="primary-btn" id="downloadAviationPmtiles">Baixar mapa VOO</button><button class="secondary-btn" id="importAviationPmtiles">Importar ficheiro</button></div></div><div class="mini-card"><strong>🚗 Terrestre</strong><small>Mapa rodoviário estilo navegação, descarregado independentemente para este aparelho.</small><div class="field" style="margin-top:10px"><label>URL PMTiles do pacote</label><input id="terrestrialPmtilesUrl" placeholder="https://fornecedor/.../sao-paulo.pmtiles"></div><div class="btn-row"><button class="primary-btn" id="downloadTerrestrialPmtiles">Baixar mapa CONDUÇÃO</button><button class="secondary-btn" id="importTerrestrialPmtiles">Importar ficheiro</button></div></div></div><div id="offlineMapList" style="margin-top:12px">${offlineMapsListHTML(maps)}</div>${maps.length?'<div class="btn-row"><button class="secondary-btn" id="openOfflineMapBtn">Abrir mapa offline do modo atual</button></div>':''}<div class="notice good" style="margin-top:12px">Para manter a aplicação leve, use pacotes por país/região. Vetor PMTiles é a primeira escolha; raster WebP/AVIF é indicado para cartas-imagem. Evite um único ficheiro mundial gigante. A AERONAV não faz bulk download de servidores públicos sem licença.</div></div>
         <div class="card"><h3>Itinerários Fly & Drive guardados</h3><div id="itinList">${itineraryListHTML(itins)}</div></div>
       </div></div>`;
