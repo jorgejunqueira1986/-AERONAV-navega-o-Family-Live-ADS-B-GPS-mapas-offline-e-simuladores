@@ -1,5 +1,5 @@
-/* AERONAV RC11_78 — Mathia avatar + RC11.76 routes/cancel preserved */
-const CACHE='aeronav-mathia-RC11_78-avatar-preserve-rc1176-20260929-1';
+/* AERONAV RC11_77 — Mathia avatar + RC11.76 routes/cancel preserved */
+const CACHE='aeronav-mathia-RC11_77-avatar-preserve-rc1176-20260929-1';
 const CORE=['./','./index.html','./manifest.json','./family-call.js','./icon-192.png','./icon-512.png'];
 async function warm(){const c=await caches.open(CACHE);for(const u of CORE){try{const r=await fetch(u,{cache:'reload'});if(r.ok)await c.put(u,r.clone());}catch(_){}}}
 self.addEventListener('install',e=>e.waitUntil(warm().then(()=>self.skipWaiting())));
