@@ -534,7 +534,7 @@ body{min-height:var(--app-vh);margin:0}
 }
 </style>
 
-<!-- AERONAV RC11.71 · guaranteed route overlay + code pairing + editable avatars -->
+<!-- AERONAV RC11.86 · removed-family marker cleanup + RC11.85 counter + RC11.80 base -->
 </head>
 <body>
   <div id="app">
@@ -3249,7 +3249,17 @@ body{min-height:var(--app-vh);margin:0}
     if(!active.length){toast(`${displayName}: nenhum dispositivo ativo.`);return true;}
     if(!confirm(`Remover ${displayName} da Família? ${active.length>1?`Serão revogados ${active.length} dispositivos.`:'O dispositivo terá de ser adicionado novamente por código.'}`))return false;
     for(const d of active)await familyAuthorizedApi('/family/device/revoke',{body:{device_id:d.id}});
-    toast(`${displayName} removido da Família.`);return true;
+    // RC11.86: the pairing/device list is authoritative. Purge the removed person from
+    // this device immediately instead of waiting for an old aeronav_locations row to expire.
+    try{
+      const f=state.family,role=familyPairedRole(displayName),personKey=canonicalPersonKey(displayName);
+      f.pairedMembers=(f.pairedMembers||[]).filter(p=>familyPairedRole(p.display_name)!==role);
+      f.pairedMembersLastAt=Date.now();
+      f.members=(f.members||[]).filter(m=>isFamilySystemRow(m)||familyPairedRole(m.display_name)!==role);
+      const mk=personKey?f.markers?.get(personKey):null;if(mk){try{mk.remove()}catch(_){}f.markers.delete(personKey)}
+      updateFamilyMarkers();
+    }catch(e){console.warn('AERONAV Family marker purge failed',e)}
+    toast(`${displayName} removido da Família e retirado do mapa.`);return true;
   }
   async function showFamilyMemberManager(){
     try{
@@ -3854,7 +3864,7 @@ body{min-height:var(--app-vh);margin:0}
     if(!state.map || !state.mapReady || typeof maplibregl==='undefined') return;
     if(mathiaSharedRouteRead())drawMathiaSharedRouteOnJorge();
     const freshest=new Map();
-    for(const m of state.family.members||[]){
+    for(const m of familyUiMembers()){// RC11.86: only currently paired/authorized family members may appear on the map
       if(isFamilySystemRow(m)||isLocalFamilyMember(m))continue; // ownship is represented only by state.positionMarker
       const visRole=familyPairedRole(m.display_name);if(visRole&&!familyVisibilityCan('jorge',visRole))continue;
       const dlat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat),dlon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);
