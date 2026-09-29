@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <!-- RC11.81 LUANDA 3D PROTOMAPS SCHEMA FIX -->
-<title>AERONAV — RC11.81 Luanda 3D</title>
+  <!-- RC11.82 LUANDA PHOTO 3D HYBRID -->
+<title>AERONAV — RC11.82 Luanda Photo 3D</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -533,6 +533,16 @@ body{min-height:var(--app-vh);margin:0}
   .mobile-map-controls button{padding-inline:5px!important}
   .bottom-nav-btn span{font-size:19px!important}.bottom-nav-btn b{font-size:8px!important}
 }
+
+/* RC11.82 — Luanda Photo 3D (online) + PMTiles offline fallback */
+#photo3dMap{position:absolute;inset:0;z-index:1;background:#0a1117;display:none;overflow:hidden}
+#photo3dMap.active{display:block}
+#photo3dMap .cesium-viewer,#photo3dMap .cesium-viewer-cesiumWidgetContainer,#photo3dMap .cesium-widget,#photo3dMap canvas{width:100%!important;height:100%!important}
+.photo3d-mode-badge{position:absolute;left:14px;bottom:14px;z-index:9;display:none;align-items:center;gap:8px;background:#07131ee8;border:1px solid #4baee0;border-radius:999px;padding:8px 12px;color:#eaf8ff;font-size:11px;font-weight:900;letter-spacing:.3px;backdrop-filter:blur(9px);box-shadow:0 7px 22px #0008}
+.photo3d-mode-badge.show{display:flex}.photo3d-mode-badge .dot{width:8px;height:8px;border-radius:50%;background:#46e6a7;box-shadow:0 0 10px #46e6a7}
+.photo3d-google-note{font-size:10px;color:#d8e6ef;font-weight:700;opacity:.95}
+#photo3dMap .cesium-viewer-bottom{bottom:3px!important}.photo3d-key-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+@media(max-width:760px){.photo3d-mode-badge{left:10px;bottom:10px;max-width:calc(100% - 20px);font-size:10px}.photo3d-key-row{grid-template-columns:1fr}}
 </style>
 
 <!-- AERONAV RC11.71 · guaranteed route overlay + code pairing + editable avatars -->
@@ -611,6 +621,8 @@ body{min-height:var(--app-vh);margin:0}
         </div>
         <div class="map-wrap">
           <div id="map"></div>
+          <div id="photo3dMap" aria-label="Luanda Photo 3D"></div>
+          <div class="photo3d-mode-badge" id="photo3dModeBadge"><span class="dot"></span><span>LUANDA PHOTO 3D</span><span class="photo3d-google-note">· fundo Google Maps</span></div>
           <div id="offlineMap" class="offline-map hidden">
             <svg id="offlineSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
             <div class="offline-watermark">
@@ -2145,6 +2157,101 @@ body{min-height:var(--app-vh);margin:0}
   function isLuanda3DRecord(rec){return !!rec&&(rec.id===LUANDA_3D_VECTOR_ID||/LUANDA_3D\.pmtiles/i.test(rec.name||rec.key||''));}
   async function getLuanda3DVector(){return dbGet('maps',LUANDA_3D_VECTOR_ID).catch(()=>null);}
   async function getLuanda3DTerrain(){return dbGet('maps',LUANDA_3D_TERRAIN_ID).catch(()=>null);}
+
+  // ---------- RC11.82 Luanda Photo 3D (online) ----------
+  const PHOTO3D_KEY_STORAGE='aeronav.googleMapTilesApiKey';
+  const PHOTO3D_ENABLED_STORAGE='aeronav.photo3d.enabled';
+  const CESIUM_JS_URL='https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js';
+  const CESIUM_CSS_URL='https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css';
+  state.photo3d=state.photo3d||{enabled:localStorage.getItem(PHOTO3D_ENABLED_STORAGE)!=='0',active:false,viewer:null,tileset:null,loading:null,routeSig:'',routeEntities:[],ownship:null,family:new Map(),places:new Map(),lastCameraAt:0,lastClampAt:0,lastError:''};
+  function photo3dApiKey(){return String(localStorage.getItem(PHOTO3D_KEY_STORAGE)||'').trim();}
+  function photo3dHasKey(){return /^AIza[0-9A-Za-z_-]{20,}$/.test(photo3dApiKey())||photo3dApiKey().length>20;}
+  function photo3dInsideLuanda(p){return !!p&&Number.isFinite(Number(p.lon))&&Number.isFinite(Number(p.lat))&&Number(p.lon)>=LUANDA_3D_BOUNDS[0]&&Number(p.lon)<=LUANDA_3D_BOUNDS[2]&&Number(p.lat)>=LUANDA_3D_BOUNDS[1]&&Number(p.lat)<=LUANDA_3D_BOUNDS[3];}
+  function photo3dRouteTouchesLuanda(){const c=routeCoordinates(state.currentRoute);return c.some(([lon,lat])=>lon>=LUANDA_3D_BOUNDS[0]&&lon<=LUANDA_3D_BOUNDS[2]&&lat>=LUANDA_3D_BOUNDS[1]&&lat<=LUANDA_3D_BOUNDS[3]);}
+  function shouldUseLuandaPhoto3D(){return state.mode==='drive'&&state.net==='online'&&state.photo3d.enabled&&photo3dHasKey()&&(photo3dInsideLuanda(state.currentPosition)||(!state.currentPosition&&photo3dRouteTouchesLuanda()));}
+  function photo3dSetBadge(on,text='LUANDA PHOTO 3D'){
+    const b=$('#photo3dModeBadge');if(!b)return;b.classList.toggle('show',!!on);const spans=b.querySelectorAll('span');if(spans[1])spans[1].textContent=text;
+  }
+  function loadCesiumRuntime(){
+    if(window.Cesium)return Promise.resolve(window.Cesium);
+    if(state.photo3d.loading)return state.photo3d.loading;
+    state.photo3d.loading=new Promise((resolve,reject)=>{
+      window.CESIUM_BASE_URL='https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/';
+      if(!document.querySelector('link[data-aeronav-cesium]')){const l=document.createElement('link');l.rel='stylesheet';l.href=CESIUM_CSS_URL;l.dataset.aeronavCesium='1';document.head.appendChild(l);}
+      const old=document.querySelector('script[data-aeronav-cesium]');if(old){old.addEventListener('load',()=>resolve(window.Cesium),{once:true});old.addEventListener('error',()=>reject(new Error('CesiumJS não carregou.')),{once:true});return;}
+      const sc=document.createElement('script');sc.src=CESIUM_JS_URL;sc.async=true;sc.crossOrigin='anonymous';sc.dataset.aeronavCesium='1';sc.onload=()=>window.Cesium?resolve(window.Cesium):reject(new Error('CesiumJS indisponível.'));sc.onerror=()=>reject(new Error('Falha ao carregar CesiumJS.'));document.head.appendChild(sc);
+    }).finally(()=>{state.photo3d.loading=null;});
+    return state.photo3d.loading;
+  }
+  function destroyLuandaPhoto3D(){
+    const ph=state.photo3d;if(!ph)return;
+    try{ph.viewer?.destroy?.();}catch(_){}
+    ph.viewer=null;ph.tileset=null;ph.ownship=null;ph.routeEntities=[];ph.family=new Map();ph.places=new Map();ph.routeSig='';ph.active=false;
+    const host=$('#photo3dMap');if(host){host.classList.remove('active');host.innerHTML='';}photo3dSetBadge(false);
+  }
+  function hideLuandaPhoto3D(){
+    if(!state.photo3d)return;state.photo3d.active=false;const host=$('#photo3dMap');if(host)host.classList.remove('active');$('#mapBadge')?.classList.remove('hidden');photo3dSetBadge(false);try{state.photo3d.viewer?.scene?.requestRender?.();}catch(_){}
+  }
+  function photo3dOwnshipImage(){return state.vehicle?.avatar||EMBEDDED_VEHICLE_AVATAR;}
+  function photo3dHeading(){const h=Number(state.currentPosition?.heading);return Number.isFinite(h)?h:0;}
+  async function photo3dClampPoint(lon,lat,height=4){
+    const C=window.Cesium,v=state.photo3d.viewer;if(!C||!v)return null;
+    const raw=C.Cartesian3.fromDegrees(Number(lon),Number(lat),height);
+    try{if(v.scene.clampToHeightSupported){const a=await v.scene.clampToHeightMostDetailed([raw]);return a?.[0]||raw;}}catch(_){}
+    return raw;
+  }
+  function clearPhoto3DRoute(){const ph=state.photo3d;if(!ph?.viewer)return;for(const e of ph.routeEntities||[]){try{ph.viewer.entities.remove(e)}catch(_){}}ph.routeEntities=[];ph.routeSig='';}
+  async function syncPhoto3DRoute(){
+    const ph=state.photo3d,C=window.Cesium;if(!ph?.viewer||!C)return;
+    const coords=routeCoordinates(state.currentRoute);const sig=coords.length?coords.map(c=>c.map(x=>Number(x).toFixed(5)).join(',')).join(';'):'';
+    if(sig===ph.routeSig)return;clearPhoto3DRoute();ph.routeSig=sig;if(coords.length<2)return;
+    let positions=coords.map(c=>C.Cartesian3.fromDegrees(c[0],c[1],18));
+    try{if(ph.viewer.scene.clampToHeightSupported){const cl=await ph.viewer.scene.clampToHeightMostDetailed(positions);positions=cl.map((x,i)=>x||positions[i]);}}
+    catch(_){}
+    const outline=ph.viewer.entities.add({polyline:{positions,width:12,material:C.Color.fromCssColorString('#ffffff').withAlpha(.88),arcType:C.ArcType.GEODESIC}});
+    const blue=ph.viewer.entities.add({polyline:{positions,width:7,material:C.Color.fromCssColorString('#0878ff'),arcType:C.ArcType.GEODESIC}});
+    ph.routeEntities=[outline,blue];
+  }
+  async function syncPhoto3DOwnship(){
+    const ph=state.photo3d,C=window.Cesium,p=state.currentPosition;if(!ph?.viewer||!C||!p||!Number.isFinite(Number(p.lon))||!Number.isFinite(Number(p.lat)))return;
+    const pos=await photo3dClampPoint(p.lon,p.lat,4);if(!pos)return;
+    if(!ph.ownship){ph.ownship=ph.viewer.entities.add({position:pos,billboard:{image:photo3dOwnshipImage(),width:72,height:72,verticalOrigin:C.VerticalOrigin.BOTTOM,disableDepthTestDistance:Number.POSITIVE_INFINITY,scaleByDistance:new C.NearFarScalar(100,1.0,2500,.45)},label:{text:'Jorge',font:'700 13px sans-serif',fillColor:C.Color.WHITE,outlineColor:C.Color.BLACK,outlineWidth:4,style:C.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new C.Cartesian2(0,10),verticalOrigin:C.VerticalOrigin.TOP,disableDepthTestDistance:Number.POSITIVE_INFINITY}});}else ph.ownship.position=pos;
+    try{ph.ownship.billboard.rotation=-C.Math.toRadians(photo3dHeading());}catch(_){}
+  }
+  async function syncPhoto3DFamily(){
+    const ph=state.photo3d,C=window.Cesium;if(!ph?.viewer||!C)return;const live=new Set();
+    for(const m of state.family?.members||[]){if(isFamilySystemRow(m)||isLocalFamilyMember(m)||!m.sharing)continue;const role=familyPairedRole(m.display_name);if(role&&!familyVisibilityCan('jorge',role))continue;const lat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat),lon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;const key=canonicalPersonKey(m.display_name)||String(m.member_id);live.add(key);let e=ph.family.get(key);const av=familyTransportAvatar(m),pos=C.Cartesian3.fromDegrees(lon,lat,16);if(!e){e=ph.viewer.entities.add({position:pos,billboard:{image:av.src||undefined,width:54,height:54,verticalOrigin:C.VerticalOrigin.BOTTOM,disableDepthTestDistance:Number.POSITIVE_INFINITY},point:av.src?undefined:{pixelSize:14,color:C.Color.fromCssColorString('#ff4f4f'),outlineColor:C.Color.WHITE,outlineWidth:3},label:{text:String(m.display_name||'Família'),font:'700 12px sans-serif',fillColor:C.Color.WHITE,outlineColor:C.Color.BLACK,outlineWidth:4,style:C.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new C.Cartesian2(0,8),verticalOrigin:C.VerticalOrigin.TOP,disableDepthTestDistance:Number.POSITIVE_INFINITY}});ph.family.set(key,e);}else e.position=pos;}
+    for(const [k,e] of [...ph.family])if(!live.has(k)){try{ph.viewer.entities.remove(e)}catch(_){}ph.family.delete(k);}
+  }
+  function syncPhoto3DPlaces(){
+    const ph=state.photo3d,C=window.Cesium;if(!ph?.viewer||!C)return;const live=new Set();for(const pl of state.savedPlaces||[]){const lat=Number(pl.lat??pl.latitude),lon=Number(pl.lon??pl.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lon)||!photo3dInsideLuanda({lat,lon}))continue;const key=String(pl.id||pl.name||`${lat},${lon}`);live.add(key);let e=ph.places.get(key);if(!e){e=ph.viewer.entities.add({position:C.Cartesian3.fromDegrees(lon,lat,14),point:{pixelSize:10,color:C.Color.fromCssColorString('#25b9ff'),outlineColor:C.Color.WHITE,outlineWidth:2,disableDepthTestDistance:Number.POSITIVE_INFINITY},label:{text:String(pl.name||'POI'),font:'700 11px sans-serif',fillColor:C.Color.WHITE,outlineColor:C.Color.BLACK,outlineWidth:4,style:C.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new C.Cartesian2(0,-14),disableDepthTestDistance:Number.POSITIVE_INFINITY}});ph.places.set(key,e);}}
+    for(const [k,e] of [...ph.places])if(!live.has(k)){try{ph.viewer.entities.remove(e)}catch(_){}ph.places.delete(k);}
+  }
+  function syncPhoto3DCamera(force=false){
+    const ph=state.photo3d,C=window.Cesium,p=state.currentPosition;if(!ph?.viewer||!C||!p)return;const now=Date.now();if(!force&&now-(ph.lastCameraAt||0)<600)return;ph.lastCameraAt=now;const heading=C.Math.toRadians(photo3dHeading());const target=C.Cartesian3.fromDegrees(Number(p.lon),Number(p.lat),8);const speed=Math.max(0,Number(p.speed)||0)*3.6;const range=speed>70?520:speed>25?400:310;const pitch=C.Math.toRadians(-34);try{ph.viewer.camera.lookAt(target,new C.HeadingPitchRange(heading,pitch,range));}catch(_){}
+  }
+  async function syncLuandaPhoto3D(forceCamera=false){
+    if(!state.photo3d?.active||!state.photo3d.viewer)return;await Promise.allSettled([syncPhoto3DOwnship(),syncPhoto3DRoute(),syncPhoto3DFamily()]);syncPhoto3DPlaces();syncPhoto3DCamera(forceCamera);try{state.photo3d.viewer.resize();state.photo3d.viewer.scene.requestRender();}catch(_){}
+  }
+  async function initLuandaPhoto3D(){
+    const ph=state.photo3d,key=photo3dApiKey();if(!key)throw new Error('Configure primeiro a chave Google Map Tiles API.');
+    if(ph.viewer&&ph.tileset)return ph.viewer;const C=await loadCesiumRuntime();const host=$('#photo3dMap');if(!host)throw new Error('Área Photo 3D indisponível.');host.innerHTML='';
+    C.RequestScheduler.requestsByServer['tile.googleapis.com:443']=18;
+    const viewer=new C.Viewer('photo3dMap',{imageryProvider:false,baseLayerPicker:false,geocoder:false,homeButton:false,sceneModePicker:false,navigationHelpButton:false,timeline:false,animation:false,fullscreenButton:false,infoBox:false,selectionIndicator:false,shouldAnimate:true,requestRenderMode:false});
+    viewer.scene.globe.show=false;viewer.scene.backgroundColor=C.Color.fromCssColorString('#07141c');viewer.scene.fog.enabled=true;viewer.scene.screenSpaceCameraController.enableCollisionDetection=true;
+    const root=`https://tile.googleapis.com/v1/3dtiles/root.json?key=${encodeURIComponent(key)}`;
+    let tileset;try{tileset=new C.Cesium3DTileset({url:root,showCreditsOnScreen:true,maximumScreenSpaceError:12,dynamicScreenSpaceError:true,skipLevelOfDetail:true,baseScreenSpaceError:1024,skipScreenSpaceErrorFactor:16,skipLevels:1,immediatelyLoadDesiredLevelOfDetail:false});viewer.scene.primitives.add(tileset);}catch(e){try{viewer.destroy()}catch(_){}throw e;}
+    ph.viewer=viewer;ph.tileset=tileset;ph.lastError='';
+    try{tileset.tileFailed?.addEventListener?.(err=>{ph.lastError=String(err?.message||err||'Falha num tile 3D');});}catch(_){}
+    if(!ph.syncTimer)ph.syncTimer=setInterval(()=>{if(ph.active)syncLuandaPhoto3D(false).catch(()=>{});},900);
+    return viewer;
+  }
+  async function useLuandaPhoto3D({force=false}={}){
+    if(!force&&!shouldUseLuandaPhoto3D())return false;
+    try{photo3dSetBadge(true,'A CARREGAR PHOTO 3D');await initLuandaPhoto3D();state.photo3d.active=true;$('#photo3dMap')?.classList.add('active');$('#map')?.classList.add('hidden');$('#offlineMap')?.classList.add('hidden');$('#mapBadge')?.classList.add('hidden');photo3dSetBadge(true,'LUANDA PHOTO 3D');state.currentMapStyle='photo3d';await syncLuandaPhoto3D(true);return true;}catch(e){state.photo3d.active=false;state.photo3d.lastError=String(e?.message||e);$('#photo3dMap')?.classList.remove('active');photo3dSetBadge(false);return false;}
+  }
+  function savePhoto3DKey(value){const v=String(value||'').trim();if(v)localStorage.setItem(PHOTO3D_KEY_STORAGE,v);else localStorage.removeItem(PHOTO3D_KEY_STORAGE);destroyLuandaPhoto3D();}
+
   function initPmtilesProtocol(){
     if(state.pmtilesProtocol || typeof pmtiles==='undefined' || typeof maplibregl==='undefined') return;
     try{
@@ -2535,26 +2642,29 @@ body{min-height:var(--app-vh);margin:0}
   }
 
   async function updateMapMode(){
+    // RC11.82 priority: Google Photo 3D online in Luanda -> local PMTiles -> normal online -> generic offline.
+    if(state.mode==='drive'&&state.net==='online'&&shouldUseLuandaPhoto3D()){
+      const ok=await useLuandaPhoto3D();
+      if(ok){syncSegments();renderDriveToolbar();renderDriveNavCard();return;}
+      // An API/coverage/runtime failure must never block navigation: fall through to PMTiles.
+    }
+    hideLuandaPhoto3D();
     const luandaRec=state.mode==='drive'?await getLuanda3DVector():null;
     const useLuanda=!!(luandaRec&&(!state.currentPosition||!Array.isArray(luandaRec.bounds)||pointInsideBounds(state.currentPosition,luandaRec.bounds)));
     const preferred=state.preferOfflineMap&&state.offlineMapRecord&&state.mode==='flight'&&state.positionSource==='device'&&(!Array.isArray(state.offlineMapRecord.bounds)||!state.currentPosition||pointInsideBounds(state.currentPosition,state.offlineMapRecord.bounds));
     const online=state.net==='online'&&!preferred&&!useLuanda;
     if(useLuanda){
-      await ensureMapStack(true);
-      await useOfflinePmtiles(luandaRec);
+      await ensureMapStack(true);await useOfflinePmtiles(luandaRec);
     }else if(preferred){
-      await ensureMapStack(true);
-      await useOfflinePmtiles(state.offlineMapRecord);
+      await ensureMapStack(true);await useOfflinePmtiles(state.offlineMapRecord);
     }else if(online){
-      await ensureMapStack(false);
-      $('#map').classList.remove('hidden'); $('#offlineMap').classList.add('hidden');
-      if(!state.map) initMap('online'); else { await restoreOnlineStyle(); state.map.resize(); if(state.mode==='flight'&&state.mapReady){addTerrainOverlay();addAviationLayers();addDeceaLayers().catch(()=>{});addWorldNavLayers();hydrateWorldNavCache().then(()=>refreshWorldNavMap());} updateAviationVisibility();setDriveBasePerformance(state.mode==='drive');drawRouteOnMap(); }
+      await ensureMapStack(false);$('#map').classList.remove('hidden');$('#offlineMap').classList.add('hidden');
+      if(!state.map)initMap('online');else{await restoreOnlineStyle();state.map.resize();if(state.mode==='flight'&&state.mapReady){addTerrainOverlay();addAviationLayers();addDeceaLayers().catch(()=>{});addWorldNavLayers();hydrateWorldNavCache().then(()=>refreshWorldNavMap());}updateAviationVisibility();setDriveBasePerformance(state.mode==='drive');drawRouteOnMap();}
     }else{
       const rec=await getOfflineMapRecord(state.mode==='flight'?'aviation':'terrestrial').catch(()=>null);
-      if(rec){await ensureMapStack(true);await useOfflinePmtiles(rec);}
-      else { $('#map').classList.add('hidden'); $('#offlineMap').classList.remove('hidden'); renderOfflineSvg(state.currentRoute); }
+      if(rec){await ensureMapStack(true);await useOfflinePmtiles(rec);}else{$('#map').classList.add('hidden');$('#offlineMap').classList.remove('hidden');renderOfflineSvg(state.currentRoute);}
     }
-    syncSegments(); renderDriveToolbar(); renderDriveNavCard(); if(state.mode==='drive') setTimeout(()=>{applyDriveMapView(true);if(state.currentPosition&&state.followOwnship)centerOnMe();},120);
+    syncSegments();renderDriveToolbar();renderDriveNavCard();if(state.mode==='drive')setTimeout(()=>{applyDriveMapView(true);if(state.currentPosition&&state.followOwnship)centerOnMe();},120);
   }
 
   function setLayer(layer){ state.layer=layer; localStorage.setItem('aeronav.layer',layer); syncSegments(); updateAviationVisibility(); }
@@ -2625,6 +2735,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
   function drawRouteOnMap(){
+    if(state.photo3d?.active){syncPhoto3DRoute().catch(()=>{});return;}
     updateLiveNavigation(); renderDriveNavCard(); bindRouteOverlayUpdates();
     if(!state.mapReady || $('#map').classList.contains('hidden')){renderRouteOverlay();return;}
     const route=state.currentRoute;
@@ -4159,6 +4270,7 @@ body{min-height:var(--app-vh);margin:0}
     }
     const p=fresh||state.currentPosition; if(!p)return;
     state.followOwnship=true;
+    if(state.photo3d?.active){await syncLuandaPhoto3D(true).catch(()=>{});return;}
     if(Number.isFinite(p.accuracy)&&p.accuracy>500){
       toast(`Localização aproximada (±${Math.round(p.accuracy)} m). No iPhone/iPad, ative Definições › Privacidade e Segurança › Serviços de Localização › Safari/AERONAV › Localização Precisa.`);
     }else if(Number.isFinite(p.accuracy)&&p.accuracy>80){
@@ -4195,6 +4307,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
   function updatePositionMarker(){
+    if(state.photo3d?.active){syncLuandaPhoto3D(false).catch(()=>{});return;}
     if(!state.map || !state.mapReady || !state.currentPosition || typeof maplibregl==='undefined') return;
     const kind=state.mode==='flight'?'flight':groundTransport();
     if(!state.positionMarker || state.positionMarkerMode!==kind){
@@ -6151,6 +6264,7 @@ body{min-height:var(--app-vh);margin:0}
         <div class="card"><div class="kpi-grid"><div class="kpi"><span>CARTAS PDF</span><strong>${charts.length}</strong></div><div class="kpi"><span>ROTAS</span><strong>${routes.length}</strong></div><div class="kpi"><span>MAPAS .PMTILES</span><strong>${maps.length}</strong></div></div></div>
         <div class="card"><h3>Disponível sem Internet</h3><div class="mini-grid"><div class="mini-card"><strong>✓ App e interface</strong><small>Service worker guarda o núcleo da PWA após instalação.</small></div><div class="mini-card"><strong>✓ Cartas importadas</strong><small>PDFs ficam em IndexedDB.</small></div><div class="mini-card"><strong>✓ Rotas guardadas</strong><small>Geometria, distância, ETE e instruções.</small></div><div class="mini-card"><strong>✓ GPS do dispositivo</strong><small>Não depende de Internet, desde que o sistema forneça posição.</small></div></div></div>
         <div class="card"><h3>Qualidade cartográfica inteligente</h3><div class="sub">Escolha o equilíbrio entre fluidez e detalhe. AERONAV mantém apenas as camadas necessárias ao modo atual.</div><div class="map-quality-seg" style="margin-top:10px"><button data-map-quality="eco" class="${state.mapQuality==='eco'?'active':''}">LEVE</button><button data-map-quality="balanced" class="${state.mapQuality==='balanced'?'active':''}">EQUILIBRADA</button><button data-map-quality="high" class="${state.mapQuality==='high'?'active':''}">ALTA</button></div><div class="format-note">Atual: <b>${mapQualityLabel()}</b>. Em iPhone, EQUILIBRADA é a recomendação normal; ALTA é mais indicada para cartas raster detalhadas e tablets.</div><div style="margin-top:12px">${mapFormatsGuideHTML()}</div></div>
+        <div class="card"><div class="page-head"><div><h3>Luanda Photo 3D · ONLINE</h3><p>Google Photorealistic 3D Tiles em CARRO, com rota AERONAV, Toyota, POIs e Family por cima.</p></div><span class="badge ${photo3dHasKey()&&state.photo3d.enabled?'ok':'info'}">${photo3dHasKey()&&state.photo3d.enabled?'CONFIGURADO':'CONFIGURAR'}</span></div><div class="preflight-grid"><div class="preflight-item"><span>ONLINE</span><strong>FOTOREALISTA</strong><small>Carrega apenas com Internet e nunca é guardado para uso offline.</small></div><div class="preflight-item"><span>OFFLINE</span><strong>AUTOMÁTICO</strong><small>Sem Internet volta aos PMTiles Luanda 3D já instalados.</small></div><div class="preflight-item"><span>ATRIBUIÇÃO</span><strong>GOOGLE MAPS</strong><small>Créditos do Google e fornecedores permanecem visíveis.</small></div></div><div class="photo3d-key-row" style="margin-top:12px"><div class="field"><label>Google Map Tiles API key</label><input id="photo3dApiKeyInput" type="password" autocomplete="off" placeholder="${photo3dHasKey()?'Chave já guardada neste aparelho':'Cole aqui a chave API (AIza...)'}"></div><button class="primary-btn" id="savePhoto3DKeyBtn">Guardar chave</button></div><div class="btn-row"><button class="secondary-btn" id="testPhoto3DBtn">Testar Luanda Photo 3D</button><button class="secondary-btn" id="togglePhoto3DBtn">${state.photo3d.enabled?'Desativar Photo 3D':'Ativar Photo 3D'}</button><button class="secondary-btn" id="clearPhoto3DKeyBtn">Apagar chave</button></div><div class="notice ${photo3dHasKey()?'good':'warn'}" style="margin-top:10px">${photo3dHasKey()?'Chave configurada neste dispositivo. Em CARRO + Internet + Luanda, Photo 3D tem prioridade.':'É necessária uma chave do Google Maps Platform com Map Tiles API ativa e faturação configurada.'}</div><div class="source-note" style="margin-top:8px">A chave fica apenas no armazenamento local deste aparelho, mas continua a ser uma chave de cliente: restrinja-a no Google Cloud ao domínio da AERONAV e à Map Tiles API. A cobertura fotorealista de Luanda depende da disponibilidade do Google.</div></div>
         <div class="card"><div class="page-head"><div><h3>Luanda 3D · CARRO/A PÉ</h3><p>Pacote oficial desta RC: ruas, edifícios 3D e terreno, guardados no próprio dispositivo.</p></div><span class="badge ${luandaReady?'ok':'info'}">${luandaReady?'INSTALADO':'DISPONÍVEL'}</span></div><div class="preflight-grid"><div class="preflight-item"><span>VETOR</span><strong>${luandaVector?'PRONTO':'11,2 MB'}</strong><small>Ruas, edifícios, bairros e POIs.</small></div><div class="preflight-item"><span>TERRENO</span><strong>${luandaTerrain?'PRONTO':'9,3 MB'}</strong><small>DEM Terrarium usado apenas para elevação, nunca como mapa-base.</small></div><div class="preflight-item"><span>MODO</span><strong>3D MODERNO</strong><small>Estradas claras + edifícios 3D + terreno em CARRO/A PÉ.</small></div></div><div class="btn-row"><button class="primary-btn" id="installLuanda3DBtn">${luandaReady?'Reinstalar Luanda 3D':'Instalar Luanda 3D'}</button>${luandaReady?'<button class="secondary-btn" id="openLuanda3DBtn">Abrir Luanda 3D</button>':''}</div><div class="notice good" style="margin-top:10px">Não requer Bash, PowerShell ou importação manual. A primeira instalação requer Internet; depois os dois PMTiles ficam em IndexedDB e funcionam offline.</div></div>
         <div class="card"><h3>Mapas offline por dispositivo</h3><div class="sub">VOO e CONDUÇÃO têm pacotes separados. Prefira PMTiles vetorial; para cartas-imagem, prefira PMTiles WebP/AVIF por região.</div><div class="mini-grid"><div class="mini-card"><strong>✈ Aeronáutico mundial</strong><small>Baixe o mundo por países/regiões ou importe um pacote PMTiles. A camada DECEA Brasil fica separada e pode ser atualizada por AIRAC.</small><div class="field" style="margin-top:10px"><label>URL PMTiles do pacote</label><input id="aviationPmtilesUrl" placeholder="https://fornecedor/.../brasil.pmtiles"></div><div class="btn-row"><button class="primary-btn" id="downloadAviationPmtiles">Baixar mapa VOO</button><button class="secondary-btn" id="importAviationPmtiles">Importar ficheiro</button></div></div><div class="mini-card"><strong>🚗 Terrestre</strong><small>Mapa rodoviário estilo navegação, descarregado independentemente para este aparelho.</small><div class="field" style="margin-top:10px"><label>URL PMTiles do pacote</label><input id="terrestrialPmtilesUrl" placeholder="https://fornecedor/.../sao-paulo.pmtiles"></div><div class="btn-row"><button class="primary-btn" id="downloadTerrestrialPmtiles">Baixar mapa CONDUÇÃO</button><button class="secondary-btn" id="importTerrestrialPmtiles">Importar ficheiro</button></div></div></div><div id="offlineMapList" style="margin-top:12px">${offlineMapsListHTML(maps)}</div>${maps.length?'<div class="btn-row"><button class="secondary-btn" id="openOfflineMapBtn">Abrir mapa offline do modo atual</button></div>':''}<div class="notice good" style="margin-top:12px">Para manter a aplicação leve, use pacotes por país/região. Vetor PMTiles é a primeira escolha; raster WebP/AVIF é indicado para cartas-imagem. Evite um único ficheiro mundial gigante. A AERONAV não faz bulk download de servidores públicos sem licença.</div></div>
         <div class="card"><h3>Itinerários Fly & Drive guardados</h3><div id="itinList">${itineraryListHTML(itins)}</div></div>
@@ -6165,6 +6279,10 @@ body{min-height:var(--app-vh);margin:0}
     $('#importTerrestrialPmtiles')?.addEventListener('click',()=>{state.pendingMapKind='terrestrial';$('#pmtilesFileInput').click();});
     $('#downloadAviationPmtiles')?.addEventListener('click',()=>downloadPmtilesFromUrl($('#aviationPmtilesUrl')?.value,'aviation'));
     $('#downloadTerrestrialPmtiles')?.addEventListener('click',()=>downloadPmtilesFromUrl($('#terrestrialPmtilesUrl')?.value,'terrestrial'));
+    $('#savePhoto3DKeyBtn')?.addEventListener('click',async()=>{const v=$('#photo3dApiKeyInput')?.value||'';if(!v.trim())return toast(photo3dHasKey()?'A chave atual continua guardada.':'Cole primeiro a chave Map Tiles API.');savePhoto3DKey(v);state.photo3d.enabled=true;localStorage.setItem(PHOTO3D_ENABLED_STORAGE,'1');toast('Chave Photo 3D guardada neste aparelho.');renderOfflineScreen();});
+    $('#clearPhoto3DKeyBtn')?.addEventListener('click',()=>{localStorage.removeItem(PHOTO3D_KEY_STORAGE);destroyLuandaPhoto3D();toast('Chave Photo 3D apagada deste aparelho.');renderOfflineScreen();});
+    $('#togglePhoto3DBtn')?.addEventListener('click',()=>{state.photo3d.enabled=!state.photo3d.enabled;localStorage.setItem(PHOTO3D_ENABLED_STORAGE,state.photo3d.enabled?'1':'0');if(!state.photo3d.enabled)hideLuandaPhoto3D();toast(`Luanda Photo 3D ${state.photo3d.enabled?'ativado':'desativado'}.`);renderOfflineScreen();if(state.activeTab==='map')updateMapMode();});
+    $('#testPhoto3DBtn')?.addEventListener('click',async()=>{if(!photo3dHasKey())return toast('Configure primeiro a chave Google Map Tiles API.');state.photo3d.enabled=true;localStorage.setItem(PHOTO3D_ENABLED_STORAGE,'1');state.mode='drive';localStorage.setItem('aeronav.mode','drive');setTab('map');const ok=await useLuandaPhoto3D({force:true});if(ok){toast('Luanda Photo 3D iniciado. A cobertura local depende do Google.');setTimeout(()=>syncLuandaPhoto3D(true),500);}else toast('Photo 3D não abriu: '+(state.photo3d.lastError||'verifique a chave/API/cobertura.'));});
     $('#installLuanda3DBtn')?.addEventListener('click',installLuanda3D);
     $('#openLuanda3DBtn')?.addEventListener('click',async()=>{state.mode='drive';state.manualWalk=false;localStorage.setItem('aeronav.mode','drive');localStorage.setItem('aeronav.manualWalk','0');syncSegments();setTab('map');await updateMapMode();});
     $('#openOfflineMapBtn')?.addEventListener('click',async()=>{state.net='offline';localStorage.setItem('aeronav.net','offline');syncSegments();setTab('map');await updateMapMode();});
