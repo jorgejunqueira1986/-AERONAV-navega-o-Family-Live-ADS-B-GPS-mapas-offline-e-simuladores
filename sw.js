@@ -1,17 +1,13 @@
-/* AERONAV — RC11.84 Secure Luanda Photo 3D proxy HOTFIX
-   - Fixes RC11.83 UI freeze.
-   - No automatic client navigation on SW activation.
-   - Owner HTML receives the non-recursive secure Photo 3D bridge.
-   - Google API key remains only in Railway. */
-const CACHE='aeronav-jorge-RC11_84-luanda-photo3d-secure-hotfix-20260929-1';
+/* AERONAV — RC11.80 Cancel Sync Guard + RC11.79 preserved
+   Policy:
+   - App shell + exact runtime libraries: cached for offline use.
+   - Navigation requests: network-first, cached fallback.
+   - Dynamic/API/data requests: network-only (never stale from SW cache).
+   This prevents live GPS-family, ADS-B, weather and other feeds from being
+   silently served from an old service-worker cache. */
+const CACHE='aeronav-jorge-RC11_80-cancel-sync-20260929-2-ROLLBACK';
 const LOCAL=[
-  './','./index.html','./manifest.json','./sw.js','./photo3d-proxy.js','./family-viewer.html','./wendler.html',
-  './family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png',
-  './assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg',
-  './assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png',
-  './assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png',
-  './assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png',
-  './assets/vehicles/toyota-yaris-ld-37-23-fm.png'
+  './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png'
 ];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
@@ -30,47 +26,38 @@ async function fetchTimed(input,init={},timeoutMs=10000){
   try{return await fetch(input,{...init,signal:controller.signal});}
   finally{clearTimeout(timer);}
 }
+
 async function putSafe(cache,request,response){
   if(!response || (!response.ok && response.type!=='opaque')) return;
   try{await cache.put(request,response.clone());}catch(_){}
 }
-function isChildPath(pathname){
-  return /\/mathia\//.test(pathname)||/\/wendler\//.test(pathname)||/\/family\/?(?:index\.html)?$/.test(pathname)||
-         /\/family-viewer(?:-preview)?\.html$/.test(pathname)||/\/wendler\.html$/.test(pathname);
-}
-async function injectOwnerPhoto3DBridge(request,response){
-  try{
-    if(!response || !response.ok) return response;
-    const url=new URL(request.url);
-    if(url.origin!==self.location.origin || isChildPath(url.pathname)) return response;
-    const ct=response.headers.get('Content-Type')||'';
-    if(!/text\/html/i.test(ct) && request.mode!=='navigate' && !/\/index\.html$/.test(url.pathname)) return response;
-    let html=await response.text();
-    if(!html.includes('data-aeronav-photo3d-proxy="RC11.84"')){
-      html=html.replace(/<script[^>]*data-aeronav-photo3d-proxy="RC11\.83"[^>]*><\/script>/g,'');
-      const tag='<script data-aeronav-photo3d-proxy="RC11.84" src="./photo3d-proxy.js?v=11.84"></script>';
-      html=html.includes('</body>')?html.replace('</body>',tag+'</body>'):html+tag;
-    }
-    const headers=new Headers(response.headers);
-    headers.delete('Content-Length');headers.delete('Content-Encoding');
-    headers.set('Cache-Control','no-cache');
-    return new Response(html,{status:response.status,statusText:response.statusText,headers});
-  }catch(_){return response;}
-}
+
 async function warm(){
   const c=await caches.open(CACHE);
   const localResults=await Promise.all(LOCAL.map(async u=>{
-    try{const r=await fetchTimed(u,{cache:'reload'},6000);if(r.ok){await c.put(u,r.clone());return 1;}}catch(_){}
+    try{
+      const r=await fetchTimed(u,{cache:'reload'},6000);
+      if(r.ok){await c.put(u,r.clone());return 1;}
+    }catch(_){}
     return 0;
   }));
   const remoteResults=await Promise.all(REMOTE.map(async u=>{
-    try{const r=await fetchTimed(u,{cache:'reload',mode:'cors'},12000);if(r.ok){await c.put(u,r.clone());return 1;}}catch(_){}
+    try{
+      const r=await fetchTimed(u,{cache:'reload',mode:'cors'},12000);
+      if(r.ok){await c.put(u,r.clone());return 1;}
+    }catch(_){}
     return 0;
   }));
   const local=localResults.reduce((a,b)=>a+b,0),remote=remoteResults.reduce((a,b)=>a+b,0);
-  return {shellReady:!!(await c.match('./index.html')),localReady:local===LOCAL.length,localCount:local,
-          remoteReady:remote===REMOTE.length,remoteCount:remote};
+  return {
+    shellReady:!!(await c.match('./index.html')),
+    localReady:local===LOCAL.length,
+    localCount:local,
+    remoteReady:remote===REMOTE.length,
+    remoteCount:remote
+  };
 }
+
 async function cacheFirst(request){
   const c=await caches.open(CACHE);
   const hit=await c.match(request,{ignoreSearch:false});
@@ -79,36 +66,40 @@ async function cacheFirst(request){
   await putSafe(c,request,r);
   return r;
 }
+
 async function networkFirst(request){
   const c=await caches.open(CACHE);
   try{
     const r=await fetchTimed(request,{},5000);
     await putSafe(c,request,r);
-    return await injectOwnerPhoto3DBridge(request,r.clone());
+    return r;
   }catch(err){
     const url=new URL(request.url);
-    const exact=await c.match(request,{ignoreSearch:false})||
-                await c.match(url.pathname==='/'?'./index.html':url.pathname.replace(/^\//,'./'));
-    if(exact)return await injectOwnerPhoto3DBridge(request,exact.clone());
+    const exact=await c.match(request,{ignoreSearch:false}) ||
+      await c.match(url.pathname==='/'?'./index.html':url.pathname.replace(/^\//,'./'));
+    if(exact)return exact;
     const familyPath=/\/family\/?(?:index\.html)?$/.test(url.pathname);
     const wendlerPath=/\/wendler\/?(?:index\.html)?$/.test(url.pathname)||/\/wendler\.html$/.test(url.pathname);
     const fallback=await c.match(wendlerPath?'./wendler.html':familyPath?'./family-viewer.html':'./index.html');
-    if(fallback)return await injectOwnerPhoto3DBridge(request,fallback.clone());
+    if(fallback)return fallback;
     throw err;
   }
 }
+
 self.addEventListener('install',event=>{
   event.waitUntil(warm().then(()=>self.skipWaiting()));
 });
+
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
-    await Promise.all(keys.filter(k=>k!==CACHE&&(k.startsWith('app-nav-')||
-      (k.startsWith('aeronav-')&&!k.startsWith('aeronav-mathia-')&&!k.startsWith('aeronav-wendler-'))))
+    await Promise.all(keys.filter(k=>k!==CACHE &&
+      (k.startsWith('app-nav-')||(k.startsWith('aeronav-')&&!k.startsWith('aeronav-mathia-')&&!k.startsWith('aeronav-wendler-'))))
       .map(k=>caches.delete(k)));
     await self.clients.claim();
   })());
 });
+
 self.addEventListener('fetch',event=>{
   const req=event.request;
   if(req.method!=='GET')return;
@@ -116,11 +107,22 @@ self.addEventListener('fetch',event=>{
   if(url.protocol!=='http:'&&url.protocol!=='https:')return;
   const p=url.pathname;
   if(/\/mathia\//.test(p)||/\/wendler\//.test(p))return;
-  if(req.mode==='navigate'){event.respondWith(networkFirst(req));return;}
-  if(REMOTE_SET.has(req.url)){event.respondWith(cacheFirst(req));return;}
-  if(url.origin===self.location.origin&&LOCAL_PATHS.has(url.pathname)){event.respondWith(networkFirst(req));return;}
+
+  if(req.mode==='navigate'){
+    event.respondWith(networkFirst(req));
+    return;
+  }
+  if(REMOTE_SET.has(req.url)){
+    event.respondWith(cacheFirst(req));
+    return;
+  }
+  if(url.origin===self.location.origin&&LOCAL_PATHS.has(url.pathname)){
+    event.respondWith(networkFirst(req));
+    return;
+  }
   event.respondWith(fetch(req));
 });
+
 self.addEventListener('message',event=>{
   const port=event.ports&&event.ports[0];
   if(!port)return;
@@ -129,21 +131,31 @@ self.addEventListener('message',event=>{
       let remote=0,local=0;
       for(const u of REMOTE){if(await c.match(u))remote++;}
       for(const u of LOCAL){if(await c.match(u))local++;}
-      port.postMessage({shellReady:!!(await c.match('./index.html')),localReady:local===LOCAL.length,
-        localCount:local,remoteReady:remote===REMOTE.length,remoteCount:remote,cacheVersion:CACHE,photo3dProxy:true});
+      port.postMessage({
+        shellReady:!!(await c.match('./index.html')),
+        localReady:local===LOCAL.length,
+        localCount:local,
+        remoteReady:remote===REMOTE.length,
+        remoteCount:remote,
+        cacheVersion:CACHE
+      });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){
     warm().then(x=>port.postMessage(x)).catch(err=>port.postMessage({error:String(err?.message||err)}));
   }
 });
+
 self.addEventListener('notificationclick',event=>{
-  const data=event.notification?.data||{};event.notification.close();
+  const data=event.notification?.data||{};
+  event.notification.close();
   event.waitUntil((async()=>{
     const all=await clients.matchAll({type:'window',includeUncontrolled:true});
     if(data.type==='active-route'){
       const main=all.find(c=>!/\/family\/?(?:index\.html)?$/.test(new URL(c.url).pathname)&&
         !/\/wendler(?:\/index\.html|\.html)?$/.test(new URL(c.url).pathname));
-      if(main){try{await main.focus();main.postMessage?.({type:'AERONAV_OPEN_ACTIVE_ROUTE'});return;}catch(_){}}
+      if(main){
+        try{await main.focus();main.postMessage?.({type:'AERONAV_OPEN_ACTIVE_ROUTE'});return;}catch(_){}
+      }
       try{await clients.openWindow(new URL('./index.html',self.location.href).href);}catch(_){}
       return;
     }
