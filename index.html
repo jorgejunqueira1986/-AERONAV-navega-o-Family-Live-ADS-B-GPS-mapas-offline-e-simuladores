@@ -4235,7 +4235,13 @@ body{min-height:var(--app-vh);margin:0}
   async function renderHomeScreen(){
     const host=$('#screen-home'); if(!host)return;
     const p=state.currentPosition; const route=state.currentRoute;
-    const familyOnline=(state.family.members||[]).filter(m=>m.sharing).length;
+    // RC11.85: contar apenas pessoas reais da família, deduplicadas, com partilha recente.
+    // Linhas técnicas (SOS, chamadas, bateria, jornada, sync, etc.) nunca contam como membros online.
+    const familyOnline=familyUiMembers().filter(m=>{
+      if(!m?.sharing) return false;
+      const ts=Date.parse(m.updated_at||0);
+      return Number.isFinite(ts) && (Date.now()-ts)<120000;
+    }).length;
     const xp=state.bridge.xplaneStatus==='streaming'||state.bridge.status==='ligado';
     const msfs=state.msfsBridge.simulatorStatus==='streaming'||state.msfsBridge.status==='ligado';
     const modeLabel=state.mode==='flight'?'VOO':(state.manualWalk?'A PÉ':'CARRO');
