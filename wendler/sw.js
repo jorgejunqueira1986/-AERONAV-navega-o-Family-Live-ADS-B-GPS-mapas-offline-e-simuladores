@@ -1,5 +1,5 @@
-/* AERONAV RC11.76 — Wendler independent Family client · Verde Imperial */
-const CACHE='aeronav-wendler-RC11_76-redmi-note14pro-20260929-1';
+/* AERONAV RC11.78 — Wendler independent Family client · Verde Imperial */
+const CACHE='aeronav-wendler-RC11_78-redmi-note14pro-20260929-2';
 const CORE=['./','./index.html','./manifest.json','./icons/icon-192.png','./icons/icon-512.png','../assets/people/wendler-avatar-3d.png'];
 async function warm(){const c=await caches.open(CACHE);for(const u of CORE){try{const r=await fetch(u,{cache:'reload'});if(r.ok)await c.put(u,r.clone());}catch(_){}}}
 self.addEventListener('install',e=>e.waitUntil(warm().then(()=>self.skipWaiting())));

@@ -11,7 +11,7 @@
 <meta name="robots" content="noindex,nofollow" />
 <script>if(/Android/i.test(navigator.userAgent))document.documentElement.classList.add('android-device');if(/Redmi|Xiaomi/i.test(navigator.userAgent))document.documentElement.classList.add('xiaomi-redmi');</script>
 <link rel="manifest" href="./manifest.json" />
-<title>AERONAV Wendler · RC11.76 · Redmi Note 14 Pro</title>
+<title>AERONAV Wendler · RC11.78 · Redmi Note 14 Pro</title>
 <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
 <style>
 :root{color-scheme:dark;--bg:#06131f;--panel:#0a1d2c;--panel2:#0e2638;--line:#1e4055;--text:#eef7ff;--muted:#9fb2c1;--cyan:#2fd1ff;--green:#57e6b4;--amber:#ffca63;--red:#ff6f7d}
@@ -143,7 +143,7 @@ html,body{background:linear-gradient(180deg,#000,#080808 55%,#020202)!important;
 @media(max-width:390px){.ground-mode{font-size:12px!important;padding:11px 5px!important}.client-live-hud{gap:6px;padding:8px}.hud-cell{padding:8px}.hud-cell strong{font-size:13px}}
 
 
-/* RC11.76 — QR lido DENTRO da PWA para que o token fique no armazenamento do app instalado no Android/PWA. */
+/* RC11.78 — QR lido DENTRO da PWA para que o token fique no armazenamento do app instalado no Android/PWA. */
 .qrscan-wrap{display:none;margin-top:12px;border:1px solid rgba(244,166,194,.55);border-radius:18px;padding:12px;background:#090909}
 .qrscan-wrap.show{display:block}
 .qrscan-video{width:100%;max-height:46vh;object-fit:cover;border-radius:14px;background:#000}
@@ -151,7 +151,7 @@ html,body{background:linear-gradient(180deg,#000,#080808 55%,#020202)!important;
 .qrscan-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .build-tag{font-size:11px;opacity:.68;margin-top:8px}
 
-/* ---------- RC11.76 · rota própria Mathia + partilha opcional + cancelamento sincronizado ---------- */
+/* ---------- RC11.78 · rota própria Mathia + partilha opcional + cancelamento sincronizado ---------- */
 .own-route-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.own-route-summary{margin-top:10px}.own-route-summary .route-card{border-color:#d95c93!important}.own-route-mode-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}.own-route-mode{min-height:48px}.own-route-mode.active{background:linear-gradient(135deg,#ef8db5,#f5b4ce)!important;border-color:#d95c93!important;color:#432635!important}.route-plan-note{font-size:11px;color:#8e6577;line-height:1.45}.route-spinner{display:inline-block;width:14px;height:14px;border:2px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:routeSpin .8s linear infinite;vertical-align:-2px;margin-right:6px}@keyframes routeSpin{to{transform:rotate(360deg)}}
 </style>
 
@@ -174,7 +174,7 @@ html,body{background:linear-gradient(180deg,#fff9fc,#fdeaf3 58%,#fff7fb)!importa
 
 <style id="wendler-imperial-theme">
 /* =========================================================
-   AERONAV RC11.76 — WENDLER · VERDE IMPERIAL
+   AERONAV RC11.78 — WENDLER · VERDE IMPERIAL
    Tema exclusivo do perfil independente do Wendler.
    ========================================================= */
 :root{
@@ -409,7 +409,7 @@ body.wendler-theme{min-height:100dvh}
 </style>
 
 <style id="wendler-premium-ui-v1">
-/* AERONAV RC11.76 — Wendler Premium · Verde Imperial */
+/* AERONAV RC11.78 — Wendler Premium · Verde Imperial */
 body.wendler-theme{
   --imperial:#00C96B;--imperial-hi:#38F28B;--imperial-dark:#0B5D3B;
   --imperial-deep:#03110B;--glass:#08251A;--glass2:#061B13;
@@ -608,7 +608,7 @@ html.android-device body.wendler-theme #qrHint{margin:8px 2px 0;color:#b7d8c7;fo
       <div class="section-title"><span class="section-icon" style="background:#7e1c2b">!</span> SOS familiar</div><div class="sub">Em perigo, mantenha SOS pressionado por 2 segundos.</div>
       <div class="btns" style="margin-top:10px"><button class="btn sosbtn" id="viewerSosBtn">MANTER PARA SOS</button><button class="btn" id="viewerSosCancel" style="display:none">✓ Estou seguro</button><button class="btn" id="viewerSosAlerts">🔔 Ativar alertas</button></div>
     </section>
-    <div class="footer">AERONAV Wendler RC11.76 · Xiaomi Redmi Note 14 Pro · Android/PWA · Tema Verde Imperial Premium · emparelhamento persistente, localização, mapa, Family Live, chamadas, SOS e acompanhamento GPS/ADS-B do Jorge.</div>
+    <div class="footer">AERONAV Wendler RC11.78 · Xiaomi Redmi Note 14 Pro · Android/PWA · Tema Verde Imperial Premium · emparelhamento persistente, localização, mapa, Family Live, chamadas, SOS e acompanhamento GPS/ADS-B do Jorge.</div>
   </aside>
 </div></main>
 <nav class="family-bottom" aria-label="Navegação principal">
@@ -619,7 +619,7 @@ html.android-device body.wendler-theme #qrHint{margin:8px 2px 0;color:#b7d8c7;fo
   <button data-nav="more" onclick="document.getElementById('stayHistoryCard').scrollIntoView({behavior:'smooth'})"><b>•••</b>Mais</button>
 </nav>
 <div class="modal" id="ownRouteModal" aria-hidden="true" style="display:none!important"><div class="sheet"><h2>Criar minha rota</h2><p>Escolha CARRO ou A PÉ. Pode usar a sua posição atual como origem ou escrever outro local.</p><div class="own-route-mode-row"><button class="btn own-route-mode" id="ownRouteDrive">🚗 CARRO</button><button class="btn own-route-mode" id="ownRouteWalk">🚶 A PÉ</button></div><div class="form" style="margin-top:12px"><label>Origem<input id="ownRouteFrom" type="text" autocomplete="street-address" placeholder="Minha posição"></label><label>Destino<input id="ownRouteTo" type="text" autocomplete="street-address" placeholder="Destino, endereço ou local"></label></div><div class="route-plan-note" style="margin-top:10px">A pesquisa usa OpenStreetMap. Neste perfil do Wendler, a criação/partilha de rotas para o Jorge permanece desativada.</div><div class="btns" style="margin-top:12px"><button class="btn primary" id="ownRouteCreate">Criar e abrir no mapa</button><button class="btn" id="ownRouteClose">Fechar</button></div><div id="ownRouteMsg" class="notice" style="display:none"></div></div></div>
-<div class="modal" id="modal" aria-hidden="true"><div class="sheet"><h2>Emparelhar Wendler</h2><p id="setupHelp">No Xiaomi Redmi Note 14 Pro pode ligar o perfil lendo o QR mostrado no AERONAV do Jorge ou introduzindo o Código da Família.</p><div id="setupState" class="notice" style="margin-top:12px">Aguardando emparelhamento.</div><div class="btns" style="margin-top:12px"><button class="btn primary" id="pairQrStart">▦ Ler QR do papá</button></div><div id="qrScanner" style="display:none"><video id="qrVideo" playsinline muted></video><canvas id="qrCanvas"></canvas><div id="qrHint">A câmara traseira será usada apenas para ler o QR de emparelhamento.</div><div class="btns" style="margin-top:8px"><button class="btn" id="pairQrStop">Fechar câmara</button></div></div><div class="form" style="margin-top:12px"><label>Ou use o Código da Família<input id="pairCodeInput" type="password" autocomplete="current-password" maxlength="64" placeholder="Código da Família" style="font-size:20px;text-align:center;font-weight:900"></label></div><div class="btns" style="margin-top:12px"><button class="btn primary" id="pairCodeSubmit">Ligar este aparelho</button><button class="btn" id="closeBtn">Fechar</button><button class="btn" id="forgetBtn" disabled title="A remoção deste membro é feita pelo administrador Jorge">Remoção gerida pelo Jorge</button></div><div class="notice" style="margin-top:12px"><strong>1 perfil = 1 aparelho.</strong><br>Depois do primeiro emparelhamento, a sessão fica guardada nesta PWA e não deverá pedir o QR novamente.</div><div id="configMsg" class="notice" style="display:none"></div><div class="build-tag">AERONAV Wendler · RC11.76 · Redmi Note 14 Pro · Android/PWA · Verde Imperial Premium</div></div></div>
+<div class="modal" id="modal" aria-hidden="true"><div class="sheet"><h2>Emparelhar Wendler</h2><p id="setupHelp">No Xiaomi Redmi Note 14 Pro pode ligar o perfil lendo o QR mostrado no AERONAV do Jorge ou introduzindo o Código da Família.</p><div id="setupState" class="notice" style="margin-top:12px">Aguardando emparelhamento.</div><div class="btns" style="margin-top:12px"><button class="btn primary" id="pairQrStart">▦ Ler QR do papá</button></div><div id="qrScanner" style="display:none"><video id="qrVideo" playsinline muted></video><canvas id="qrCanvas"></canvas><div id="qrHint">A câmara traseira será usada apenas para ler o QR de emparelhamento.</div><div class="btns" style="margin-top:8px"><button class="btn" id="pairQrStop">Fechar câmara</button></div></div><div class="form" style="margin-top:12px"><label>Ou use o Código da Família<input id="pairCodeInput" type="password" autocomplete="current-password" maxlength="64" placeholder="Código da Família" style="font-size:20px;text-align:center;font-weight:900"></label></div><div class="btns" style="margin-top:12px"><button class="btn primary" id="pairCodeSubmit">Ligar este aparelho</button><button class="btn" id="closeBtn">Fechar</button><button class="btn" id="forgetBtn" disabled title="A remoção deste membro é feita pelo administrador Jorge">Remoção gerida pelo Jorge</button></div><div class="notice" style="margin-top:12px"><strong>1 perfil = 1 aparelho.</strong><br>Depois do primeiro emparelhamento, a sessão fica guardada nesta PWA e não deverá pedir o QR novamente.</div><div id="configMsg" class="notice" style="display:none"></div><div class="build-tag">AERONAV Wendler · RC11.78 · Redmi Note 14 Pro · Android/PWA · Verde Imperial Premium</div></div></div>
 <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
 <script>
 (()=>{'use strict';
@@ -1114,7 +1114,7 @@ initViewerBattery();
 ['focus','pageshow','online'].forEach(ev=>window.addEventListener(ev,()=>watchRouteCancellationNow(true).catch(()=>{})));document.addEventListener('visibilitychange',()=>{if(!document.hidden)watchRouteCancellationNow(true).catch(()=>{})});
 if('serviceWorker' in navigator){window.addEventListener('load',async()=>{try{const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});await reg.update();navigator.serviceWorker.addEventListener('controllerchange',()=>{try{if(!sessionStorage.getItem('aeronav.rc1175.reloaded')){sessionStorage.setItem('aeronav.rc1175.reloaded','1');location.reload()}}catch(_){}})}catch(_){}});}
 </script>
-<script>window.AERONAV_WENDLER_BUILD='RC11.76';</script>
+<script>window.AERONAV_WENDLER_BUILD='RC11.78';</script>
 
 <script id="wendler-premium-ui-bridge">
 (()=>{
