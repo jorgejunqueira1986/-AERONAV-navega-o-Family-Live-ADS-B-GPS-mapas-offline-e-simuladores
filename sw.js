@@ -1,13 +1,13 @@
-/* AERONAV — RC11.80 Cancel Sync Guard + RC11.79 preserved
+/* AERONAV — RC11.94 Angola Offline Maps + RC11.80 preserved
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC11_80-cancel-sync-20260929-2-ROLLBACK';
+const CACHE='aeronav-jorge-RC11_94-angola-offline-maps-20260930-1';
 const LOCAL=[
-  './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png'
+  './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js'
 ];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
@@ -100,6 +100,38 @@ self.addEventListener('activate',event=>{
   })());
 });
 
+
+async function injectAngolaMapsIntoMainNavigation(response,request){
+  const fallback=response?.clone?.()||response;
+  try{
+    if(!response||!response.ok)return response;
+    const url=new URL(request.url),p=url.pathname;
+    if(/\/(?:family|mathia|wendler)(?:\/|\.html|$)/i.test(p))return response;
+    if(!(p.endsWith('/')||p.endsWith('/index.html')))return response;
+    const html=await response.text();
+    const marker='  // ---------- PMTiles offline basemap ----------';
+    if(!html.includes(marker))return fallback;
+    const c=await caches.open(CACHE);
+    const fragUrl=new URL('./angola-offline-fragment.js',self.location.href).href;
+    let fr=await c.match(fragUrl)||await c.match('./angola-offline-fragment.js');
+    if(!fr){
+      fr=await fetchTimed(fragUrl,{cache:'reload'},8000);
+      if(fr.ok)await putSafe(c,fragUrl,fr);
+    }
+    if(!fr||!fr.ok)return fallback;
+    const fragment=await fr.text();
+    const body=html.replace(marker,fragment+'\n'+marker);
+    const headers=new Headers(response.headers);
+    headers.delete('content-length');
+    headers.delete('content-encoding');
+    headers.set('content-type','text/html; charset=utf-8');
+    return new Response(body,{status:response.status,statusText:response.statusText,headers});
+  }catch(e){
+    console.warn('AERONAV Angola injection',e);
+    return fallback;
+  }
+}
+
 self.addEventListener('fetch',event=>{
   const req=event.request;
   if(req.method!=='GET')return;
@@ -109,7 +141,7 @@ self.addEventListener('fetch',event=>{
   if(/\/mathia\//.test(p)||/\/wendler\//.test(p))return;
 
   if(req.mode==='navigate'){
-    event.respondWith(networkFirst(req));
+    event.respondWith((async()=>injectAngolaMapsIntoMainNavigation(await networkFirst(req),req))());
     return;
   }
   if(REMOTE_SET.has(req.url)){
