@@ -1,0 +1,223 @@
+name: AERONAV RC11.96 Wendler Live GPS
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aeronav_rc11_96_wendler_live_gps.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current AERONAV
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply RC11.96 Wendler live GPS fix
+        shell: bash
+        run: |
+          cat > /tmp/rc1196_patch.py <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import re, json
+
+          ROOT=Path('index.html'); MATHIA=Path('mathia/index.html'); WENDLER=Path('wendler/index.html')
+          ROOT_SW=Path('sw.js'); MATHIA_SW=Path('mathia/sw.js'); WENDLER_SW=Path('wendler/sw.js'); VERSION=Path('version.json')
+          CURRENT='RC11.96'; MARKER='RC11.96 — Wendler live GPS only'
+          def load(p):
+              if not p.exists(): raise SystemExit(f'missing {p}')
+              return p.read_text(encoding='utf-8')
+          def save(p,t): p.write_text(t,encoding='utf-8')
+          def rep(t,old,new,label):
+              if old not in t: raise SystemExit(f'pattern not found: {label}')
+              return t.replace(old,new,1)
+          def sub1(t,pat,repl,label,flags=0):
+              out,n=re.subn(pat,repl,t,count=1,flags=flags)
+              if n!=1: raise SystemExit(f'pattern not found/unique: {label} ({n})')
+              return out
+
+          # ---------- JORGE / FAMILY MAP ----------
+          t=load(ROOT)
+          if MARKER not in t:
+              helper=r'''  // RC11.96 — Wendler live GPS only: never render an old/default coordinate as his current position.
+          function isWendlerFamilyRow(m){const n=String(m?.display_name||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');return n.includes('wendler')||n.includes('wendy');}
+          function wendlerFreshGpsPosition(m,maxAgeMs=30000){
+            if(!m||!m.sharing)return null;const lat=Number(m.lat),lon=Number(m.lon),acc=Number(m.accuracy),ts=Date.parse(m.updated_at||0)||0,age=Date.now()-ts;
+            if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180||!ts||age<0||age>maxAgeMs)return null;
+            if(Number.isFinite(acc)&&acc>750)return null;
+            return {lat,lon,accuracy:Number.isFinite(acc)?acc:null,updatedAt:m.updated_at};
+          }
+          function familyDisplayPosition(m){
+            if(isWendlerFamilyRow(m))return wendlerFreshGpsPosition(m);
+            const lat=Number.isFinite(Number(m?._displayLat))?Number(m._displayLat):Number(m?.lat),lon=Number.isFinite(Number(m?._displayLon))?Number(m._displayLon):Number(m?.lon);
+            return Number.isFinite(lat)&&Number.isFinite(lon)?{lat,lon,updatedAt:m?._displayUpdatedAt||m?.updated_at}:null;
+          }
+          function enforceWendlerLiveGpsPolicy(rows=[]){
+            for(const m of rows||[]){if(!isWendlerFamilyRow(m))continue;delete m._displayLat;delete m._displayLon;delete m._displaySpeed;delete m._displayUpdatedAt;delete m._source;delete m._gpsUnavailable;const p=wendlerFreshGpsPosition(m);if(p){m._displayLat=p.lat;m._displayLon=p.lon;m._displaySpeed=m.speed;m._displayUpdatedAt=m.updated_at;m._source='GPS LIVE';}else{m._gpsUnavailable=true;m._source='GPS AGUARDANDO';}}
+          }
+
+          '''
+              anchor='  async function resolveFamilyFallbacks(members){'
+              if anchor not in t: raise SystemExit('resolveFamilyFallbacks anchor missing')
+              t=t.replace(anchor,helper+anchor,1)
+              t=rep(t,
+                  "f.members=await r.json(); familyVisibilityApplyRows(f.members); await refreshPairedFamilyMembers(force).catch(()=>{}); await checkAdminPeerVerification(f.members).catch(()=>false); await resolveFamilyFallbacks(f.members.filter(m=>!isFamilySystemRow(m))); adoptPeerJorgeGpsIfLocalStale();",
+                  "f.members=await r.json(); familyVisibilityApplyRows(f.members); await refreshPairedFamilyMembers(force).catch(()=>{}); await checkAdminPeerVerification(f.members).catch(()=>false); await resolveFamilyFallbacks(f.members.filter(m=>!isFamilySystemRow(m))); enforceWendlerLiveGpsPolicy(f.members); adoptPeerJorgeGpsIfLocalStale();",
+                  'enforce Wendler live GPS after pull')
+              t=rep(t,
+                  "  function arrivalMemberPosition(m){const lat=Number.isFinite(Number(m?._displayLat))?Number(m._displayLat):Number(m?.lat),lon=Number.isFinite(Number(m?._displayLon))?Number(m._displayLon):Number(m?.lon);return Number.isFinite(lat)&&Number.isFinite(lon)?{lat,lon}:null;}",
+                  "  function arrivalMemberPosition(m){const p=familyDisplayPosition(m);return p?{lat:p.lat,lon:p.lon}:null;}",
+                  'arrival live position')
+              t=rep(t,
+                  "      const lat=Number(m._displayLat??m.lat),lon=Number(m._displayLon??m.lon);if(!Number.isFinite(lat)||!Number.isFinite(lon))throw new Error('A localização desse membro ainda não está disponível.');",
+                  "      const livePos=familyDisplayPosition(m);if(!livePos)throw new Error(isWendlerFamilyRow(m)?'Wendler está online, mas ainda não enviou um GPS recente e válido.':'A localização desse membro ainda não está disponível.');const lat=livePos.lat,lon=livePos.lon;",
+                  'go-to live position')
+              t=rep(t,
+                  "        const lat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat),lon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);\n        if(m.sharing&&Number.isFinite(lat)&&Number.isFinite(lon))pts.push([lon,lat]);",
+                  "        const p=familyDisplayPosition(m);if(m.sharing&&p)pts.push([p.lon,p.lat]);",
+                  'family map fit position')
+              # Device IDs may rotate after re-pair/reinstall. Do not hide the current role because of an old id.
+              t=t.replace("if(f.pairedMembersLastAt>0&&known){const active=activeByRole.get(role);if(!active)continue;if(active._deviceId&&String(m.member_id)!==String(active._deviceId))continue;}",
+                          "if(f.pairedMembersLastAt>0&&known){const active=activeByRole.get(role);if(!active)continue;/* RC11.96: device id may rotate; freshest authorized role row wins. */}",1)
+              t=rep(t,
+                  "      const dlat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat),dlon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);\n      if(!m.sharing||!Number.isFinite(dlat)||!Number.isFinite(dlon))continue;",
+                  "      const pos=familyDisplayPosition(m);if(!m.sharing||!pos)continue;const dlat=pos.lat,dlon=pos.lon;",
+                  'marker candidate live GPS')
+              t=rep(t,
+                  "      const dlat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat),dlon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);active.add(key);",
+                  "      const pos=familyDisplayPosition(m);if(!pos)continue;const dlat=pos.lat,dlon=pos.lon;active.add(key);",
+                  'marker live GPS')
+              t=rep(t,
+                  "    const self=m.member_id===state.family.memberId; const dlat=Number.isFinite(Number(m._displayLat))?Number(m._displayLat):Number(m.lat); const dlon=Number.isFinite(Number(m._displayLon))?Number(m._displayLon):Number(m.lon);\n    const live=m.sharing && Number.isFinite(dlat) && Number.isFinite(dlon); const age=Date.now()-new Date(m._displayUpdatedAt||m.updated_at).getTime();",
+                  "    const self=m.member_id===state.family.memberId,pos=familyDisplayPosition(m),dlat=pos?.lat,dlon=pos?.lon;\n    const live=!!(m.sharing&&pos); const age=Date.now()-new Date(m._displayUpdatedAt||m.updated_at).getTime();",
+                  'family card live GPS')
+              t=t.replace("const badge=m._pairedOnly?'EMPARELHADO':src==='GPS LIVE'?'AO VIVO':src==='SATÉLITE'?'SATÉLITE':src==='ADS-B'?'VOO / ADS-B':(live?'ÚLTIMA':'PAUSADO');",
+                          "const badge=m._pairedOnly?'EMPARELHADO':src==='GPS LIVE'?'AO VIVO':isWendlerFamilyRow(m)?'GPS AGUARDANDO':src==='SATÉLITE'?'SATÉLITE':src==='ADS-B'?'VOO / ADS-B':(live?'ÚLTIMA':'PAUSADO');",1)
+              t=t.replace("${m._pairedOnly?'Ligado à família · GPS aguardando':(live?`${esc(src)} · ${kmh} km/h`:'Partilha pausada')}",
+                          "${m._pairedOnly?'Ligado à família · GPS aguardando':(live?`${esc(src)} · ${kmh} km/h`:(isWendlerFamilyRow(m)?'Online · aguardando GPS geográfico recente':'Partilha pausada'))}",1)
+
+          t=re.sub(r'<title>AERONAV — RC11\.\d+</title>',f'<title>AERONAV — {CURRENT}</title>',t,count=1)
+          t=re.sub(r"const APP_VERSION = '[^']+';",f"const APP_VERSION = '7.96 {CURRENT} · Wendler Live GPS';",t,count=1)
+          t=t.replace('const CURRENT_VERSION="RC11.95"','const CURRENT_VERSION="RC11.96"')
+          save(ROOT,t)
+
+          # ---------- WENDLER / REDMI GPS ----------
+          w=load(WENDLER)
+          if MARKER not in w:
+              w=sub1(w,
+                  r"function viewerAcceptGpsPosition\(pos\)\{.*?return true\}",
+                  "function viewerAcceptGpsPosition(pos){const p=viewerGpsPayloadFromPosition(pos),age=p?Date.now()-Number(p.at||Date.now()):Infinity,acc=Number(p?.accuracy);if(!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lon)||Math.abs(p.lat)>90||Math.abs(p.lon)>180||age<0||age>30000)return false;if(Number.isFinite(acc)&&acc>750){setStatus('GPS A REFINAR','bad');return false;}cfg.currentPosition=p;viewerGpsLastFixAt=Date.now();try{localStorage.setItem('aeronav.wendler.lastGpsFix',JSON.stringify(p))}catch(_){}if(map&&!viewerGpsAutoCentered){viewerGpsAutoCentered=true;try{map.flyTo({center:[p.lon,p.lat],zoom:15,duration:650,essential:true})}catch(_){}}viewerPushGps(p).catch(()=>{});return true}",
+                  'fresh/accurate Wendler GPS',re.S)
+              w=sub1(w,
+                  r"async function viewerPushGps\(p\)\{if\(!cfg\.sharing\|\|!configured\(\)\|\|!navigator\.onLine\|\|!p\)return(?: false)?;",
+                  "async function viewerPushGps(p){if(!cfg.sharing||!configured()||!navigator.onLine||!p)return false;const lat=Number(p.lat),lon=Number(p.lon),acc=Number(p.accuracy),fixAge=Date.now()-Number(p.at||Date.now());if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180||fixAge<0||fixAge>30000)return false;if(Number.isFinite(acc)&&acc>750){setStatus('GPS A REFINAR','bad');viewerRequestFreshGpsFix();return false;}const authorized=await viewerDeviceCheck();if(!authorized)return false;",
+                  'validate GPS before Family upload')
+              clearfn="""// RC11.96 — Wendler live GPS only: clear the old server coordinate when current GPS is unavailable.
+          async function viewerPublishGpsUnavailable(){if(!configured()||!navigator.onLine)return false;try{await ensureHash();const body={room_hash:cfg.hash,member_id:cfg.deviceId||cfg.memberId,display_name:'Wendler',sharing:true,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:'unknown',flight_number:null,flight_eta:null,updated_at:new Date().toISOString()};const r=await fetch(rest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',cache:'no-store',headers:{...headers(),'Content-Type':'application/json','Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(body)});return r.ok}catch(_){return false}}
+          """
+              anchor='function viewerRequestFreshGpsFix(){'
+              if anchor not in w: raise SystemExit('viewerRequestFreshGpsFix anchor missing')
+              w=w.replace(anchor,clearfn+anchor,1)
+              w=rep(w,
+                  "  const onErr=err=>{if(err?.code===1){showMsg('A localização é obrigatória. No Xiaomi Redmi Note 14 Pro, permita Localização precisa para o AERONAV/Chrome.');setStatus('LOCALIZAÇÃO NECESSÁRIA','bad')}else setStatus('GPS A RECUPERAR','bad')};",
+                  "  const onErr=err=>{if(!viewerGpsLastFixAt||Date.now()-viewerGpsLastFixAt>30000)viewerPublishGpsUnavailable().catch(()=>{});if(err?.code===1){showMsg('A localização é obrigatória. No Xiaomi Redmi Note 14 Pro, permita Localização precisa para o AERONAV/Chrome.');setStatus('LOCALIZAÇÃO NECESSÁRIA','bad')}else setStatus('GPS A RECUPERAR','bad')};",
+                  'clear stale server coordinate on GPS error')
+              w=rep(w,
+                  "function initMap(){if(map||typeof maplibregl==='undefined')return;let saved=null;try{saved=JSON.parse(localStorage.getItem('aeronav.wendler.lastGpsFix')||'null')}catch(_){}const hasSaved=saved&&Number.isFinite(Number(saved.lat))&&Number.isFinite(Number(saved.lon));",
+                  "function initMap(){if(map||typeof maplibregl==='undefined')return;let saved=null;try{saved=JSON.parse(localStorage.getItem('aeronav.wendler.lastGpsFix')||'null')}catch(_){}const savedAge=saved?Date.now()-Number(saved.at||0):Infinity,savedAcc=Number(saved?.accuracy),hasSaved=saved&&Number.isFinite(Number(saved.lat))&&Number.isFinite(Number(saved.lon))&&savedAge>=0&&savedAge<=120000&&(!Number.isFinite(savedAcc)||savedAcc<=750);",
+                  'ignore stale saved map coordinate')
+              resume="""window.addEventListener('online',()=>{if(configured()){startViewerGps();setTimeout(()=>viewerRequestFreshGpsFix(),250)}});
+          window.addEventListener('pageshow',()=>{if(configured()){startViewerGps();setTimeout(()=>viewerRequestFreshGpsFix(),250)}});
+          document.addEventListener('visibilitychange',()=>{if(!document.hidden&&configured()){startViewerGps();setTimeout(()=>viewerRequestFreshGpsFix(),250)}});
+
+          """
+              anchor='function updateViewerJourneyButtons(){'
+              if anchor not in w: raise SystemExit('updateViewerJourneyButtons anchor missing')
+              w=w.replace(anchor,resume+anchor,1)
+
+          w=w.replace('const CURRENT_VERSION="RC11.95"','const CURRENT_VERSION="RC11.96"')
+          w=re.sub(r'<title>AERONAV Wendler · RC11\.[^<]+</title>',f'<title>AERONAV Wendler · {CURRENT} · Redmi Note 14 Pro</title>',w,count=1)
+          w=re.sub(r"window\.AERONAV_WENDLER_BUILD='[^']+';",f"window.AERONAV_WENDLER_BUILD='{CURRENT}';",w,count=1)
+          save(WENDLER,w)
+
+          # Mathia only receives the common build/update version.
+          m=load(MATHIA)
+          m=m.replace('const CURRENT_VERSION="RC11.95"','const CURRENT_VERSION="RC11.96"')
+          m=re.sub(r'<title>AERONAV Mathia · RC11\.[^<]+</title>',f'<title>AERONAV Mathia · {CURRENT}</title>',m,count=1)
+          m=re.sub(r"window\.AERONAV_MATHIA_BUILD='[^']+';",f"window.AERONAV_MATHIA_BUILD='{CURRENT}';",m,count=1)
+          save(MATHIA,m)
+
+          def patch_sw(path,prefix):
+              s=load(path)
+              s=re.sub(r"const CACHE='[^']+';",f"const CACHE='{prefix}-RC11_96-wendler-live-gps-20260930-1';",s,count=1)
+              s=s.replace("version:'RC11.95'","version:'RC11.96'")
+              if not s.startswith('/* AERONAV RC11.96'): s='/* AERONAV RC11.96 — Wendler live GPS only */\n'+s
+              save(path,s)
+          patch_sw(ROOT_SW,'aeronav-jorge');patch_sw(MATHIA_SW,'aeronav-mathia');patch_sw(WENDLER_SW,'aeronav-wendler')
+          old={}
+          try: old=json.loads(VERSION.read_text(encoding='utf-8')) if VERSION.exists() else {}
+          except Exception: old={}
+          released=old.get('releasedAt') if str(old.get('version','')).upper()==CURRENT else datetime.now(timezone.utc).isoformat()
+          VERSION.write_text(json.dumps({'app':'AERONAV','version':CURRENT,'releasedAt':released,'message':'Nova versão disponível','action':'Actualize','profiles':['jorge','mathia','wendler']},ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('RC11.96 patch applied')
+          PY
+          python3 -W ignore /tmp/rc1196_patch.py
+
+      - name: Validate RC11.96
+        shell: bash
+        run: |
+          python3 - <<'PYV'
+          from pathlib import Path
+          import re, subprocess, tempfile, os, json
+          for fn in ['index.html','mathia/index.html','wendler/index.html']:
+              text=Path(fn).read_text(encoding='utf-8');scripts=[]
+              for mt in re.finditer(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S|re.I):
+                  tag=text[mt.start():text.find('>',mt.start())+1]
+                  if 'application/json' in tag: continue
+                  scripts.append(mt.group(1))
+              for i,body in enumerate(scripts):
+                  with tempfile.NamedTemporaryFile('w',suffix='.js',delete=False,encoding='utf-8') as f:f.write(body);tmp=f.name
+                  p=subprocess.run(['node','--check',tmp],capture_output=True,text=True);os.unlink(tmp)
+                  if p.returncode: raise SystemExit(f'{fn} JS inválido script {i}: '+p.stderr)
+              print(f'{fn}: JS OK')
+          root=Path('index.html').read_text(encoding='utf-8');w=Path('wendler/index.html').read_text(encoding='utf-8')
+          checks={
+            'Wendler fresh GPS only':'wendlerFreshGpsPosition(m,maxAgeMs=30000)' in root,
+            'old marker suppressed':'const pos=familyDisplayPosition(m);if(!m.sharing||!pos)continue;' in root,
+            'go-to stale blocked':'Wendler está online, mas ainda não enviou um GPS recente e válido.' in root,
+            'Family pull policy':'enforceWendlerLiveGpsPolicy(f.members)' in root,
+            'Wendler valid accuracy':'acc>750' in w,
+            'old server coordinate cleared':'viewerPublishGpsUnavailable' in w and 'lat:null,lon:null' in w,
+            'old phone coordinate ignored':'savedAge<=120000' in w,
+            'fresh GPS on reconnect':"window.addEventListener('online',()=>{if(configured()){startViewerGps();" in w,
+            'version root':'const CURRENT_VERSION="RC11.96"' in root,
+            'version wendler':'const CURRENT_VERSION="RC11.96"' in w,
+          }
+          for k,v in checks.items(): print(('OK  ' if v else 'FAIL'),k)
+          if not all(checks.values()): raise SystemExit('RC11.96 validation failed')
+          for fn in ['sw.js','mathia/sw.js','wendler/sw.js']:
+              p=subprocess.run(['node','--check',fn],capture_output=True,text=True)
+              if p.returncode: raise SystemExit(f'{fn} invalid: '+p.stderr)
+              s=Path(fn).read_text(encoding='utf-8')
+              if 'RC11_96' not in s or "version:'RC11.96'" not in s: raise SystemExit(f'{fn} version invalid')
+          if json.loads(Path('version.json').read_text(encoding='utf-8')).get('version')!='RC11.96': raise SystemExit('version.json invalid')
+          print('RC11.96 validation OK')
+          PYV
+
+      - name: Commit RC11.96
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html mathia/index.html wendler/index.html sw.js mathia/sw.js wendler/sw.js version.json
+          if git diff --cached --quiet; then
+            echo "RC11.96 already applied"
+            exit 0
+          fi
+          git commit -m "AERONAV RC11.96 Wendler live GPS"
+          git push
