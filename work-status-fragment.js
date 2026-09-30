@@ -1,9 +1,11 @@
-/* AERONAV RC11.98.2 - Saved Addresses + Work/Home commute + Jorge Folga UI.
+/* AERONAV RC11.98.3 - Saved Addresses + reliable Work/Home commute + Jorge Folga UI.
    Preserves RC11.98.1 and RC11.97 Angola Offline.
-   - Saved address list: tap map, name + category, edit/delete/recenter.
-   - Casa/Trabalho saved coordinates improve commute detection.
-   - Folga is placed below CARRO with the same visual style, never over the map.
-   - Work commute has priority and automatically turns Folga off when it starts. */
+   FIXES:
+   - Restores ENDERECOS and FOLGA controls at startup.
+   - FOLGA has priority over the work-car avatar.
+   - Walking/flight never use the Hiace.
+   - Commute detection no longer scans old saved routes.
+   - Hiace is used only for a current CARRO route that matches Casa <-> Trabalho. */
 (()=>{
   'use strict';
   if(window.__AERONAV_WORK_STATUS_RC1198)return;
@@ -28,6 +30,46 @@
   let pendingPoint=null;
   let lastCommute=false;
   let folgaButtonRef=null;
+
+  const MODE_KEY='aeronav.workstatus.travelmode';
+  let explicitTravelMode='';
+
+  function setTravelMode(mode){
+    explicitTravelMode=mode||'';
+    try{sessionStorage.setItem(MODE_KEY,explicitTravelMode);}catch(_){}
+  }
+
+  function selectedByApp(btn){
+    if(!btn)return false;
+    const aria=String(btn.getAttribute('aria-pressed')||'').toLowerCase();
+    const cls=String(btn.className||'').toLowerCase();
+    const data=String(btn.dataset?.active||btn.dataset?.selected||'').toLowerCase();
+    return aria==='true'||data==='true'||/\b(active|selected|current|on)\b/.test(cls);
+  }
+
+  function currentTravelMode(){
+    const car=findModeButton('CARRO');
+    const walk=findModeButton('A PÉ')||findModeButton('A PE');
+    const flight=findModeButton('VOO');
+    if(selectedByApp(car))return 'car';
+    if(selectedByApp(walk))return 'walk';
+    if(selectedByApp(flight))return 'flight';
+    if(explicitTravelMode)return explicitTravelMode;
+    try{return sessionStorage.getItem(MODE_KEY)||'';}catch(_){return '';}
+  }
+
+  function bindTravelModeButtons(){
+    const pairs=[
+      [findModeButton('VOO'),'flight'],
+      [findModeButton('CARRO'),'car'],
+      [findModeButton('A PÉ')||findModeButton('A PE'),'walk']
+    ];
+    for(const [btn,mode] of pairs){
+      if(!btn||btn.dataset.aeronavModeBound==='1')continue;
+      btn.dataset.aeronavModeBound='1';
+      btn.addEventListener('click',()=>setTravelMode(mode),true);
+    }
+  }
 
   function loadAddresses(){
     try{
@@ -87,55 +129,30 @@
   }
 
   function routeCandidates(){
-    const out=[];
-    const seen=new Set();
-    const add=v=>{
-      if(!v||typeof v!=='object')return;
-      try{
-        const sig=JSON.stringify(v).slice(0,600);
-        if(seen.has(sig))return;
-        seen.add(sig);
-      }catch(_){}
-      out.push(v);
-    };
-    add(getRoute());
-    const stores=[localStorage,sessionStorage];
-    for(const store of stores){
-      try{
-        for(let i=0;i<store.length;i++){
-          const k=store.key(i)||'';
-          if(!/route|rota|trip|nav|journey|viagem/i.test(k))continue;
-          const raw=store.getItem(k);
-          if(!raw||raw.length<2||raw.length>3000000)continue;
-          try{add(JSON.parse(raw));}catch(_){}
-        }
-      }catch(_){}
-    }
-    return out;
+    const r=getRoute();
+    return r&&typeof r==='object'?[r]:[];
   }
 
-  function savedCommuteByCoords(){
+  function savedCommuteByCoords(route){
     const addresses=loadAddresses();
     const homes=addresses.filter(a=>normCategory(a.category)==='Casa');
     const works=addresses.filter(a=>normCategory(a.category)==='Trabalho');
-    if(!homes.length||!works.length)return false;
+    if(!route||!homes.length||!works.length)return false;
 
-    for(const r of routeCandidates()){
-      const pts=[];
-      collectCoords(r,pts,0);
-      if(pts.length<2)continue;
-      const nearHome=pts.some(p=>homes.some(a=>haversineM(p,a)<=500));
-      const nearWork=pts.some(p=>works.some(a=>haversineM(p,a)<=500));
-      if(nearHome&&nearWork)return true;
-    }
-    return false;
+    const pts=[];
+    collectCoords(route,pts,0);
+    if(pts.length<2)return false;
+
+    const nearHome=pts.some(p=>homes.some(a=>haversineM(p,a)<=350));
+    const nearWork=pts.some(p=>works.some(a=>haversineM(p,a)<=350));
+    return nearHome&&nearWork;
   }
 
   function checkAsset(url,key){
     const img=new Image();
     img.onload=()=>{available[key]=true;applyAvatars();};
     img.onerror=()=>{available[key]=false;};
-    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.2';
+    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.3';
   }
 
   checkAsset(assets.car,'car');
@@ -170,16 +187,37 @@
            !/flight|voo/.test(txt);
   }
 
+  function routeLooksActive(route){
+    if(route&&typeof route==='object')return true;
+    try{
+      const nodes=[...document.querySelectorAll('*')].filter(el=>{
+        const t=String(el.textContent||'').trim().toUpperCase();
+        return t==='DTG';
+      }).slice(0,6);
+      for(const n of nodes){
+        const card=n.parentElement;
+        const txt=String(card?.textContent||'').replace(/\s+/g,' ').trim();
+        if(/\bDTG\b/i.test(txt)&&/\d/.test(txt)&&!/[—–]\s*$/.test(txt))return true;
+      }
+    }catch(_){}
+    return false;
+  }
+
   function commuteRouteActive(){
-    for(const r of routeCandidates()){
-      if(!r)continue;
-      let txt='';
-      try{txt=JSON.stringify(r).toLowerCase();}catch(_){}
-      const road=/road|car|drive|driving|carro|condu/.test(txt)&&!/flight|voo|walk|foot|ped/.test(txt);
-      const named=/trabalho|work|emprego|office|escrit[oó]rio|casa|home|resid[eê]ncia/.test(txt);
-      if(road&&named)return true;
-    }
-    return savedCommuteByCoords();
+    if(currentTravelMode()!=='car')return false;
+
+    const route=getRoute();
+    if(!routeLooksActive(route))return false;
+    if(!route)return false;
+
+    let txt='';
+    try{txt=JSON.stringify(route).toLowerCase();}catch(_){}
+
+    const hasHome=/\bcasa\b|\bhome\b|resid[eê]ncia/.test(txt);
+    const hasWork=/trabalho|work|emprego|office|escrit[oó]rio/.test(txt);
+
+    if(hasHome&&hasWork)return true;
+    return savedCommuteByCoords(route);
   }
 
   function isFolga(){
@@ -188,8 +226,8 @@
   }
 
   function localMode(){
-    if(commuteRouteActive())return 'car';
     if(isFolga())return 'folga';
+    if(commuteRouteActive())return 'car';
     return 'person';
   }
 
@@ -238,26 +276,49 @@
     return b;
   }
 
+  function commonModeContainer(voo,car,walk){
+    if(!car)return null;
+    let n=car.parentElement;
+    for(let i=0;n&&i<6;i++,n=n.parentElement){
+      if((!voo||n.contains(voo))&&(!walk||n.contains(walk)))return n;
+    }
+    return car.parentElement;
+  }
+
   function injectHeaderControls(){
     if(role!=='jorge')return;
 
-    const old=document.getElementById('aeronavFolgaBtn');
-    if(old&&old.dataset.aeronavHeaderControl!=='1')old.remove();
+    bindTravelModeButtons();
 
-    if(document.getElementById('aeronavSecondaryModeRow')){
+    const stale=document.getElementById('aeronavFolgaBtn');
+    if(stale&&stale.dataset.aeronavHeaderControl!=='1')stale.remove();
+
+    const existing=document.getElementById('aeronavSecondaryModeRow');
+    if(existing){
       folgaButtonRef=document.getElementById('aeronavFolgaBtn');
       paintFolgaButton();
       return;
     }
 
+    const voo=findModeButton('VOO');
     const car=findModeButton('CARRO');
-    const voo=findModeButton('VOO')||car;
-    if(!car||!car.parentElement)return;
+    const walk=findModeButton('A PÉ')||findModeButton('A PE');
+    if(!car||!voo)return;
 
-    const row=car.parentElement;
+    const row=commonModeContainer(voo,car,walk);
+    if(!row||!row.parentElement)return;
+
     const holder=document.createElement('div');
     holder.id='aeronavSecondaryModeRow';
-    holder.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:8px 0 10px;width:100%;align-items:stretch;';
+    holder.style.cssText=[
+      'display:grid',
+      'grid-template-columns:repeat(3,minmax(0,1fr))',
+      'gap:12px',
+      'margin:8px 0 10px',
+      'width:100%',
+      'box-sizing:border-box',
+      'align-items:stretch'
+    ].join(';');
 
     const addresses=cloneModeButton(voo,'aeronavAddressesBtn','📍 ENDEREÇOS');
     addresses.dataset.aeronavHeaderControl='1';
@@ -265,10 +326,7 @@
 
     const folga=cloneModeButton(car,'aeronavFolgaBtn','🏖️ FOLGA');
     folga.dataset.aeronavHeaderControl='1';
-    folga.addEventListener('click',()=>{
-      if(commuteRouteActive())return;
-      setFolga(!isFolga());
-    });
+    folga.addEventListener('click',()=>setFolga(!isFolga()));
 
     const blank=document.createElement('div');
     blank.setAttribute('aria-hidden','true');
@@ -745,10 +803,6 @@
 
   function tick(){
     const nowRoad=commuteRouteActive();
-
-    if(nowRoad&&!lastCommute&&role==='jorge'&&isFolga()){
-      setFolga(false);
-    }
     lastCommute=nowRoad;
 
     if(nowRoad!==lastRoad){
@@ -756,14 +810,19 @@
       applyAvatars();
     }
 
+    bindTravelModeButtons();
     injectHeaderControls();
     installMapClickHook();
+    paintFolgaButton();
     applyAvatars();
   }
 
   function start(){
+    bindTravelModeButtons();
     lastRoad=commuteRouteActive();
-    injectFolgaButton();
+    lastCommute=lastRoad;
+    injectHeaderControls();
+    installMapClickHook();
     applyAvatars();
 
     try{
@@ -771,11 +830,11 @@
         childList:true,
         subtree:true,
         attributes:true,
-        attributeFilter:['src','style','class']
+        attributeFilter:['src','style','class','aria-pressed']
       });
     }catch(_){}
 
-    setInterval(tick,1500);
+    setInterval(tick,1200);
 
     document.addEventListener('visibilitychange',()=>{
       if(!document.hidden)tick();
