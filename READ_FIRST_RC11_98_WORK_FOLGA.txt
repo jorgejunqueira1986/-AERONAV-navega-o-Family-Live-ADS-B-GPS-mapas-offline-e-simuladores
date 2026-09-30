@@ -1,0 +1,16 @@
+AERONAV RC11.98 — WORK/HOME + FOLGA
+
+- Jorge e Mathia: rota terrestre Casa↔Trabalho ativa usa o avatar de carro da foto a fornecer.
+- Ao terminar/cancelar a rota e chegar ao destino, regressa imediatamente ao avatar atual de pessoa.
+- Funciona nos dois sentidos: casa → trabalho e trabalho → casa.
+- Jorge: novo botão Folga.
+- Folga tem prioridade visual e usa o avatar assets/people/jorge-folga-avatar.png quando existir.
+- O estado é propagado pelo campo transport do Family Live: work-car / folga (sem alterar os restantes modos).
+- Mathia e Wendler conseguem refletir o estado recebido do Family Live.
+- Até as fotos serem adicionadas, há fallback seguro para os avatares atuais.
+
+ASSETS A ENVIAR DEPOIS:
+1. assets/vehicles/work-car-avatar.png
+2. assets/people/jorge-folga-avatar.png
+
+RC11.97 Angola Offline/PMTiles é preservado.
