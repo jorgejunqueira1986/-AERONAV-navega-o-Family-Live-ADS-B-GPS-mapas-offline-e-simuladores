@@ -1,0 +1,29 @@
+AERONAV RC11.91 — ROTA ÚNICA
+
+Este ZIP mantém os hotfixes anteriores RC11.89 + RC11.90 e acrescenta RC11.91.
+
+O RC11.91 remove, por enquanto:
+- linhas de rotas alternativas no mapa;
+- cartão/opção “Rotas alternativas”;
+- botão “Seguir esta” para alternativas;
+- armazenamento/seleção de alternativas na nova rota;
+- pedido de alternativas ao motor OSRM.
+
+Fica apenas UMA rota ativa.
+Mantém-se o RC11.90:
+- Jorge/Mathia: trecho percorrido vermelho;
+- trecho restante azul;
+- linha tracejada com setas;
+- rota de Mathia rosa quando vista por Jorge;
+- rota de Jorge azul quando vista por Mathia;
+- partilha Jorge ↔ Mathia;
+- todas as correções RC11.89 anteriores (Wendler/GPS/cancelamento/Waypoints/Lugares guardados).
+
+INSTALAÇÃO MANUAL NO GITHUB
+1. Copiar as 3 workflows para .github/workflows/
+2. Actions → AERONAV RC11.89 Hotfix → Run workflow → aguardar verde.
+3. Actions → AERONAV RC11.90 Route Progress + Cross Share → Run workflow → aguardar verde.
+4. Actions → AERONAV RC11.91 Single Route Only → Run workflow → aguardar verde.
+5. Fechar e reabrir a PWA para carregar o novo cache.
+
+IMPORTANTE: executar pela ordem 11.89 → 11.90 → 11.91.
