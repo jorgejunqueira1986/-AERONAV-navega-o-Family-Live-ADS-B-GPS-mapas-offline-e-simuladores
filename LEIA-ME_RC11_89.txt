@@ -1,0 +1,14 @@
+AERONAV RC11.89 — HOTFIX AUTOMÁTICO
+
+Corrige sem recriar a aplicação:
+1. Cancelamento de rota de Jorge é enviado a Mathia e Wendler; Wendler remove a rota do mapa.
+2. Jorge deixa de esconder o Wendler quando o device_id muda após reemparelhamento/reinstalação.
+3. Wendler atualiza o device_id autorizado antes de publicar GPS e só aceita fix GPS recente/preciso.
+4. Rotas ganham submenu “Waypoints / Lugares guardados”, com ações Via, Origem, Destino e Mapa.
+5. Waypoints pessoais passam a funcionar em “Via waypoints”.
+6. Caches PWA principal e Wendler são renovados para RC11.89.
+
+O ficheiro a adicionar ao GitHub é:
+.github/workflows/aeronav_rc11_89_hotfix.yml
+
+Ao ser adicionado à branch main, o workflow executa automaticamente, valida a sintaxe JavaScript, altera apenas os 4 ficheiros necessários e faz commit na main.
