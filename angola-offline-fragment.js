@@ -1,4 +1,4 @@
-/* AERONAV RC11.95 — Angola Offline Import Hotfix.
+/* AERONAV RC11.97 — Angola Offline persistent picker and verified storage.
    This file is injected by sw.js into the main index.html at the PMTiles marker,
    so it executes inside the existing AERONAV application scope. */
 
@@ -35,45 +35,118 @@
   }
   function angolaMb(n){return (Number(n||0)/1024/1024).toFixed(Number(n||0)>100*1024*1024?0:1)+' MB';}
 
+  const angolaImportState={busy:false,message:'',errors:[]};
+  let angolaCardRevision=0;
+  function angolaProgress(message){
+    angolaImportState.message=message;
+    const el=document.getElementById('angolaImportProgress');if(el)el.textContent=message;
+    const button=document.getElementById('angolaImportBtn');if(button)button.disabled=angolaImportState.busy;
+  }
+  function angolaTimeout(promise,label,ms=45000){
+    let timer;return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(label+' demorou demasiado. Tente novamente com o ficheiro em “No meu iPhone”.')),ms);})]).finally(()=>clearTimeout(timer));
+  }
+  // Keep the input outside every renderable panel. iOS may return from Files
+  // after readiness/GPS/network updates have replaced the entire offline screen.
+  function angolaFileInput(){
+    let input=document.getElementById('angolaPmtilesInput');if(input)return input;
+    input=document.createElement('input');input.id='angolaPmtilesInput';input.type='file';
+    input.accept='.pmtiles,application/octet-stream';input.multiple=true;input.hidden=true;
+    document.body.appendChild(input);
+    input.addEventListener('change',async()=>{
+      const files=Array.from(input.files||[]);
+      if(angolaImportState.busy)return;
+      try{await angolaImportSelected(files);}catch(e){angolaProgress('Erro: '+(e.message||e));}
+      finally{input.value='';}
+    });
+    input.addEventListener('cancel',()=>angolaProgress('Seleção cancelada. Pode tentar novamente.'));
+    return input;
+  }
+  async function angolaMapTransaction(mode,action){
+    const db=await angolaTimeout(dbOpen(),'Abrir armazenamento');
+    try{return await new Promise((resolve,reject)=>{
+      const tx=db.transaction('maps',mode);let value,requestError;
+      const timer=setTimeout(()=>{try{tx.abort();}catch(_){}reject(new Error('Armazenamento sem resposta. Reabra a aplicação e tente novamente.'));},180000);
+      tx.oncomplete=()=>{clearTimeout(timer);resolve(value);};
+      tx.onabort=tx.onerror=()=>{clearTimeout(timer);reject(tx.error||requestError||new Error('Gravação cancelada pelo dispositivo.'));};
+      try{const req=action(tx.objectStore('maps'));req.onsuccess=()=>{value=req.result;};req.onerror=()=>{requestError=req.error;};}
+      catch(e){clearTimeout(timer);try{tx.abort();}catch(_){}reject(e);}
+    });}finally{db.close();}
+  }
+  async function angolaVerifyBlob(blob,size){
+    if(!blob||blob.size!==size||size<127)throw new Error('Ficheiro incompleto no armazenamento.');
+    const head=new Uint8Array(await angolaTimeout(blob.slice(0,127).arrayBuffer(),'Ler cabeçalho'));
+    if(new TextDecoder().decode(head.slice(0,7))!=='PMTiles'||head[7]!==3)throw new Error('Ficheiro inválido: é necessário PMTiles v3.');
+    const tail=await angolaTimeout(blob.slice(-1).arrayBuffer(),'Ler fim do ficheiro');
+    if(tail.byteLength!==1)throw new Error('Não foi possível ler o fim do ficheiro.');
+    return head;
+  }
+  let angolaReaderPromise=null;
+  function angolaLoadReader(){
+    if(window.pmtiles)return Promise.resolve();
+    if(angolaReaderPromise)return angolaReaderPromise;
+    angolaReaderPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');script.src='./vendor/pmtiles-3.2.1.js';
+      const timer=setTimeout(()=>finish(new Error('Leitor PMTiles indisponível. Abra a aplicação online para atualizar.')),30000);
+      function finish(error){clearTimeout(timer);script.onload=script.onerror=null;if(error){script.remove();reject(error);}else resolve();}
+      script.onload=()=>finish(window.pmtiles?null:new Error('Leitor PMTiles inválido.'));
+      script.onerror=()=>finish(new Error('Não foi possível carregar o leitor PMTiles local.'));
+      document.head.appendChild(script);
+    }).catch(e=>{angolaReaderPromise=null;throw e;});
+    return angolaReaderPromise;
+  }
   async function angolaSaveFile(file,asset){
     if(!file||!asset)throw new Error('Ficheiro Angola não reconhecido.');
-    await ensureMapStack(true);
-    if(typeof pmtiles==='undefined')throw new Error('PMTiles ainda não está carregado. Abra a AERONAV online uma vez.');
-    initPmtilesProtocol();
+    if(file.size!==asset.size)throw new Error('Tamanho diferente do pacote oficial: esperado '+asset.size+' bytes, recebido '+file.size+'. Termine o download antes de importar.');
+    const originalHeader=await angolaVerifyBlob(file,file.size);
+    // Importing does not need MapLibre, WebGL, or an external CDN.
+    await angolaLoadReader();
     const src=new pmtiles.PMTiles(new pmtiles.FileSource(file));
-    const h=await src.getHeader();
-    let meta={};try{meta=await src.getMetadata()||{}}catch(_){meta={}}
+    const h=await angolaTimeout(src.getHeader(),'Validar PMTiles');
+    const meta=await angolaTimeout(src.getMetadata(),'Ler metadados')||{};
+    if(asset.kind!=='terrain'&&h.tileType!==1)throw new Error('Este pacote deve conter tiles vetoriais.');
+    for(const [offset,length] of [[h.rootDirectoryOffset,h.rootDirectoryLength],[h.jsonMetadataOffset,h.jsonMetadataLength],[h.leafDirectoryOffset,h.leafDirectoryLength],[h.tileDataOffset,h.tileDataLength]]){
+      if(!Number.isSafeInteger(offset)||!Number.isSafeInteger(length)||offset<0||length<0||offset+length>file.size)throw new Error('PMTiles truncado ou inválido.');
+    }
     const vectorLayers=(typeof pmtilesVectorLayerIds==='function')?pmtilesVectorLayerIds(meta):((meta.vector_layers||[]).map(v=>v?.id).filter(Boolean));
-    const detected=(asset.kind==='terrain')?'terrarium-dem':(h.tileType===1&&typeof detectPmtilesSchema==='function'?detectPmtilesSchema(meta):'');
-    const rec={
-      id:asset.id,kind:asset.kind,name:asset.name,key:asset.name,size:file.size||asset.size,
+    const detected=asset.kind==='terrain'?'terrarium-dem':(typeof detectPmtilesSchema==='function'?detectPmtilesSchema(meta):'');
+    const rec={id:asset.id,kind:asset.kind,name:asset.name,key:asset.name,size:file.size,
       savedAt:Date.now(),tileType:h.tileType,
       tileFormat:typeof pmtilesTileFormat==='function'?pmtilesTileFormat(h.tileType):String(h.tileType||''),
-      bounds:Array.isArray(asset.bounds)?asset.bounds:[h.minLon,h.minLat,h.maxLon,h.maxLat],
-      minZoom:h.minZoom,maxZoom:h.maxZoom,pmtilesSchema:detected,vectorLayers,
-      qualityProfile:state.mapQuality,deviceLocal:true,bundle:'angola-offline-v1',sourceUrl:asset.url,blob:file
-    };
-    await dbPut('maps',rec);
-    return rec;
+      bounds:asset.bounds,minZoom:h.minZoom,maxZoom:h.maxZoom,pmtilesSchema:detected,vectorLayers,
+      qualityProfile:state.mapQuality,deviceLocal:true,bundle:'angola-offline-v1',sourceUrl:asset.url,
+      blob:file.slice(0,file.size,'application/octet-stream')};
+    angolaProgress(asset.role+': a gravar '+angolaMb(file.size)+' no dispositivo… Mantenha a aplicação aberta.');
+    // A successful put request alone is insufficient: wait for transaction commit.
+    await angolaMapTransaction('readwrite',store=>store.put(rec));
+    angolaProgress(asset.role+': a verificar leitura do ficheiro guardado…');
+    const stored=await angolaMapTransaction('readonly',store=>store.get(asset.id));
+    const storedHeader=await angolaVerifyBlob(stored?.blob,file.size);
+    if(originalHeader.some((v,i)=>v!==storedHeader[i]))throw new Error('A verificação do ficheiro guardado falhou.');
+    return stored;
   }
-
   async function angolaImportSelected(files){
-    const selected=Array.from(files||[]);
-    if(!selected.length)return;
-    let ok=0,ignored=0,failed=0;
-    for(const file of selected){
-      const asset=angolaAssetByName(file.name);
-      if(!asset){ignored++;continue;}
-      try{
-        toast(`Angola Offline: a importar ${asset.role}…`);
-        await angolaSaveFile(file,asset);ok++;
-      }catch(e){failed++;console.warn('AERONAV Angola import',asset.name,e);}
+    const selected=Array.from(files||[]);if(angolaImportState.busy)return;
+    if(!selected.length){angolaProgress('Nenhum ficheiro selecionado.');return;}
+    angolaImportState.busy=true;angolaImportState.errors=[];let ok=0;
+    try{
+      for(const file of selected){
+        const asset=angolaAssetByName(file.name);
+        try{
+          if(!asset)throw new Error('Nome não reconhecido: '+file.name);
+          angolaProgress(asset.role+': ficheiro recebido; a validar…');
+          await angolaSaveFile(file,asset);ok++;
+        }catch(e){
+          const detail=e.name==='QuotaExceededError'?'Espaço insuficiente para este mapa. Liberte espaço no dispositivo.':(e.message||String(e));
+          angolaImportState.errors.push((asset?.role||file.name)+': '+detail);console.warn('AERONAV Angola import',file.name,e);
+        }
+        await angolaInjectOfflineCard();
+      }
+    }finally{
+      angolaImportState.busy=false;
+      angolaProgress(ok+' ficheiro(s) guardado(s) e verificado(s). '+angolaImportState.errors.join(' | '));
+      await angolaInjectOfflineCard();
+      if(ok&&typeof updateMapMode==='function')Promise.resolve().then(()=>updateMapMode()).catch(e=>console.warn('Angola map refresh',e));
     }
-    if(ok)toast(`Angola Offline: ${ok} ficheiro${ok===1?'':'s'} instalado${ok===1?'':'s'}.`);
-    if(ignored)toast(`${ignored} ficheiro${ignored===1?'':'s'} ignorado${ignored===1?'':'s'}: nome não reconhecido.`);
-    if(failed)toast(`${failed} ficheiro${failed===1?'':'s'} não foi possível instalar.`);
-    try{await angolaInjectOfflineCard();}catch(_){}
-    try{if(typeof updateMapMode==='function')await updateMapMode();}catch(_){}
   }
 
   async function angolaTerrainRecord(position){
@@ -161,28 +234,39 @@
   }
 
   async function angolaStatus(){
-    const maps=await dbAll('maps').catch(()=>[]);
-    const ids=new Set(maps.map(m=>m.id));
-    return ANGOLA_MAP_ASSETS.map(a=>({...a,installed:ids.has(a.id)}));
+    const result=[];
+    for(const asset of ANGOLA_MAP_ASSETS){
+      let installed=false;
+      try{const rec=await angolaMapTransaction('readonly',store=>store.get(asset.id));if(rec?.blob){await angolaVerifyBlob(rec.blob,asset.size);installed=true;}}catch(e){console.warn('Angola status',asset.role,e);}
+      result.push({...asset,installed});
+    }
+    return result;
   }
 
   async function angolaInjectOfflineCard(){
     const title=Array.from(document.querySelectorAll('h2')).find(el=>/Centro Offline/i.test(el.textContent||''));
     const panel=title?.closest('.panel-page');const cards=panel?.querySelector('.cards');if(!cards)return;
-    document.getElementById('angolaOfflineCard')?.remove();
+    angolaFileInput();
+    const revision=++angolaCardRevision;
     const status=await angolaStatus();const ready=status.filter(x=>x.installed).length;
+    if(revision!==angolaCardRevision||!cards.isConnected)return;
+    document.getElementById('angolaOfflineCard')?.remove();
     const card=document.createElement('div');card.className='card';card.id='angolaOfflineCard';
-    card.innerHTML=`<div class="page-head"><div><h3>🇦🇴 Angola Offline</h3><p>Release maps-angola-v1 ligado à AERONAV.</p></div><span class="badge ${ready===8?'ok':'info'}">${ready}/8</span></div>
+    card.innerHTML=`<div class="page-head"><div><h3>🇦🇴 Angola Offline</h3><p>RC11.97 · Importação verificada no dispositivo.</p></div><span class="badge ${ready===8?'ok':'info'}">${ready}/8</span></div>
       <div class="sub">VECTOR para mapa base, VFR para VOO e 6 blocos de terreno para relevo offline. Os ficheiros grandes ficam no dispositivo, não dentro do GitHub Pages.</div>
       <div class="list" style="margin-top:10px">${status.map(a=>`<div class="list-item"><div class="item-icon">${a.kind==='aviation'?'✈':a.kind==='terrain'?'⛰':'🗺️'}</div><div class="item-main"><strong>${a.role}</strong><small>${a.name} · ${angolaMb(a.size)}</small></div><span class="badge ${a.installed?'ok':'info'}">${a.installed?'PRONTO':'FALTA'}</span></div>`).join('')}</div>
-      <input id="angolaPmtilesInput" type="file" accept=".pmtiles,application/octet-stream" multiple hidden>
+      <div id="angolaImportProgress" role="status" aria-live="polite" style="margin-top:10px;overflow-wrap:anywhere"></div>
       <div class="btn-row" style="margin-top:12px"><button class="primary-btn" id="angolaImportBtn">Importar ficheiros PMTiles</button>${ready?'<button class="secondary-btn" id="angolaOpenBtn">Usar Angola Offline</button>':''}</div>
       <div class="notice good" style="margin-top:10px">Também deixei os campos VOO e CONDUÇÃO abaixo apontados automaticamente para o Release oficial do GitHub.</div>`;
     cards.insertBefore(card,cards.firstChild);
     const av=document.querySelector('#aviationPmtilesUrl');if(av&&!av.value)av.value=ANGOLA_MAP_ASSETS.find(a=>a.id===ANGOLA_VFR_ID).url;
     const tr=document.querySelector('#terrestrialPmtilesUrl');if(tr&&!tr.value)tr.value=ANGOLA_MAP_ASSETS.find(a=>a.id===ANGOLA_VECTOR_ID).url;
-    card.querySelector('#angolaImportBtn')?.addEventListener('click',()=>card.querySelector('#angolaPmtilesInput')?.click());
-    card.querySelector('#angolaPmtilesInput')?.addEventListener('change',async e=>{const fs=Array.from(e.target.files||[]);e.target.value='';if(!fs.length){toast('Nenhum ficheiro selecionado.');return;}toast(`Angola Offline: ${fs.length} ficheiro${fs.length===1?'':'s'} selecionado${fs.length===1?'':'s'}…`);await angolaImportSelected(fs);});
+    angolaProgress(angolaImportState.message);
+    card.querySelector('#angolaImportBtn')?.addEventListener('click',()=>{
+      if(angolaImportState.busy)return;
+      angolaProgress('Selecione os PMTiles e toque em Abrir. A aguardar os ficheiros…');
+      angolaFileInput().click();
+    });
     card.querySelector('#angolaOpenBtn')?.addEventListener('click',async()=>{
       state.net='offline';localStorage.setItem('aeronav.net','offline');
       try{syncSegments();}catch(_){}
