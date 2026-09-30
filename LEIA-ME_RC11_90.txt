@@ -1,0 +1,26 @@
+AERONAV RC11.90 — PACOTE COMBINADO
+
+Este ZIP contém TAMBÉM o RC11.89 que te dei antes. Não perdes nenhuma dessas correções.
+
+ORDEM:
+1) Copiar .github/workflows/aeronav_rc11_89_hotfix.yml para o GitHub e executar o workflow RC11.89.
+2) Depois copiar .github/workflows/aeronav_rc11_90_route_visuals.yml e executar o workflow RC11.90.
+
+RC11.89 mantém:
+- cancelamento da rota Jorge -> Mathia + Wendler;
+- correção de Jorge ver Wendler após re-emparelhamento;
+- GPS/identidade real do Wendler;
+- submenu Waypoints / Lugares guardados;
+- Waypoints pessoais utilizáveis como Via.
+
+RC11.90 acrescenta:
+- rota própria Jorge e Mathia: trecho percorrido VERMELHO;
+- trecho que falta percorrer AZUL;
+- linha fina tracejada com setas direcionais;
+- rota criada pela Mathia aparece ROSA no mapa do Jorge;
+- rota criada pelo Jorge aparece AZUL no mapa da Mathia;
+- Jorge passa a partilhar rota com Mathia por padrão;
+- Mathia tenta partilhar automaticamente a sua rota com Jorge ao criá-la;
+- atualização do cache PWA de Jorge, Mathia e Wendler.
+
+Depois de ambos os workflows ficarem verdes, feche/reabra as PWAs para assumir o novo service worker.
