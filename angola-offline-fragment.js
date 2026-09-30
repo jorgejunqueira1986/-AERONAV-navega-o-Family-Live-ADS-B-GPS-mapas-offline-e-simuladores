@@ -1,4 +1,4 @@
-/* AERONAV RC11.94 — Angola Offline Maps integration fragment.
+/* AERONAV RC11.95 — Angola Offline Import Hotfix.
    This file is injected by sw.js into the main index.html at the PMTiles marker,
    so it executes inside the existing AERONAV application scope. */
 
@@ -182,7 +182,7 @@
     const av=document.querySelector('#aviationPmtilesUrl');if(av&&!av.value)av.value=ANGOLA_MAP_ASSETS.find(a=>a.id===ANGOLA_VFR_ID).url;
     const tr=document.querySelector('#terrestrialPmtilesUrl');if(tr&&!tr.value)tr.value=ANGOLA_MAP_ASSETS.find(a=>a.id===ANGOLA_VECTOR_ID).url;
     card.querySelector('#angolaImportBtn')?.addEventListener('click',()=>card.querySelector('#angolaPmtilesInput')?.click());
-    card.querySelector('#angolaPmtilesInput')?.addEventListener('change',async e=>{const fs=e.target.files;e.target.value='';await angolaImportSelected(fs);});
+    card.querySelector('#angolaPmtilesInput')?.addEventListener('change',async e=>{const fs=Array.from(e.target.files||[]);e.target.value='';if(!fs.length){toast('Nenhum ficheiro selecionado.');return;}toast(`Angola Offline: ${fs.length} ficheiro${fs.length===1?'':'s'} selecionado${fs.length===1?'':'s'}…`);await angolaImportSelected(fs);});
     card.querySelector('#angolaOpenBtn')?.addEventListener('click',async()=>{
       state.net='offline';localStorage.setItem('aeronav.net','offline');
       try{syncSegments();}catch(_){}

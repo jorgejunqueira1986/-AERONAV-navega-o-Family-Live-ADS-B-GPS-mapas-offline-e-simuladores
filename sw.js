@@ -1,11 +1,11 @@
-/* AERONAV — RC11.94 Angola Offline Maps + RC11.80 preserved
+/* AERONAV — RC11.95 Angola Offline Import Hotfix + RC11.94 preserved
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
    - Navigation requests: network-first, cached fallback.
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC11_94-angola-offline-maps-20260930-1';
+const CACHE='aeronav-jorge-RC11_95-angola-import-hotfix-20260930-1';
 const LOCAL=[
   './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js'
 ];
