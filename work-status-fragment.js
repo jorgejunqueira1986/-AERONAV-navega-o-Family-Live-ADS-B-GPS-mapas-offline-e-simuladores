@@ -1,6 +1,9 @@
-/* AERONAV RC11.98.1 - Work/Home commute avatars + Jorge Folga hotfix.
-   Preserves RC11.98 and RC11.97 Angola Offline.
-   Fix: keep the original marker dimensions when swapping avatar images. */
+/* AERONAV RC11.98.2 - Saved Addresses + Work/Home commute + Jorge Folga UI.
+   Preserves RC11.98.1 and RC11.97 Angola Offline.
+   - Saved address list: tap map, name + category, edit/delete/recenter.
+   - Casa/Trabalho saved coordinates improve commute detection.
+   - Folga is placed below CARRO with the same visual style, never over the map.
+   - Work commute has priority and automatically turns Folga off when it starts. */
 (()=>{
   'use strict';
   if(window.__AERONAV_WORK_STATUS_RC1198)return;
@@ -20,11 +23,119 @@
   let applying=false;
   let lastRoad=false;
 
+  const ADDRESS_KEY='aeronav.saved.addresses.'+role+'.v1';
+  let addressPickMode=false;
+  let pendingPoint=null;
+  let lastCommute=false;
+  let folgaButtonRef=null;
+
+  function loadAddresses(){
+    try{
+      const v=JSON.parse(localStorage.getItem(ADDRESS_KEY)||'[]');
+      return Array.isArray(v)?v:[];
+    }catch(_){return [];}
+  }
+
+  function saveAddresses(list){
+    try{
+      localStorage.setItem(ADDRESS_KEY,JSON.stringify(list||[]));
+      window.dispatchEvent(new CustomEvent('aeronav:addresses-changed',{detail:{role,addresses:list||[]}}));
+    }catch(_){}
+  }
+
+  function normCategory(v){
+    const s=String(v||'Outro').trim().toLowerCase();
+    if(s==='casa'||s==='home')return 'Casa';
+    if(s==='trabalho'||s==='work'||s==='emprego')return 'Trabalho';
+    if(s==='aeroporto'||s==='airport')return 'Aeroporto';
+    if(s==='hotel')return 'Hotel';
+    if(s==='escola'||s==='school')return 'Escola';
+    return 'Outro';
+  }
+
+  function haversineM(a,b){
+    const R=6371000,toRad=x=>x*Math.PI/180;
+    const p1=toRad(Number(a.lat)),p2=toRad(Number(b.lat));
+    const dp=toRad(Number(b.lat)-Number(a.lat));
+    const dl=toRad(Number(b.lng)-Number(a.lng));
+    const h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+    return 2*R*Math.asin(Math.sqrt(h));
+  }
+
+  function collectCoords(value,out,depth){
+    if(!value||depth>7||out.length>2500)return;
+    if(Array.isArray(value)){
+      if(value.length>=2 && typeof value[0]==='number' && typeof value[1]==='number'){
+        const x=Number(value[0]),y=Number(value[1]);
+        if(Math.abs(x)<=180&&Math.abs(y)<=90)out.push({lng:x,lat:y});
+      }
+      for(const v of value)collectCoords(v,out,depth+1);
+      return;
+    }
+    if(typeof value!=='object')return;
+    const lat=value.lat??value.latitude;
+    const lng=value.lng??value.lon??value.long??value.longitude;
+    if(Number.isFinite(Number(lat))&&Number.isFinite(Number(lng))){
+      const p={lat:Number(lat),lng:Number(lng)};
+      if(Math.abs(p.lat)<=90&&Math.abs(p.lng)<=180)out.push(p);
+    }
+    for(const k of Object.keys(value)){
+      if(/time|date|speed|alt|accuracy|heading|bearing/i.test(k))continue;
+      try{collectCoords(value[k],out,depth+1);}catch(_){}
+      if(out.length>2500)break;
+    }
+  }
+
+  function routeCandidates(){
+    const out=[];
+    const seen=new Set();
+    const add=v=>{
+      if(!v||typeof v!=='object')return;
+      try{
+        const sig=JSON.stringify(v).slice(0,600);
+        if(seen.has(sig))return;
+        seen.add(sig);
+      }catch(_){}
+      out.push(v);
+    };
+    add(getRoute());
+    const stores=[localStorage,sessionStorage];
+    for(const store of stores){
+      try{
+        for(let i=0;i<store.length;i++){
+          const k=store.key(i)||'';
+          if(!/route|rota|trip|nav|journey|viagem/i.test(k))continue;
+          const raw=store.getItem(k);
+          if(!raw||raw.length<2||raw.length>3000000)continue;
+          try{add(JSON.parse(raw));}catch(_){}
+        }
+      }catch(_){}
+    }
+    return out;
+  }
+
+  function savedCommuteByCoords(){
+    const addresses=loadAddresses();
+    const homes=addresses.filter(a=>normCategory(a.category)==='Casa');
+    const works=addresses.filter(a=>normCategory(a.category)==='Trabalho');
+    if(!homes.length||!works.length)return false;
+
+    for(const r of routeCandidates()){
+      const pts=[];
+      collectCoords(r,pts,0);
+      if(pts.length<2)continue;
+      const nearHome=pts.some(p=>homes.some(a=>haversineM(p,a)<=500));
+      const nearWork=pts.some(p=>works.some(a=>haversineM(p,a)<=500));
+      if(nearHome&&nearWork)return true;
+    }
+    return false;
+  }
+
   function checkAsset(url,key){
     const img=new Image();
     img.onload=()=>{available[key]=true;applyAvatars();};
     img.onerror=()=>{available[key]=false;};
-    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.1';
+    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.2';
   }
 
   checkAsset(assets.car,'car');
@@ -60,11 +171,15 @@
   }
 
   function commuteRouteActive(){
-    const r=getRoute();
-    if(!r||!roadRouteActive())return false;
-
-    const txt=JSON.stringify(r).toLowerCase();
-    return /trabalho|work|emprego|office|escrit[oó]rio|casa|home|resid[eê]ncia/.test(txt);
+    for(const r of routeCandidates()){
+      if(!r)continue;
+      let txt='';
+      try{txt=JSON.stringify(r).toLowerCase();}catch(_){}
+      const road=/road|car|drive|driving|carro|condu/.test(txt)&&!/flight|voo|walk|foot|ped/.test(txt);
+      const named=/trabalho|work|emprego|office|escrit[oó]rio|casa|home|resid[eê]ncia/.test(txt);
+      if(road&&named)return true;
+    }
+    return savedCommuteByCoords();
   }
 
   function isFolga(){
@@ -73,54 +188,294 @@
   }
 
   function localMode(){
-    if(isFolga())return 'folga';
     if(commuteRouteActive())return 'car';
+    if(isFolga())return 'folga';
     return 'person';
   }
 
-  function injectFolgaButton(){
-    if(role!=='jorge'||document.getElementById('aeronavFolgaBtn'))return;
+  function setFolga(on){
+    try{localStorage.setItem('aeronav.jorge.folga',on?'1':'0');}catch(_){}
+    paintFolgaButton();
+    applyAvatars();
+    try{
+      window.dispatchEvent(new CustomEvent('aeronav:work-status',{
+        detail:{role:'jorge',mode:on?'folga':'person'}
+      }));
+    }catch(_){}
+  }
 
-    const b=document.createElement('button');
-    b.id='aeronavFolgaBtn';
+  function paintFolgaButton(){
+    const b=folgaButtonRef||document.getElementById('aeronavFolgaBtn');
+    if(!b)return;
+    const on=isFolga();
+    b.textContent=on?'🏖️ FOLGA ✓':'🏖️ FOLGA';
+    b.setAttribute('aria-pressed',on?'true':'false');
+  }
+
+  function findModeButton(label){
+    const wanted=String(label).trim().toUpperCase();
+    return [...document.querySelectorAll('button,[role="button"],a')].find(el=>{
+      const t=String(el.textContent||'').replace(/\s+/g,' ').trim().toUpperCase();
+      return t===wanted||t.endsWith(' '+wanted)||t.includes(wanted);
+    })||null;
+  }
+
+  function cloneModeButton(source,id,text){
+    const b=source.cloneNode(false);
+    b.id=id;
+    b.removeAttribute('href');
+    b.removeAttribute('onclick');
+    b.removeAttribute('data-action');
     b.type='button';
-    b.style.cssText=[
-      'position:fixed',
-      'right:14px',
-      'bottom:calc(88px + env(safe-area-inset-bottom,0px))',
-      'z-index:2147483000',
-      'border:1px solid rgba(255,255,255,.24)',
-      'border-radius:999px',
-      'padding:10px 16px',
-      'font:700 14px system-ui,-apple-system,sans-serif',
-      'box-shadow:0 8px 24px rgba(0,0,0,.28)',
-      'backdrop-filter:blur(12px)',
-      '-webkit-backdrop-filter:blur(12px)',
-      'cursor:pointer',
-      'color:#fff'
-    ].join(';');
+    b.textContent=text;
+    b.style.position='relative';
+    b.style.inset='auto';
+    b.style.margin='0';
+    b.style.width='100%';
+    b.style.minWidth='0';
+    b.style.maxWidth='none';
+    b.style.transform='none';
+    return b;
+  }
 
-    const paint=()=>{
-      const on=isFolga();
-      b.textContent=on?'Folga ✓':'Folga';
-      b.setAttribute('aria-pressed',on?'true':'false');
-      b.style.background=on?'rgba(210,42,86,.94)':'rgba(20,25,31,.90)';
-    };
+  function injectHeaderControls(){
+    if(role!=='jorge')return;
 
-    b.addEventListener('click',()=>{
-      const on=!isFolga();
-      localStorage.setItem('aeronav.jorge.folga',on?'1':'0');
-      paint();
-      applyAvatars();
-      try{
-        window.dispatchEvent(new CustomEvent('aeronav:work-status',{
-          detail:{role:'jorge',mode:on?'folga':'person'}
-        }));
-      }catch(_){}
+    const old=document.getElementById('aeronavFolgaBtn');
+    if(old&&old.dataset.aeronavHeaderControl!=='1')old.remove();
+
+    if(document.getElementById('aeronavSecondaryModeRow')){
+      folgaButtonRef=document.getElementById('aeronavFolgaBtn');
+      paintFolgaButton();
+      return;
+    }
+
+    const car=findModeButton('CARRO');
+    const voo=findModeButton('VOO')||car;
+    if(!car||!car.parentElement)return;
+
+    const row=car.parentElement;
+    const holder=document.createElement('div');
+    holder.id='aeronavSecondaryModeRow';
+    holder.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:8px 0 10px;width:100%;align-items:stretch;';
+
+    const addresses=cloneModeButton(voo,'aeronavAddressesBtn','📍 ENDEREÇOS');
+    addresses.dataset.aeronavHeaderControl='1';
+    addresses.addEventListener('click',openAddressPanel);
+
+    const folga=cloneModeButton(car,'aeronavFolgaBtn','🏖️ FOLGA');
+    folga.dataset.aeronavHeaderControl='1';
+    folga.addEventListener('click',()=>{
+      if(commuteRouteActive())return;
+      setFolga(!isFolga());
     });
 
-    paint();
-    document.body.appendChild(b);
+    const blank=document.createElement('div');
+    blank.setAttribute('aria-hidden','true');
+
+    holder.append(addresses,folga,blank);
+    row.insertAdjacentElement('afterend',holder);
+
+    folgaButtonRef=folga;
+    paintFolgaButton();
+  }
+
+  function ensureAddressStyles(){
+    if(document.getElementById('aeronavAddressStyles'))return;
+    const s=document.createElement('style');
+    s.id='aeronavAddressStyles';
+    s.textContent=`
+      #aeronavAddressOverlay{position:fixed;inset:0;z-index:2147483500;background:rgba(0,10,20,.74);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-end;justify-content:center;padding:16px env(safe-area-inset-right,16px) calc(16px + env(safe-area-inset-bottom,0px)) env(safe-area-inset-left,16px)}
+      #aeronavAddressPanel{width:min(680px,100%);max-height:82vh;overflow:auto;background:#071b2a;border:1px solid #245a78;border-radius:22px;padding:16px;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,.45);font-family:system-ui,-apple-system,sans-serif}
+      #aeronavAddressPanel h2{margin:0;font-size:20px}
+      .aeronavAddrTop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+      .aeronavAddrBtn{border:1px solid #2e6c8c;background:#0c3148;color:#fff;border-radius:14px;padding:11px 13px;font-weight:750;font-size:14px}
+      .aeronavAddrPrimary{background:#0b8dcc;border-color:#47c7ff}
+      .aeronavAddrDanger{background:#401923;border-color:#a54b61}
+      .aeronavAddrList{display:grid;gap:9px;margin-top:12px}
+      .aeronavAddrItem{background:#0a2538;border:1px solid #214e68;border-radius:16px;padding:12px}
+      .aeronavAddrName{font-weight:800;font-size:16px}
+      .aeronavAddrMeta{opacity:.72;font-size:12px;margin-top:3px}
+      .aeronavAddrActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+      #aeronavAddressEditor label{display:block;font-size:12px;opacity:.8;margin:10px 0 5px}
+      #aeronavAddressEditor input,#aeronavAddressEditor select{width:100%;box-sizing:border-box;border:1px solid #315e77;border-radius:12px;background:#061722;color:#fff;padding:12px;font-size:16px}
+      #aeronavAddressPickToast{position:fixed;z-index:2147483600;left:50%;top:calc(18px + env(safe-area-inset-top,0px));transform:translateX(-50%);max-width:92vw;background:#07283c;color:#fff;border:1px solid #39a9dc;border-radius:999px;padding:10px 16px;font:750 14px system-ui,-apple-system,sans-serif;box-shadow:0 8px 26px rgba(0,0,0,.35)}
+    `;
+    document.head.appendChild(s);
+  }
+
+  function closeAddressPanel(){
+    document.getElementById('aeronavAddressOverlay')?.remove();
+  }
+
+  function startAddressPick(){
+    closeAddressPanel();
+    addressPickMode=true;
+    document.getElementById('aeronavAddressPickToast')?.remove();
+    const t=document.createElement('div');
+    t.id='aeronavAddressPickToast';
+    t.textContent='📍 Toque no ponto exato do mapa que quer guardar';
+    document.body.appendChild(t);
+  }
+
+  function openAddressEditor(point,existing){
+    ensureAddressStyles();
+    pendingPoint={lat:Number(point.lat),lng:Number(point.lng)};
+    closeAddressPanel();
+
+    const overlay=document.createElement('div');
+    overlay.id='aeronavAddressOverlay';
+    const panel=document.createElement('div');
+    panel.id='aeronavAddressPanel';
+    panel.innerHTML=`
+      <div class="aeronavAddrTop"><h2>${existing?'Editar endereço':'Guardar endereço'}</h2><button class="aeronavAddrBtn" data-close>✕</button></div>
+      <div id="aeronavAddressEditor">
+        <label>Nome</label>
+        <input id="aeronavAddrNameInput" maxlength="60" placeholder="Ex.: Casa, Trabalho TAAG, Hotel..." value="">
+        <label>Categoria</label>
+        <select id="aeronavAddrCategoryInput">
+          <option>Casa</option><option>Trabalho</option><option>Aeroporto</option><option>Hotel</option><option>Escola</option><option>Outro</option>
+        </select>
+        <div class="aeronavAddrMeta" style="margin-top:10px">${pendingPoint.lat.toFixed(6)}, ${pendingPoint.lng.toFixed(6)}</div>
+        <div class="aeronavAddrActions" style="margin-top:14px">
+          <button class="aeronavAddrBtn aeronavAddrPrimary" data-save>Guardar</button>
+          <button class="aeronavAddrBtn" data-cancel>Cancelar</button>
+        </div>
+      </div>`;
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    const nameInput=panel.querySelector('#aeronavAddrNameInput');
+    const catInput=panel.querySelector('#aeronavAddrCategoryInput');
+    if(existing){
+      nameInput.value=existing.name||'';
+      catInput.value=normCategory(existing.category);
+    }
+
+    panel.querySelector('[data-close]').onclick=closeAddressPanel;
+    panel.querySelector('[data-cancel]').onclick=openAddressPanel;
+    panel.querySelector('[data-save]').onclick=()=>{
+      const name=String(nameInput.value||'').trim();
+      if(!name){nameInput.focus();return;}
+      const list=loadAddresses();
+      const item={
+        id:existing?.id||('addr_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),
+        name,
+        category:normCategory(catInput.value),
+        lat:pendingPoint.lat,
+        lng:pendingPoint.lng,
+        updatedAt:new Date().toISOString()
+      };
+      const idx=list.findIndex(x=>x.id===item.id);
+      if(idx>=0)list[idx]=item;else list.push(item);
+      saveAddresses(list);
+      openAddressPanel();
+    };
+  }
+
+  function findMapInstance(){
+    try{
+      for(const k of Object.getOwnPropertyNames(window)){
+        let v;
+        try{v=window[k];}catch(_){continue;}
+        if(v&&typeof v==='object'&&typeof v.flyTo==='function'&&typeof v.getCenter==='function'){
+          return v;
+        }
+      }
+    }catch(_){}
+    return null;
+  }
+
+  function mapFlyToAddress(a){
+    const m=findMapInstance();
+    if(m){
+      try{
+        const z=Math.max(Number(m.getZoom?.()||0),16);
+        m.flyTo({center:[Number(a.lng),Number(a.lat)],zoom:z});
+      }catch(_){}
+    }
+    try{window.dispatchEvent(new CustomEvent('aeronav:address-selected',{detail:a}));}catch(_){}
+    closeAddressPanel();
+  }
+
+  function openAddressPanel(){
+    ensureAddressStyles();
+    closeAddressPanel();
+
+    const overlay=document.createElement('div');
+    overlay.id='aeronavAddressOverlay';
+    const panel=document.createElement('div');
+    panel.id='aeronavAddressPanel';
+
+    const list=loadAddresses();
+    panel.innerHTML=`
+      <div class="aeronavAddrTop"><h2>📍 Endereços guardados</h2><button class="aeronavAddrBtn" data-close>✕</button></div>
+      <button class="aeronavAddrBtn aeronavAddrPrimary" data-pick>＋ Guardar ponto do mapa</button>
+      <div class="aeronavAddrList"></div>`;
+
+    const listEl=panel.querySelector('.aeronavAddrList');
+    if(!list.length){
+      const empty=document.createElement('div');
+      empty.className='aeronavAddrItem';
+      empty.innerHTML='<div class="aeronavAddrName">Ainda não há endereços</div><div class="aeronavAddrMeta">Toque em “Guardar ponto do mapa” e depois no local exato.</div>';
+      listEl.appendChild(empty);
+    }else{
+      for(const a of list){
+        const item=document.createElement('div');
+        item.className='aeronavAddrItem';
+        const safeName=String(a.name||'Endereço').replace(/[<>&"]/g,ch=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[ch]));
+        item.innerHTML=`
+          <div class="aeronavAddrName">${safeName}</div>
+          <div class="aeronavAddrMeta">${normCategory(a.category)} · ${Number(a.lat).toFixed(6)}, ${Number(a.lng).toFixed(6)}</div>
+          <div class="aeronavAddrActions">
+            <button class="aeronavAddrBtn" data-go>Ver no mapa</button>
+            <button class="aeronavAddrBtn" data-edit>Editar</button>
+            <button class="aeronavAddrBtn aeronavAddrDanger" data-del>Apagar</button>
+          </div>`;
+        item.querySelector('[data-go]').onclick=()=>mapFlyToAddress(a);
+        item.querySelector('[data-edit]').onclick=()=>openAddressEditor(a,a);
+        item.querySelector('[data-del]').onclick=()=>{
+          saveAddresses(loadAddresses().filter(x=>x.id!==a.id));
+          openAddressPanel();
+        };
+        listEl.appendChild(item);
+      }
+    }
+
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    panel.querySelector('[data-close]').onclick=closeAddressPanel;
+    panel.querySelector('[data-pick]').onclick=startAddressPick;
+  }
+
+  function consumeMapClick(lngLat){
+    if(!addressPickMode||!lngLat)return;
+    const lat=Number(lngLat.lat),lng=Number(lngLat.lng);
+    if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
+    addressPickMode=false;
+    document.getElementById('aeronavAddressPickToast')?.remove();
+    openAddressEditor({lat,lng},null);
+  }
+
+  function installMapClickHook(){
+    try{
+      const proto=window.maplibregl?.Map?.prototype;
+      if(!proto)return false;
+      if(proto.__aeronavAddressHook)return true;
+      const nativeFire=proto.fire;
+      proto.fire=function(type,data){
+        try{
+          const eventType=typeof type==='string'?type:type?.type;
+          const payload=typeof type==='string'?data:type;
+          if(eventType==='click'&&addressPickMode&&payload?.lngLat){
+            setTimeout(()=>consumeMapClick(payload.lngLat),0);
+          }
+        }catch(_){}
+        return nativeFire.apply(this,arguments);
+      };
+      proto.__aeronavAddressHook=true;
+      return true;
+    }catch(_){return false;}
   }
 
   function elementText(el){
@@ -391,12 +746,18 @@
   function tick(){
     const nowRoad=commuteRouteActive();
 
+    if(nowRoad&&!lastCommute&&role==='jorge'&&isFolga()){
+      setFolga(false);
+    }
+    lastCommute=nowRoad;
+
     if(nowRoad!==lastRoad){
       lastRoad=nowRoad;
       applyAvatars();
     }
 
-    injectFolgaButton();
+    injectHeaderControls();
+    installMapClickHook();
     applyAvatars();
   }
 
