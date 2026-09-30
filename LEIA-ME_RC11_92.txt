@@ -1,0 +1,30 @@
+AERONAV RC11.92 — DYNAMIC ETA
+
+Este pacote é cumulativo e preserva os hotfixes anteriores.
+
+ORDEM RECOMENDADA PARA INSTALAÇÃO MANUAL
+1. RC11.89
+2. RC11.90
+3. RC11.91
+4. RC11.92
+
+No GitHub, coloque/executa um workflow de cada vez e confirme verde antes do seguinte.
+
+RC11.92 acrescenta:
+- ETA recalculado automaticamente durante a rota ativa.
+- Cálculo pelo progresso real ao longo da geometria da rota.
+- Ajuste adicional pela velocidade atual, com suavização para evitar saltos.
+- Se o utilizador parar, o ETA atrasa automaticamente.
+- Se a velocidade aumentar, o ETA pode antecipar.
+- Jorge: ETA atualizado em CARRO, A PÉ e VOO quando a rota está ativa.
+- Mathia: ETA atualizado automaticamente na própria rota CARRO/A PÉ.
+- ETA da rota do Jorge sincronizado com Mathia e Wendler.
+- ETA da rota da Mathia sincronizado silenciosamente com Jorge.
+- Atualizações de ETA não geram notificações repetidas de “nova rota”.
+- Family Live usa o ETA atualizado no campo flight_eta também para rotas terrestres.
+- Cache/PWA atualizado para RC11.92 em Jorge, Mathia e Wendler.
+
+Mantém RC11.91:
+- Uma única rota; rotas alternativas continuam desativadas.
+- Linha percorrida/vermelha e restante/azul + setas tracejadas conforme o hotfix visual anterior.
+- Correções anteriores de Family, Wendler, GPS, cancelamento, Waypoints e Lugares guardados.
