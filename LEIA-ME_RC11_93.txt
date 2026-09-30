@@ -1,0 +1,28 @@
+AERONAV RC11.93 — ACTUALIZAÇÃO AUTOMÁTICA IN-APP
+
+Este pacote mantém os hotfixes RC11.89, RC11.90, RC11.91 e RC11.92 e acrescenta o RC11.93.
+
+NOVO COMPORTAMENTO
+- Jorge, Mathia e Wendler verificam automaticamente se existe nova versão.
+- Verificação ao abrir, ao regressar ao primeiro plano, ao recuperar Internet e a cada 60 segundos enquanto a app estiver aberta.
+- Quando houver nova versão aparece: “Nova versão disponível”.
+- Botão: “Actualize”.
+- Ao tocar em Actualize, a app força a atualização do Service Worker e recarrega a versão nova.
+- Não apaga emparelhamentos, rotas guardadas, IndexedDB, preferências nem mapas offline.
+- Se as notificações do sistema já estiverem autorizadas, também pode aparecer um aviso nativo.
+
+INSTALAÇÃO MANUAL
+Execute pela ordem e aguarde VERDE antes do próximo:
+1. aeronav_rc11_89_hotfix.yml
+2. aeronav_rc11_90_route_visuals.yml
+3. aeronav_rc11_91_single_route.yml
+4. aeronav_rc11_92_dynamic_eta.yml
+5. aeronav_rc11_93_auto_update.yml
+
+Também deve permanecer no repositório:
+- aeronav_version_manifest.yml
+
+Esse workflow mantém version.json sincronizado com a versão indicada no index.html para que versões futuras sejam detectadas automaticamente.
+
+IMPORTANTE
+Depois de instalar o RC11.93, abra/actualize a aplicação uma última vez para carregar o novo gestor de actualizações. A partir daí, as próximas versões serão apresentadas dentro da própria aplicação com o botão “Actualize”, sem ser necessário fechar e voltar a abrir manualmente.
