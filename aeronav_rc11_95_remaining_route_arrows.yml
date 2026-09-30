@@ -1,0 +1,228 @@
+name: AERONAV RC11.95 Remaining Route + Yellow Road Arrows
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aeronav_rc11_95_remaining_route_arrows.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current AERONAV
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply RC11.95 remaining-route visuals
+        shell: bash
+        run: |
+          cat > /tmp/rc1195_patch.py <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import re, json, sys
+
+          ROOT=Path('index.html')
+          MATHIA=Path('mathia/index.html')
+          WENDLER=Path('wendler/index.html')
+          ROOT_SW=Path('sw.js')
+          MATHIA_SW=Path('mathia/sw.js')
+          WENDLER_SW=Path('wendler/sw.js')
+          VERSION=Path('version.json')
+          CURRENT='RC11.95'
+
+          def load(p):
+              if not p.exists(): raise SystemExit(f'missing {p}')
+              return p.read_text(encoding='utf-8')
+          def save(p,t): p.write_text(t,encoding='utf-8')
+          def replace_once(t,old,new,label):
+              if old not in t: raise SystemExit(f'pattern not found: {label}')
+              return t.replace(old,new,1)
+          def sub_once(t,pat,repl,label,flags=0):
+              out,n=re.subn(pat,repl,t,count=1,flags=flags)
+              if n!=1: raise SystemExit(f'pattern not found/unique: {label} ({n})')
+              return out
+
+          # ---------------- JORGE ----------------
+          t=load(ROOT)
+          if 'RC11.95 — remaining route only' not in t:
+              # One shared geometry helper for VOO and CARRO: everything behind the current
+              # projected position disappears. Only the remaining route stays in the source.
+              pat=r"// RC11\.94 — flight = dashed arrows only; road = travelled red \+ remaining blue\.\n\s*function routeProgressFeatureCollection\(route=state\.currentRoute\)\{.*?\n\s*\}"
+              repl=r'''// RC11.95 — remaining route only: completed geometry is removed in VOO and CARRO.
+          function routeRemainingCoordinates(route=state.currentRoute,p=state.currentPosition){
+          const coords=routeCoordinates(route);if(coords.length<2)return [];
+          if(!p||!Number.isFinite(Number(p.lat))||!Number.isFinite(Number(p.lon)))return coords;
+          const plat=Number(p.lat),plon=Number(p.lon),cos=Math.max(.05,Math.cos(plat*Math.PI/180));let best=Infinity,bestSeg=0,bestPoint=coords[0];
+          for(let i=0;i<coords.length-1;i++){const a=coords[i],b=coords[i+1],ax=(Number(a[0])-plon)*cos,ay=Number(a[1])-plat,bx=(Number(b[0])-plon)*cos,by=Number(b[1])-plat,vx=bx-ax,vy=by-ay,l2=vx*vx+vy*vy;let u=l2>0?-(ax*vx+ay*vy)/l2:0;u=Math.max(0,Math.min(1,u));const q=[Number(a[0])+(Number(b[0])-Number(a[0]))*u,Number(a[1])+(Number(b[1])-Number(a[1]))*u],off=haversine({lat:plat,lon:plon},{lat:q[1],lon:q[0]});if(Number.isFinite(off)&&off<best){best=off;bestSeg=i;bestPoint=q}}
+          const remaining=[bestPoint,...coords.slice(bestSeg+1)];if(remaining.length<2)return [];
+          const remM=remaining.slice(1).reduce((s,c,i)=>s+haversine({lat:remaining[i][1],lon:remaining[i][0]},{lat:c[1],lon:c[0]}),0);return remM<8?[]:remaining;
+          }
+          function routeProgressFeatureCollection(route=state.currentRoute){
+          const remaining=routeRemainingCoordinates(route,state.currentPosition);if(remaining.length<2)return {type:'FeatureCollection',features:[]};
+          const routeMode=route?.kind==='flight'?'flight':'road';return {type:'FeatureCollection',features:[{type:'Feature',properties:{segment:'remaining',routeMode,owner:'Jorge'},geometry:{type:'LineString',coordinates:remaining}}]};
+          }'''
+              t=sub_once(t,pat,repl,'remaining-only route geometry',re.S)
+
+              # Flight: remaining route = blue dashed path + blue direction arrows.
+              # Road: NO line. Only yellow direction arrows remain.
+              pat=r"\s{6}const routeWidth=3\.6;\n\s{6}state\.map\.addLayer\(\{id:'active-route'.*?\n\s{6}const coords=routeCoordinates\(route\);"
+              repl="""      const routeWidth=3.4;
+              state.map.addLayer({id:'active-route',type:'line',source:'active-route',filter:['==',['get','routeMode'],'flight'],layout:{'line-join':'round','line-cap':'butt','visibility':'visible'},paint:{'line-width':routeWidth,'line-color':'#2f8fff','line-opacity':.98,'line-dasharray':[1.6,1.45]}});
+              state.map.addLayer({id:'active-route-arrows',type:'symbol',source:'active-route',layout:{'symbol-placement':'line','symbol-spacing':54,'text-field':'➤','text-size':['match',['get','routeMode'],'road',19,15],'text-rotation-alignment':'map','text-keep-upright':false,'visibility':'visible'},paint:{'text-color':['match',['get','routeMode'],'road','#ffd400','#2f8fff'],'text-halo-color':['match',['get','routeMode'],'road','rgba(40,31,0,.92)','rgba(3,18,27,.82)'],'text-halo-width':1.4}});
+              const coords=routeRemainingCoordinates(route,state.currentPosition);"""
+              t=sub_once(t,pat,repl,'flight blue / road yellow arrows',re.S)
+
+              # SVG fallback must never resurrect the travelled part. It is flight-only;
+              # road intentionally has no fallback line because the requested visual is arrows only.
+              t=replace_once(t,
+                  "      const route=state.currentRoute,coords=routeCoordinates(route);",
+                  "      const route=state.currentRoute;if(route?.kind!=='flight'){clearRouteOverlay();return;}const coords=routeRemainingCoordinates(route,state.currentPosition);",
+                  'route overlay remaining geometry')
+              t=t.replace("if(line){line.setAttribute('stroke',driveStyle?.routeColor||'#36d9ff');line.setAttribute('stroke-width',String(Math.max(5.5,Number(driveStyle?.routeWidth||0))));}",
+                          "if(line){line.setAttribute('stroke','#2f8fff');line.setAttribute('stroke-width','3.6');line.setAttribute('stroke-dasharray','8 8');}",1)
+
+              # Offline SVG follows the same rule: trim completed geometry. Flight is blue dashed;
+              # road is yellow arrows with a transparent carrier path (no visible line).
+              t=replace_once(t,
+                  "    const coords=route.geometry.coordinates;",
+                  "    const coords=routeRemainingCoordinates(route,state.currentPosition);if(coords.length<2)return;",
+                  'offline remaining route')
+              old="""    const pts=coords.map(c=>`${px(c[0]).toFixed(1)},${py(c[1]).toFixed(1)}`).join(' ');
+              add('polyline',{points:pts,fill:'none',stroke:'#39d4ff','stroke-width':'9','stroke-linecap':'round','stroke-linejoin':'round'});"""
+              new="""    const pts=coords.map(c=>`${px(c[0]).toFixed(1)},${py(c[1]).toFixed(1)}`).join(' ');
+              if(route.kind==='flight')add('polyline',{points:pts,fill:'none',stroke:'#2f8fff','stroke-width':'6','stroke-dasharray':'12 10','stroke-linecap':'butt','stroke-linejoin':'round'});
+              else{
+                const defs=document.createElementNS(ns,'defs'),marker=document.createElementNS(ns,'marker'),arrow=document.createElementNS(ns,'path');marker.setAttribute('id','aeronavRoadArrowYellow');marker.setAttribute('markerWidth','8');marker.setAttribute('markerHeight','8');marker.setAttribute('refX','6');marker.setAttribute('refY','3');marker.setAttribute('orient','auto');marker.setAttribute('markerUnits','strokeWidth');arrow.setAttribute('d','M0,0 L0,6 L6,3 z');arrow.setAttribute('fill','#ffd400');marker.appendChild(arrow);defs.appendChild(marker);svg.appendChild(defs);
+                add('polyline',{points:pts,fill:'none',stroke:'transparent','stroke-width':'2','marker-mid':'url(#aeronavRoadArrowYellow)','marker-end':'url(#aeronavRoadArrowYellow)'});
+              }"""
+              t=replace_once(t,old,new,'offline flight/road visual')
+
+          # Version updater/build.
+          t=re.sub(r'<title>AERONAV — RC11\.\d+</title>',f'<title>AERONAV — {CURRENT}</title>',t,count=1)
+          t=re.sub(r"const APP_VERSION = '[^']+';",f"const APP_VERSION = '7.95 {CURRENT} · Remaining Route + Yellow Road Arrows';",t,count=1)
+          t=t.replace('const CURRENT_VERSION="RC11.94"','const CURRENT_VERSION="RC11.95"')
+          save(ROOT,t)
+
+          # ---------------- MATHIA ----------------
+          m=load(MATHIA)
+          if 'RC11.95 — Mathia remaining route only' not in m:
+              pat=r"// RC11\.90 — Mathia own route progress: travelled red / remaining blue\.\n\s*function ownRouteProgressFeatureCollection\(r=cfg\.ownRoute\)\{.*?\n\s*\}"
+              repl=r'''// RC11.95 — Mathia remaining route only: completed ground path disappears.
+          function ownRouteProgressFeatureCollection(r=cfg.ownRoute){
+          const coords=ownRouteCoords(r);if(coords.length<2)return {type:'FeatureCollection',features:[]};const p=cfg.currentPosition;let idx=0;
+          if(p&&Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon))){let best=Infinity;coords.forEach((c,i)=>{const d=geoDistM([Number(p.lon),Number(p.lat)],c);if(Number.isFinite(d)&&d<best){best=d;idx=i}})}
+          idx=Math.max(0,Math.min(coords.length-1,idx));const remaining=coords.slice(idx);if(remaining.length<2)return {type:'FeatureCollection',features:[]};return {type:'FeatureCollection',features:[{type:'Feature',properties:{segment:'remaining',routeMode:'road',owner:'Mathia'},geometry:{type:'LineString',coordinates:remaining}}]};
+          }'''
+              m=sub_once(m,pat,repl,'Mathia remaining route',re.S)
+
+              old="function drawOwnRoute(){const r=cfg.ownRoute,c=ownRouteCoords(r);if(!map||!map.loaded()||c.length<2)return false;const geo=ownRouteProgressFeatureCollection(r);try{let src=map.getSource('mathia-own-route');if(src)src.setData(geo);else map.addSource('mathia-own-route',{type:'geojson',data:geo});['mathia-own-route-arrows','mathia-own-route-line','mathia-own-route-glow'].forEach(id=>{try{if(map.getLayer(id))map.removeLayer(id)}catch(_){}});map.addLayer({id:'mathia-own-route-line',type:'line',source:'mathia-own-route',layout:{'line-cap':'butt'},paint:{'line-color':['match',['get','segment'],'done','#ff4455','#2f8fff'],'line-width':3.5,'line-opacity':1,'line-dasharray':[1.6,1.45]}});map.addLayer({id:'mathia-own-route-arrows',type:'symbol',source:'mathia-own-route',layout:{'symbol-placement':'line','symbol-spacing':62,'text-field':'➤','text-size':15,'text-rotation-alignment':'map','text-keep-upright':false},paint:{'text-color':['match',['get','segment'],'done','#ff4455','#2f8fff'],'text-halo-color':'rgba(50,8,28,.82)','text-halo-width':1.1}})}catch(_){return false}return true}"
+              new="function drawOwnRoute(){const r=cfg.ownRoute,c=ownRouteCoords(r);if(!map||!map.loaded()||c.length<2)return false;const geo=ownRouteProgressFeatureCollection(r);try{let src=map.getSource('mathia-own-route');if(src)src.setData(geo);else map.addSource('mathia-own-route',{type:'geojson',data:geo});['mathia-own-route-arrows','mathia-own-route-line','mathia-own-route-glow'].forEach(id=>{try{if(map.getLayer(id))map.removeLayer(id)}catch(_){}});if(geo.features?.length)map.addLayer({id:'mathia-own-route-arrows',type:'symbol',source:'mathia-own-route',layout:{'symbol-placement':'line','symbol-spacing':54,'text-field':'➤','text-size':19,'text-rotation-alignment':'map','text-keep-upright':false},paint:{'text-color':'#ffd400','text-halo-color':'rgba(40,31,0,.92)','text-halo-width':1.4}})}catch(_){return false}return true}"
+              m=replace_once(m,old,new,'Mathia yellow route arrows')
+
+          m=m.replace('const CURRENT_VERSION="RC11.94"','const CURRENT_VERSION="RC11.95"')
+          m=re.sub(r'<title>AERONAV Mathia · RC11\.[^<]+</title>',f'<title>AERONAV Mathia · {CURRENT}</title>',m,count=1)
+          m=re.sub(r"window\.AERONAV_MATHIA_BUILD='[^']+';",f"window.AERONAV_MATHIA_BUILD='{CURRENT}';",m,count=1)
+          save(MATHIA,m)
+
+          # ---------------- WENDLER VERSION CONSISTENCY ----------------
+          w=load(WENDLER)
+          w=w.replace('const CURRENT_VERSION="RC11.94"','const CURRENT_VERSION="RC11.95"')
+          w=re.sub(r'<title>AERONAV Wendler · RC11\.[^<]+</title>',f'<title>AERONAV Wendler · {CURRENT} · Redmi Note 14 Pro</title>',w,count=1)
+          w=re.sub(r"window\.AERONAV_WENDLER_BUILD='[^']+';",f"window.AERONAV_WENDLER_BUILD='{CURRENT}';",w,count=1)
+          save(WENDLER,w)
+
+          # ---------------- SERVICE WORKERS + VERSION MANIFEST ----------------
+          def patch_sw(path,prefix):
+              s=load(path)
+              s=re.sub(r"const CACHE='[^']+';",f"const CACHE='{prefix}-RC11_95-remaining-route-yellow-arrows-20260930-1';",s,count=1)
+              s=s.replace("version:'RC11.94'","version:'RC11.95'")
+              if not s.startswith('/* AERONAV RC11.95'):
+                  s='/* AERONAV RC11.95 — Remaining route + yellow road arrows */\n'+s
+              save(path,s)
+          patch_sw(ROOT_SW,'aeronav-jorge')
+          patch_sw(MATHIA_SW,'aeronav-mathia')
+          patch_sw(WENDLER_SW,'aeronav-wendler')
+
+          old_version={}
+          try: old_version=json.loads(VERSION.read_text(encoding='utf-8')) if VERSION.exists() else {}
+          except Exception: old_version={}
+          released_at=old_version.get('releasedAt') if str(old_version.get('version','')).upper()==CURRENT else datetime.now(timezone.utc).isoformat()
+          VERSION.write_text(json.dumps({'app':'AERONAV','version':CURRENT,'releasedAt':released_at,'message':'Nova versão disponível','action':'Actualize','profiles':['jorge','mathia','wendler']},ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('RC11.95 patch applied')
+          PY
+          python3 -W ignore /tmp/rc1195_patch.py
+
+      - name: Validate RC11.95
+        shell: bash
+        run: |
+          python3 - <<'PYV'
+          from pathlib import Path
+          import re, subprocess, tempfile, os, json
+
+          for fn in ['index.html','mathia/index.html','wendler/index.html']:
+              text=Path(fn).read_text(encoding='utf-8')
+              scripts=[]
+              for mt in re.finditer(r'<script(?:\s[^>]*)?>(.*?)</script>',text,re.S|re.I):
+                  tag=text[mt.start():text.find('>',mt.start())+1]
+                  if 'application/json' in tag: continue
+                  scripts.append(mt.group(1))
+              for i,body in enumerate(scripts):
+                  with tempfile.NamedTemporaryFile('w',suffix='.js',delete=False,encoding='utf-8') as f:
+                      f.write(body); tmp=f.name
+                  p=subprocess.run(['node','--check',tmp],capture_output=True,text=True);os.unlink(tmp)
+                  if p.returncode: print(p.stderr);raise SystemExit(f'JavaScript inválido: {fn} script {i}')
+              print(f'{fn}: {len(scripts)} scripts JS válidos')
+
+          root=Path('index.html').read_text(encoding='utf-8')
+          route_fun=re.search(r'// RC11\.95 — remaining route only.*?function routeProgressFeatureCollection.*?\n\s*\}',root,re.S)
+          if not route_fun: raise SystemExit('Função remaining-route RC11.95 ausente')
+          rf=route_fun.group(0)
+          checks={
+            'percurso feito removido': "segment:'done'" not in rf and 'routeRemainingCoordinates' in rf,
+            'VOO restante azul': "filter:['==',['get','routeMode'],'flight']" in root and "'line-color':'#2f8fff'" in root,
+            'CARRO sem linha própria': "filter:['==',['get','routeMode'],'flight']" in root,
+            'CARRO setas amarelas': "'road','#ffd400'" in root and "'text-field':'➤'" in root,
+            'fallback não ressuscita percurso': "route?.kind!=='flight'" in root and 'routeRemainingCoordinates(route,state.currentPosition)' in root,
+            'offline CARRO setas amarelas': 'aeronavRoadArrowYellow' in root and "stroke:'transparent'" in root,
+            'sem rotas alternativas':'alternatives=true' not in root,
+            'updater RC11.95':'const CURRENT_VERSION="RC11.95"' in root,
+          }
+          for k,v in checks.items():
+              print(('OK  ' if v else 'FAIL'),k)
+              if not v: raise SystemExit(k)
+
+          mathia=Path('mathia/index.html').read_text(encoding='utf-8')
+          if 'RC11.95 — Mathia remaining route only' not in mathia: raise SystemExit('Mathia remaining-route ausente')
+          if "id:'mathia-own-route-line',type:'line'" in mathia: raise SystemExit('Mathia ainda desenha linha terrestre')
+          if "'text-color':'#ffd400'" not in mathia: raise SystemExit('Mathia sem setas amarelas')
+          if 'const CURRENT_VERSION="RC11.95"' not in mathia: raise SystemExit('Mathia updater incorreto')
+          w=Path('wendler/index.html').read_text(encoding='utf-8')
+          if 'const CURRENT_VERSION="RC11.95"' not in w: raise SystemExit('Wendler updater incorreto')
+
+          for fn in ['sw.js','mathia/sw.js','wendler/sw.js']:
+              p=subprocess.run(['node','--check',fn],capture_output=True,text=True)
+              if p.returncode: raise SystemExit(f'SW inválido {fn}: '+p.stderr)
+              s=Path(fn).read_text(encoding='utf-8')
+              if 'RC11_95' not in s or "version:'RC11.95'" not in s: raise SystemExit(f'Versão SW incorreta: {fn}')
+          data=json.loads(Path('version.json').read_text(encoding='utf-8'))
+          if data.get('version')!='RC11.95': raise SystemExit('version.json não está em RC11.95')
+          print('RC11.95 validation OK')
+          PYV
+
+      - name: Commit RC11.95
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html mathia/index.html wendler/index.html sw.js mathia/sw.js wendler/sw.js version.json
+          if git diff --cached --quiet; then
+            echo "RC11.95 already applied"
+            exit 0
+          fi
+          git commit -m "AERONAV RC11.95 remaining route and yellow road arrows"
+          git push
