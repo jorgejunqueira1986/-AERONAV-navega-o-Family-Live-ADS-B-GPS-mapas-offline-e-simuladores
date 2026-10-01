@@ -1,4 +1,4 @@
-/* AERONAV RC11.98.5 - Jorge Admin shared addresses + Family route-cancel sync.
+/* AERONAV RC11.98.6 - Exact address pointer anchor + Jorge Admin + Family route-cancel sync.
    Preserves RC11.98.4, RC11.98.1 and RC11.97 Angola Offline.
    ADMIN:
    - Jorge chooses whether each saved address is shared with Mathia, Wendler, both or neither.
@@ -563,7 +563,7 @@
     const img=new Image();
     img.onload=()=>{available[key]=true;applyAvatars();};
     img.onerror=()=>{available[key]=false;};
-    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.5';
+    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.6';
   }
 
   checkAsset(assets.car,'car');
@@ -848,9 +848,11 @@
       .aeronavAddrShare{display:flex;gap:16px;flex-wrap:wrap;margin:7px 0 4px}.aeronavAddrShare label{display:flex!important;align-items:center;gap:7px;margin:0!important;opacity:1!important}.aeronavAddrShare input{width:auto!important;accent-color:#28b8f4}
       #aeronavAddressEditor label{display:block;font-size:12px;opacity:.8;margin:10px 0 5px}
       #aeronavAddressEditor input,#aeronavAddressEditor select{width:100%;box-sizing:border-box;border:1px solid #315e77;border-radius:12px;background:#061722;color:#fff;padding:12px;font-size:16px}
-      .aeronavSavedPin{display:flex;flex-direction:column;align-items:center;pointer-events:auto;filter:drop-shadow(0 3px 4px rgba(0,0,0,.38))}
-      .aeronavSavedPinIcon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#073451;border:2px solid #fff;font-size:18px}
-      .aeronavSavedPinLabel{margin-top:3px;max-width:120px;padding:3px 7px;border-radius:8px;background:rgba(3,24,38,.9);color:#fff;font:700 11px system-ui,-apple-system,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .aeronavSavedPin{display:flex;flex-direction:column;align-items:center;pointer-events:auto;filter:drop-shadow(0 3px 4px rgba(0,0,0,.38));transform:translateY(0)}
+      .aeronavSavedPinLabel{margin-bottom:4px;max-width:130px;padding:3px 7px;border-radius:8px;background:rgba(3,24,38,.92);color:#fff;font:700 11px system-ui,-apple-system,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .aeronavSavedPinHead{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#073451;border:2px solid #fff;font-size:19px;box-sizing:border-box}
+      .aeronavSavedPinTip{width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:10px solid #fff;margin-top:-1px;position:relative}
+      .aeronavSavedPinTip:after{content:'';position:absolute;left:-5px;top:-10px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #073451}
       #aeronavAddressPickToast{position:fixed;z-index:2147483600;left:50%;top:calc(18px + env(safe-area-inset-top,0px));transform:translateX(-50%);max-width:92vw;background:#07283c;color:#fff;border:1px solid #39a9dc;border-radius:999px;padding:10px 16px;font:750 14px system-ui,-apple-system,sans-serif;box-shadow:0 8px 26px rgba(0,0,0,.35)}
     `;
     document.head.appendChild(s);
@@ -1008,13 +1010,22 @@
     const el=document.createElement('div');
     el.className='aeronavSavedPin';
     el.dataset.aeronavAddressId=a.id;
-    const icon=document.createElement('div');
-    icon.className='aeronavSavedPinIcon';
-    icon.textContent=categoryIcon(a.category);
+
     const label=document.createElement('div');
     label.className='aeronavSavedPinLabel';
     label.textContent=a.name||normCategory(a.category);
-    el.append(icon,label);
+
+    const head=document.createElement('div');
+    head.className='aeronavSavedPinHead';
+    head.textContent=categoryIcon(a.category);
+
+    const tip=document.createElement('div');
+    tip.className='aeronavSavedPinTip';
+
+    // IMPORTANT: the pointer tip is the final/bottom pixel of the marker.
+    // With anchor:'bottom', this exact tip is the saved longitude/latitude.
+    el.append(label,head,tip);
+
     el.addEventListener('click',ev=>{
       ev.stopPropagation();
       mapFlyToAddress(a);
@@ -1043,7 +1054,8 @@
         try{
           marker=new window.maplibregl.Marker({
             element:markerElement(a),
-            anchor:'bottom'
+            anchor:'bottom',
+            offset:[0,0]
           }).setLngLat([lng,lat]).addTo(map);
           addressMarkers.set(a.id,marker);
         }catch(_){}
@@ -1052,7 +1064,7 @@
         try{
           const el=marker.getElement?.();
           if(el){
-            const ic=el.querySelector('.aeronavSavedPinIcon');
+            const ic=el.querySelector('.aeronavSavedPinHead');
             const lb=el.querySelector('.aeronavSavedPinLabel');
             if(ic)ic.textContent=categoryIcon(a.category);
             if(lb)lb.textContent=a.name||normCategory(a.category);
