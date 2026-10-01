@@ -1,3 +1,4 @@
+/* AERONAV RC12.31 — Diagnostic + Recovery */
 /* AERONAV RC12.30 — Meteo Altitude Phase 3 */
 /* AERONAV RC12.20 — Meteo Route Phase 2 */
 /* AERONAV RC12.10 — Meteo Visual VOO + RC12.00 + RC11.99 */
@@ -9,9 +10,9 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_30-meteo-altitude-20261001-1';
+const CACHE='aeronav-jorge-RC12_31-diagnostic-recovery-20261001-1';
 const LOCAL=[
-  './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js','./vendor/pmtiles-3.2.1.js','./work-status-fragment.js','./meteo-visual-voo.js','./meteo-route-phase2.js','./meteo-altitude-phase3.js','./gps-view-modes.js','./flight-ops-fragment.js'
+  './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js','./vendor/pmtiles-3.2.1.js','./work-status-fragment.js','./meteo-visual-voo.js','./meteo-route-phase2.js','./meteo-altitude-phase3.js','./diagnostic-recovery.js','./gps-view-modes.js','./flight-ops-fragment.js'
 ];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
@@ -74,7 +75,7 @@ async function cacheFirst(request){
 async function networkFirst(request){
   const c=await caches.open(CACHE);
   try{
-    const r=await fetchTimed(request,{},5000);
+    const r=await fetchTimed(request,{cache:'no-store'},8000);
     await putSafe(c,request,r);
     return r;
   }catch(err){
@@ -114,23 +115,35 @@ async function injectAngolaMapsIntoMainNavigation(response,request){
     if(!(p.endsWith('/')||p.endsWith('/index.html')))return response;
     const html=await response.text();
     const marker='  // ---------- PMTiles offline basemap ----------';
-    if(!html.includes(marker))return fallback;
-    const c=await caches.open(CACHE);
-    const fragUrl=new URL('./angola-offline-fragment.js',self.location.href).href;
-    let fr=await c.match(fragUrl)||await c.match('./angola-offline-fragment.js');
-    if(!fr){
-      fr=await fetchTimed(fragUrl,{cache:'reload'},8000);
-      if(fr.ok)await putSafe(c,fragUrl,fr);
+    let body=html;
+    if(html.includes(marker)){
+      try{
+        const c=await caches.open(CACHE);
+        const fragUrl=new URL('./angola-offline-fragment.js',self.location.href).href;
+        let fr=await c.match(fragUrl)||await c.match('./angola-offline-fragment.js');
+        if(!fr){
+          fr=await fetchTimed(fragUrl,{cache:'reload'},8000);
+          if(fr.ok)await putSafe(c,fragUrl,fr);
+        }
+        if(fr&&fr.ok){
+          const fragment=await fr.text();
+          body=html.replace(marker,fragment+'\n'+marker);
+        }
+      }catch(e){console.warn('AERONAV Angola fragment unavailable',e);}
     }
-    if(!fr||!fr.ok)return fallback;
-    const fragment=await fr.text();
-    let body=html.replace(marker,fragment+'\n'+marker);
+    const mapBridge='<script data-aeronav-rc1231-mapbridge>(function(){try{if(window.__AERONAV_MAP_BRIDGE_RC1231)return;window.__AERONAV_MAP_BRIDGE_RC1231=true;var wrap=function(){try{var l=window.maplibregl;if(!l||!l.Map||l.Map.__aeronavRc1231)return false;var O=l.Map;class M extends O{constructor(...a){super(...a);try{window.__AERONAV_MAP__=this;window.aeronavMap=this;window.mainMap=this;window.dispatchEvent(new CustomEvent("aeronav:map-ready",{detail:{map:this,release:"RC12.31"}}));}catch(e){}}}M.__aeronavRc1231=true;M.__aeronavOriginal=O;l.Map=M;return true;}catch(e){return false;}};if(!wrap()){var n=0,t=setInterval(function(){if(wrap()||++n>200)clearInterval(t);},5);}}catch(e){}})();<\/script>';
+    if(!body.includes('data-aeronav-rc1231-mapbridge')){
+      const maplibreScript=/(<script[^>]+src=["'][^"']*maplibre-gl[^"']*\.js[^"']*["'][^>]*><\/script>)/i;
+      if(maplibreScript.test(body))body=body.replace(maplibreScript,'$1'+mapBridge);
+      else body=body.replace(/<head([^>]*)>/i,m=>m+mapBridge);
+    }
     if(!body.includes('work-status-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./work-status-fragment.js?v=RC11.98.7"></script></body>');
     if(!body.includes('flight-ops-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./flight-ops-fragment.js?v=RC11.99"></script></body>');
     if(!body.includes('gps-view-modes.js'))body=body.replace(/<\/body>/i,'<script src="./gps-view-modes.js?v=RC12.00"></script></body>');
     if(!body.includes('meteo-visual-voo.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-visual-voo.js?v=RC12.10"></script></body>');
     if(!body.includes('meteo-route-phase2.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-route-phase2.js?v=RC12.20"></script></body>');
     if(!body.includes('meteo-altitude-phase3.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-altitude-phase3.js?v=RC12.30"></script></body>');
+    if(!body.includes('diagnostic-recovery.js'))body=body.replace(/<\/body>/i,'<script src="./diagnostic-recovery.js?v=RC12.31"></script></body>');
     const headers=new Headers(response.headers);
     headers.delete('content-length');
     headers.delete('content-encoding');
@@ -179,7 +192,8 @@ self.addEventListener('message',event=>{
         localCount:local,
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
-        cacheVersion:CACHE
+        cacheVersion:CACHE,
+        release:'RC12.31'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){
@@ -202,7 +216,7 @@ self.addEventListener('notificationclick',event=>{
       return;
     }
     const family=all.find(c=>/\/family\/?(?:index\.html)?(?:[?#].*)?$/.test(new URL(c.url).pathname));
-    if(family){try{await family.focus();return;}catch(_){}}
+    if(family){try{await family.focus();return;}catch(_){} }
     try{await clients.openWindow(new URL('./mathia/',self.location.href).href);}catch(_){}
   })());
 });
