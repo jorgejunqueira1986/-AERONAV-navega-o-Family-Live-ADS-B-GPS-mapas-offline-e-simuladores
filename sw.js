@@ -1,3 +1,4 @@
+/* AERONAV RC12.30 — Meteo Altitude Phase 3 */
 /* AERONAV RC12.20 — Meteo Route Phase 2 */
 /* AERONAV RC12.10 — Meteo Visual VOO + RC12.00 + RC11.99 */
 /* AERONAV RC11.98.7 — Exact address picking */
@@ -8,9 +9,9 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_20-meteo-route-20261001-1';
+const CACHE='aeronav-jorge-RC12_30-meteo-altitude-20261001-1';
 const LOCAL=[
-  './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js','./vendor/pmtiles-3.2.1.js','./work-status-fragment.js','./meteo-visual-voo.js','./meteo-route-phase2.js','./gps-view-modes.js','./flight-ops-fragment.js'
+  './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js','./vendor/pmtiles-3.2.1.js','./work-status-fragment.js','./meteo-visual-voo.js','./meteo-route-phase2.js','./meteo-altitude-phase3.js','./gps-view-modes.js','./flight-ops-fragment.js'
 ];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
@@ -129,6 +130,7 @@ async function injectAngolaMapsIntoMainNavigation(response,request){
     if(!body.includes('gps-view-modes.js'))body=body.replace(/<\/body>/i,'<script src="./gps-view-modes.js?v=RC12.00"></script></body>');
     if(!body.includes('meteo-visual-voo.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-visual-voo.js?v=RC12.10"></script></body>');
     if(!body.includes('meteo-route-phase2.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-route-phase2.js?v=RC12.20"></script></body>');
+    if(!body.includes('meteo-altitude-phase3.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-altitude-phase3.js?v=RC12.30"></script></body>');
     const headers=new Headers(response.headers);
     headers.delete('content-length');
     headers.delete('content-encoding');
