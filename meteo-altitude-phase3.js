@@ -44,6 +44,11 @@
   const tx=e=>String(e?.textContent||'').replace(/\s+/g,' ').trim();
   const up=v=>String(v||'').toUpperCase();
 
+  function mapIsVisible(){
+    const screen=document.getElementById('screen-map');
+    return !document.hidden&&(!screen||screen.classList.contains('active'));
+  }
+
   function isFlightMode(){
     const voo=all('button,[role="button"],a').find(e=>{
       const t=up(tx(e));
@@ -601,7 +606,7 @@
 
   function frame(now){
     if(!running)return;
-    if(document.hidden){running=false;raf=0;return;}
+    if(!mapIsVisible()){running=false;raf=0;return;}
     if(!lastFrame)lastFrame=now;
     lastFrame=now;
 
@@ -642,7 +647,7 @@
   }
 
   function startAnimation(){
-    if(running)return;
+    if(running||!mapIsVisible())return;
     running=true;lastFrame=0;
     raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);
   }
@@ -672,7 +677,7 @@
   function startGps(){
   try{
     const accept=p=>{
-      const m=Number(p?.coords?.altitude);
+      const m=p?.coords?.altitude==null?NaN:Number(p.coords.altitude);
       if(Number.isFinite(m))gpsAltitudeFt=m*3.28084;
       if(levelKey==='AUTO')updatePanel();
     };
@@ -694,6 +699,8 @@
     startGps();
     tick();
     setInterval(tick,10000);
+    window.addEventListener('aeronav:screen-change',()=>{if(mapIsVisible())tick();else stopAnimation();});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAnimation();});
     window.addEventListener('resize',resizeCanvas);
     window.addEventListener('pageshow',()=>setTimeout(()=>refresh(true),500));
     document.addEventListener('visibilitychange',()=>{

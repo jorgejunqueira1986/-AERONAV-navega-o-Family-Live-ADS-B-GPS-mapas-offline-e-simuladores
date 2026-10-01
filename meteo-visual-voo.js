@@ -64,6 +64,11 @@
     try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs));}catch(_){}
   }
 
+  function mapIsVisible(){
+    const screen=document.getElementById('screen-map');
+    return !document.hidden&&(!screen||screen.classList.contains('active'));
+  }
+
   function isFlightMode(){
     const voo=all('button,[role="button"],a').find(e=>{
       const t=upper(text(e));
@@ -454,7 +459,7 @@
 
   function frame(now){
     if(!running)return;
-    if(document.hidden){running=false;raf=0;return;}
+    if(!mapIsVisible()){running=false;raf=0;return;}
     if(!lastFrame)lastFrame=now;
     const dt=Math.min(PERF_FRAME_MS,now-lastFrame||PERF_FRAME_MS);
     lastFrame=now;
@@ -473,7 +478,7 @@
   }
 
   function startAnimation(){
-    if(running)return;
+    if(running||!mapIsVisible())return;
     running=true;
     lastFrame=0;
     raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);
@@ -527,6 +532,8 @@
 
     tick();
     setInterval(tick,10000);
+    window.addEventListener('aeronav:screen-change',()=>{if(mapIsVisible())tick();else stopAnimation();});
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAnimation();});
     window.addEventListener('resize',resizeCanvas);
     window.addEventListener('pageshow',()=>setTimeout(tick,300));
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(tick,300);});

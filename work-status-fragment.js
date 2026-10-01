@@ -25,6 +25,8 @@
   const available={car:false,jorgeFolga:false};
   const remoteMode=new Map();
   let applying=false;
+  let avatarObserver=null,avatarTimer=0;
+  const avatarObserveOptions={childList:true,subtree:true,attributes:true,attributeFilter:["src"]};
   let lastRoad=false;
 
   const ADDRESS_KEY='aeronav.saved.addresses.'+role+'.v1';
@@ -1498,6 +1500,7 @@
   function applyAvatars(){
     if(applying)return;
     applying=true;
+    avatarObserver?.disconnect();
 
     try{
       document.querySelectorAll('img').forEach(applyOne);
@@ -1507,6 +1510,7 @@
     }catch(_){}
     finally{
       applying=false;
+      avatarObserver?.observe(document.documentElement,avatarObserveOptions);
     }
   }
 
@@ -1617,7 +1621,15 @@
     }
   };
 
-  const observer=new MutationObserver(applyAvatars);
+  const avatarSelector='img,[style*="background"],.maplibregl-marker,.marker,.avatar';
+  function scheduleAvatars(){
+    if(avatarTimer||document.hidden)return;
+    avatarTimer=setTimeout(()=>{avatarTimer=0;applyAvatars();},250);
+  }
+  const observer=new MutationObserver(records=>{
+    if(records.some(r=>r.type==='attributes'&&r.target.tagName==='IMG'||
+      r.type==='childList'&&Array.from(r.addedNodes).some(n=>n.nodeType===1&&(n.matches(avatarSelector)||n.querySelector(avatarSelector)))))scheduleAvatars();
+  });
 
   function tick(){
     const nowRoad=commuteRouteActive();
@@ -1654,12 +1666,8 @@
     applyAvatars();
 
     try{
-      observer.observe(document.documentElement,{
-        childList:true,
-        subtree:true,
-        attributes:true,
-        attributeFilter:['src','style','class','aria-pressed']
-      });
+      avatarObserver=observer;
+      observer.observe(document.documentElement,avatarObserveOptions);
     }catch(_){}
 
     setInterval(tick,1000);

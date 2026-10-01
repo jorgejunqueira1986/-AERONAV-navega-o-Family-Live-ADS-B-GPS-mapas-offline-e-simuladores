@@ -1,3 +1,4 @@
+/* AERONAV RC12.31.3 — bounded UI work + versioned offline shell */
 /* AERONAV RC12.31.2 — Performance Recovery */
 /* AERONAV RC12.31 — Diagnostic + Recovery */
 /* AERONAV RC12.30 — Meteo Altitude Phase 3 */
@@ -11,8 +12,9 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_31_2-performance-20261001-3';
+const CACHE='aeronav-jorge-RC12_31_3-performance-20261001-1';
 const LOCAL=[
+  "./assets/people/mathia-avatar-rc12313.png","./assets/people/jorge-avatar-rc12313.png",
   './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js','./vendor/pmtiles-3.2.1.js','./work-status-fragment.js','./meteo-visual-voo.js','./meteo-route-phase2.js','./meteo-altitude-phase3.js','./diagnostic-recovery.js','./gps-view-modes.js','./flight-ops-fragment.js'
 ];
 const REMOTE=[
@@ -73,6 +75,14 @@ async function cacheFirst(request){
   return r;
 }
 
+async function shellFirst(request){
+  const c=await caches.open(CACHE);
+  const url=new URL(request.url);
+  const hit=await c.match(url.origin+url.pathname,{ignoreSearch:true});
+  if(hit)return hit;
+  return networkFirst(request);
+}
+
 async function networkFirst(request){
   const c=await caches.open(CACHE);
   try{
@@ -84,6 +94,7 @@ async function networkFirst(request){
     const exact=await c.match(request,{ignoreSearch:false}) ||
       await c.match(url.pathname==='/'?'./index.html':url.pathname.replace(/^\//,'./'));
     if(exact)return exact;
+    if(request.mode!=='navigate')throw err;
     const familyPath=/\/family\/?(?:index\.html)?$/.test(url.pathname);
     const wendlerPath=/\/wendler\/?(?:index\.html)?$/.test(url.pathname)||/\/wendler\.html$/.test(url.pathname);
     const fallback=await c.match(wendlerPath?'./wendler.html':familyPath?'./family-viewer.html':'./index.html');
@@ -138,13 +149,13 @@ async function injectAngolaMapsIntoMainNavigation(response,request){
       if(maplibreScript.test(body))body=body.replace(maplibreScript,'$1'+mapBridge);
       else body=body.replace(/<head([^>]*)>/i,m=>m+mapBridge);
     }
-    if(!body.includes('work-status-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./work-status-fragment.js?v=RC11.98.7"></script></body>');
-    if(!body.includes('flight-ops-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./flight-ops-fragment.js?v=RC11.99"></script></body>');
-    if(!body.includes('gps-view-modes.js'))body=body.replace(/<\/body>/i,'<script src="./gps-view-modes.js?v=RC12.00"></script></body>');
-    if(!body.includes('meteo-visual-voo.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-visual-voo.js?v=RC12.10"></script></body>');
-    if(!body.includes('meteo-route-phase2.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-route-phase2.js?v=RC12.20"></script></body>');
-    if(!body.includes('meteo-altitude-phase3.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-altitude-phase3.js?v=RC12.30"></script></body>');
-    if(!body.includes('diagnostic-recovery.js'))body=body.replace(/<\/body>/i,'<script src="./diagnostic-recovery.js?v=RC12.31"></script></body>');
+    if(!body.includes('work-status-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./work-status-fragment.js?v=RC12.31.3"></script></body>');
+    if(!body.includes('flight-ops-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./flight-ops-fragment.js?v=RC12.31.3"></script></body>');
+    if(!body.includes('gps-view-modes.js'))body=body.replace(/<\/body>/i,'<script src="./gps-view-modes.js?v=RC12.31.3"></script></body>');
+    if(!body.includes('meteo-visual-voo.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-visual-voo.js?v=RC12.31.3"></script></body>');
+    if(!body.includes('meteo-route-phase2.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-route-phase2.js?v=RC12.31.3"></script></body>');
+    if(!body.includes('meteo-altitude-phase3.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-altitude-phase3.js?v=RC12.31.3"></script></body>');
+    if(!body.includes('diagnostic-recovery.js'))body=body.replace(/<\/body>/i,'<script src="./diagnostic-recovery.js?v=RC12.31.3"></script></body>');
     const headers=new Headers(response.headers);
     headers.delete('content-length');
     headers.delete('content-encoding');
@@ -165,7 +176,7 @@ self.addEventListener('fetch',event=>{
   if(/\/mathia\//.test(p)||/\/wendler\//.test(p))return;
 
   if(req.mode==='navigate'){
-    event.respondWith((async()=>injectAngolaMapsIntoMainNavigation(await networkFirst(req),req))());
+    event.respondWith((async()=>injectAngolaMapsIntoMainNavigation(await shellFirst(req),req))());
     return;
   }
   if(REMOTE_SET.has(req.url)){
@@ -173,7 +184,7 @@ self.addEventListener('fetch',event=>{
     return;
   }
   if(url.origin===self.location.origin&&LOCAL_PATHS.has(url.pathname)){
-    event.respondWith(networkFirst(req));
+    event.respondWith(shellFirst(req));
     return;
   }
   event.respondWith(fetch(req));
@@ -194,7 +205,7 @@ self.addEventListener('message',event=>{
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
         cacheVersion:CACHE,
-        release:'RC12.31.2'
+        release:'RC12.31.3'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){

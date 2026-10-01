@@ -236,7 +236,7 @@ function startGps(){
     if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
     window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
     setTimeout(()=>{
-      if(seen)return;
+      if(seen||window.__AERONAV_GPS_OWNER__)return;
       try{navigator.geolocation?.watchPosition(accept,()=>{},{enableHighAccuracy:true,maximumAge:2000,timeout:15000});}catch(_){}
     },10000);
   }catch(_){}
