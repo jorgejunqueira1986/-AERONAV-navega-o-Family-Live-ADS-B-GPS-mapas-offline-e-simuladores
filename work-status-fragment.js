@@ -1,12 +1,13 @@
-/* AERONAV RC11.98.4 - Exact saved-address pins + reliable route cancel + visible controls.
-   Preserves RC11.98.1 and RC11.97 Angola Offline.
-   FIXES:
-   - Casa/Trabalho use the exact MapLibre click coordinate from the real map instance.
-   - Every saved address is shown permanently on the map as a named/category marker.
-   - ENDERECOS and FOLGA use deep clones of the real mode buttons and stay visible below the mode row.
-   - Cancelar rota immediately clears dynamic route GeoJSON from the map.
-   - Casa <-> Trabalho detection can use the current route GeoJSON when app route state is private.
-   - FOLGA still has priority; A PE and VOO never use the Hiace. */
+/* AERONAV RC11.98.5 - Jorge Admin shared addresses + Family route-cancel sync.
+   Preserves RC11.98.4, RC11.98.1 and RC11.97 Angola Offline.
+   ADMIN:
+   - Jorge chooses whether each saved address is shared with Mathia, Wendler, both or neither.
+   - Shared address changes/deletions propagate through the existing Family backend channel.
+   - Mathia/Wendler receive shared pins as read-only Jorge addresses.
+   ROUTE CANCEL:
+   - Jorge cancel -> local route is cleared -> backend cancel event is published.
+   - Mathia/Wendler receive the event, clear route state/geometry and get the existing SW notification.
+   - Technical sync rows are filtered out before the normal Family UI sees them. */
 (()=>{
   'use strict';
   if(window.__AERONAV_WORK_STATUS_RC1198)return;
@@ -35,6 +36,410 @@
   let preferredMap=null;
   const addressMarkers=new Map();
   let routeCancelUntil=0;
+
+  const ADMIN_QUEUE_KEY='aeronav.admin.sync.queue.v1';
+  const CANCEL_SEEN_KEY='aeronav.admin.cancel.seen.'+role;
+  const ADMIN_ADDR_PREFIX='__AERONAV_ADDR__|';
+  const ADMIN_CANCEL_PREFIX='__AERONAV_CANCEL__|';
+  let familySyncEndpoint='';
+  let familySyncHeaders={};
+  let familyRoomHash='';
+  let adminFlushBusy=false;
+  let lastAdminFlushAt=0;
+  const moduleStartedAt=Date.now();
+
+  function shortHash(value){
+    let h=2166136261>>>0;
+    const s=String(value||'');
+    for(let i=0;i<s.length;i++){
+      h^=s.charCodeAt(i);
+      h=Math.imul(h,16777619)>>>0;
+    }
+    return h.toString(36).padStart(7,'0').slice(-8);
+  }
+
+  function roleCode(r){
+    return r==='mathia'?'m':r==='wendler'?'w':'j';
+  }
+
+  function codeRole(c){
+    return c==='m'?'mathia':c==='w'?'wendler':'jorge';
+  }
+
+  function categoryCode(cat){
+    switch(normCategory(cat)){
+      case 'Casa': return 'H';
+      case 'Trabalho': return 'W';
+      case 'Aeroporto': return 'A';
+      case 'Hotel': return 'T';
+      case 'Escola': return 'S';
+      default: return 'O';
+    }
+  }
+
+  function codeCategory(c){
+    return c==='H'?'Casa':c==='W'?'Trabalho':c==='A'?'Aeroporto':c==='T'?'Hotel':c==='S'?'Escola':'Outro';
+  }
+
+  function encodeText(s){
+    try{
+      const bytes=new TextEncoder().encode(String(s||''));
+      let bin='';
+      for(const b of bytes)bin+=String.fromCharCode(b);
+      return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    }catch(_){return '';}
+  }
+
+  function decodeText(s){
+    try{
+      const raw=String(s||'').replace(/-/g,'+').replace(/_/g,'/');
+      const padded=raw+'='.repeat((4-raw.length%4)%4);
+      const bin=atob(padded);
+      const bytes=Uint8Array.from(bin,ch=>ch.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    }catch(_){return '';}
+  }
+
+  function loadAdminQueue(){
+    try{
+      const q=JSON.parse(localStorage.getItem(ADMIN_QUEUE_KEY)||'[]');
+      return Array.isArray(q)?q:[];
+    }catch(_){return [];}
+  }
+
+  function saveAdminQueue(q){
+    try{localStorage.setItem(ADMIN_QUEUE_KEY,JSON.stringify((q||[]).slice(-200)));}catch(_){}
+  }
+
+  function enqueueAdminRow(desc){
+    if(role!=='jorge'||!desc)return;
+    const q=loadAdminQueue();
+    const key=String(desc.key||'');
+    const next=q.filter(x=>String(x?.key||'')!==key);
+    next.push({...desc,queuedAt:new Date().toISOString()});
+    saveAdminQueue(next);
+    setTimeout(flushAdminQueue,0);
+  }
+
+  function technicalAddressName(target,address,deleted=false){
+    const idHash=shortHash(address?.id||address?.remoteId||'address');
+    const name=encodeText(String(address?.name||'Endereço').slice(0,60));
+    return ADMIN_ADDR_PREFIX+
+      roleCode(target)+'|'+idHash+'|'+categoryCode(address?.category)+'|'+
+      (deleted?'1':'0')+'|'+name;
+  }
+
+  function technicalAddressMemberId(target,address){
+    return '__aeronav_sys_addr_'+roleCode(target)+'_'+shortHash(address?.id||address?.remoteId||'address');
+  }
+
+  function queueAddressUpsert(address,target){
+    if(role!=='jorge'||!address||!['mathia','wendler'].includes(target))return;
+    enqueueAdminRow({
+      key:'addr:'+target+':'+shortHash(address.id),
+      kind:'address',
+      target,
+      deleted:false,
+      address:{
+        id:address.id,
+        name:address.name,
+        category:normCategory(address.category),
+        lat:Number(address.lat),
+        lng:Number(address.lng),
+        updatedAt:address.updatedAt||new Date().toISOString()
+      }
+    });
+  }
+
+  function queueAddressDelete(address,target){
+    if(role!=='jorge'||!address||!['mathia','wendler'].includes(target))return;
+    enqueueAdminRow({
+      key:'addr:'+target+':'+shortHash(address.id),
+      kind:'address',
+      target,
+      deleted:true,
+      address:{
+        id:address.id,
+        name:address.name||'Endereço',
+        category:normCategory(address.category),
+        lat:null,
+        lng:null,
+        updatedAt:new Date().toISOString()
+      }
+    });
+  }
+
+  function queueRouteCancel(){
+    if(role!=='jorge')return;
+    const eventId='cancel_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    const at=new Date().toISOString();
+    for(const target of ['mathia','wendler']){
+      enqueueAdminRow({
+        key:'cancel:'+target,
+        kind:'cancel',
+        target,
+        eventId,
+        at
+      });
+    }
+  }
+
+  function cloneHeadersPlain(h){
+    const out={};
+    try{
+      const headers=new Headers(h||{});
+      headers.forEach((v,k)=>{out[k]=v;});
+    }catch(_){
+      try{Object.assign(out,h||{});}catch(_){}
+    }
+    return out;
+  }
+
+  function captureFamilyContext(url,init,rows){
+    try{
+      const u=new URL(url,location.href);
+      if(!/aeronav_locations/i.test(u.pathname))return;
+      familySyncEndpoint=u.origin+u.pathname;
+    }catch(_){return;}
+
+    const requestHeaders=cloneHeadersPlain(init?.headers);
+    if(Object.keys(requestHeaders).length)familySyncHeaders={...familySyncHeaders,...requestHeaders};
+
+    const arr=Array.isArray(rows)?rows:(rows?[rows]:[]);
+    for(const row of arr){
+      if(row?.room_hash){familyRoomHash=String(row.room_hash);break;}
+    }
+    if(familySyncEndpoint&&familyRoomHash)setTimeout(flushAdminQueue,0);
+  }
+
+  function adminRowFromDescriptor(desc){
+    if(!desc||!familyRoomHash)return null;
+    if(desc.kind==='address'){
+      const a=desc.address||{};
+      return {
+        room_hash:familyRoomHash,
+        member_id:technicalAddressMemberId(desc.target,a),
+        display_name:technicalAddressName(desc.target,a,!!desc.deleted),
+        sharing:true,
+        lat:desc.deleted?null:Number(a.lat),
+        lon:desc.deleted?null:Number(a.lng),
+        accuracy:null,
+        altitude:null,
+        speed:null,
+        heading:null,
+        transport:'admin-address',
+        flight_number:null,
+        flight_eta:null,
+        updated_at:new Date().toISOString()
+      };
+    }
+    if(desc.kind==='cancel'){
+      return {
+        room_hash:familyRoomHash,
+        member_id:'__aeronav_sys_cancel_'+roleCode(desc.target),
+        display_name:ADMIN_CANCEL_PREFIX+roleCode(desc.target)+'|'+String(desc.eventId||''),
+        sharing:true,
+        lat:null,
+        lon:null,
+        accuracy:null,
+        altitude:null,
+        speed:null,
+        heading:null,
+        transport:'admin-route-cancel',
+        flight_number:null,
+        flight_eta:null,
+        updated_at:desc.at||new Date().toISOString()
+      };
+    }
+    return null;
+  }
+
+  async function flushAdminQueue(){
+    if(role!=='jorge'||adminFlushBusy||!navigator.onLine)return false;
+    if(!familySyncEndpoint||!familyRoomHash)return false;
+    const q=loadAdminQueue();
+    if(!q.length)return true;
+
+    adminFlushBusy=true;
+    try{
+      const headers={...familySyncHeaders};
+      headers['Content-Type']='application/json';
+      headers['Prefer']='resolution=merge-duplicates,return=minimal';
+      const url=familySyncEndpoint+'?on_conflict=room_hash,member_id';
+      const remaining=[];
+      for(const desc of q){
+        const row=adminRowFromDescriptor(desc);
+        if(!row)continue;
+        try{
+          const r=await nativeFetch(url,{
+            method:'POST',
+            cache:'no-store',
+            headers,
+            body:JSON.stringify(row)
+          });
+          if(!r.ok)remaining.push(desc);
+        }catch(_){remaining.push(desc);}
+      }
+      saveAdminQueue(remaining);
+      lastAdminFlushAt=Date.now();
+      return !remaining.length;
+    }finally{
+      adminFlushBusy=false;
+    }
+  }
+
+  function isAdminTechnicalRow(row){
+    const n=String(row?.display_name||'');
+    const id=String(row?.member_id||'');
+    return n.startsWith(ADMIN_ADDR_PREFIX)||
+           n.startsWith(ADMIN_CANCEL_PREFIX)||
+           id.startsWith('__aeronav_sys_');
+  }
+
+  function parseAdminAddressRow(row){
+    const n=String(row?.display_name||'');
+    if(!n.startsWith(ADMIN_ADDR_PREFIX))return null;
+    const p=n.slice(ADMIN_ADDR_PREFIX.length).split('|');
+    if(p.length<5)return null;
+    return {
+      target:codeRole(p[0]),
+      remoteId:'shared_'+p[1],
+      category:codeCategory(p[2]),
+      deleted:p[3]==='1',
+      name:decodeText(p.slice(4).join('|'))||'Endereço',
+      lat:row?.lat==null?null:Number(row.lat),
+      lng:row?.lon==null?null:Number(row.lon),
+      updatedAt:row?.updated_at||new Date().toISOString()
+    };
+  }
+
+  function applySharedAddressRow(row){
+    const a=parseAdminAddressRow(row);
+    if(!a||a.target!==role||role==='jorge')return false;
+    const list=loadAddresses();
+    const idx=list.findIndex(x=>String(x.id)===a.remoteId);
+    if(a.deleted){
+      if(idx>=0){
+        list.splice(idx,1);
+        saveAddresses(list);
+      }
+      return true;
+    }
+    if(!Number.isFinite(a.lat)||!Number.isFinite(a.lng))return false;
+    const item={
+      id:a.remoteId,
+      name:a.name,
+      category:a.category,
+      lat:a.lat,
+      lng:a.lng,
+      updatedAt:a.updatedAt,
+      shared:true,
+      owner:'jorge',
+      readOnly:true
+    };
+    if(idx>=0){
+      const oldTs=Date.parse(list[idx]?.updatedAt||0)||0;
+      const newTs=Date.parse(item.updatedAt||0)||0;
+      if(newTs>=oldTs)list[idx]=item;
+    }else list.push(item);
+    saveAddresses(list);
+    return true;
+  }
+
+  function clearClientRouteState(){
+    try{
+      if(typeof state!=='undefined'&&state){
+        if('currentRoute' in state)state.currentRoute=null;
+        if('activeRoute' in state)state.activeRoute=null;
+      }
+    }catch(_){}
+    try{
+      if(typeof cfg!=='undefined'&&cfg){
+        if('ownRoute' in cfg)cfg.ownRoute=null;
+        if('currentRoute' in cfg)cfg.currentRoute=null;
+        if('activeRoute' in cfg)cfg.activeRoute=null;
+      }
+    }catch(_){}
+    for(const store of [localStorage,sessionStorage]){
+      try{
+        const keys=[];
+        for(let i=0;i<store.length;i++)keys.push(store.key(i));
+        for(const k of keys){
+          if(!k)continue;
+          if(/(active|current|own).*(route|rota)|(route|rota).*(active|current|own)/i.test(k)){
+            store.removeItem(k);
+          }
+        }
+      }catch(_){}
+    }
+  }
+
+  function notifyRemoteRouteCancelled(){
+    if(role==='jorge')return;
+    try{
+      if(navigator.serviceWorker?.controller){
+        navigator.serviceWorker.controller.postMessage({type:'AERONAV_ROUTE_CANCELLED'});
+        return;
+      }
+    }catch(_){}
+    try{
+      navigator.serviceWorker?.ready?.then(reg=>{
+        if(Notification.permission==='granted'){
+          reg.showNotification(
+            role==='mathia'?'Rota cancelada por Jorge':'Rota cancelada pelo papá',
+            {
+              body:'A rota foi removida automaticamente do mapa.',
+              tag:'aeronav-route-cancelled',
+              renotify:true,
+              requireInteraction:true,
+              data:{kind:'route-cancelled'}
+            }
+          );
+        }
+      }).catch(()=>{});
+    }catch(_){}
+  }
+
+  function applyRemoteCancelRow(row){
+    const n=String(row?.display_name||'');
+    if(!n.startsWith(ADMIN_CANCEL_PREFIX)||role==='jorge')return false;
+    const p=n.slice(ADMIN_CANCEL_PREFIX.length).split('|');
+    if(codeRole(p[0])!==role)return false;
+
+    const ts=Date.parse(row?.updated_at||0)||0;
+    if(!ts)return false;
+
+    const seen=Number(localStorage.getItem(CANCEL_SEEN_KEY)||0)||0;
+    if(ts<=seen)return true;
+
+    // On the first run, silently absorb a very old historical cancel row.
+    if(!seen && ts<moduleStartedAt-5*60*1000){
+      try{localStorage.setItem(CANCEL_SEEN_KEY,String(ts));}catch(_){}
+      return true;
+    }
+
+    try{localStorage.setItem(CANCEL_SEEN_KEY,String(ts));}catch(_){}
+    clearClientRouteState();
+    clearActiveRouteVisuals();
+    notifyRemoteRouteCancelled();
+    try{
+      window.dispatchEvent(new CustomEvent('aeronav:route-cancelled',{
+        detail:{remote:true,by:'jorge',eventId:p.slice(1).join('|'),updatedAt:row.updated_at}
+      }));
+    }catch(_){}
+    return true;
+  }
+
+  function processAdminRows(rows){
+    if(!Array.isArray(rows))return;
+    for(const row of rows){
+      if(String(row?.display_name||'').startsWith(ADMIN_ADDR_PREFIX)){
+        applySharedAddressRow(row);
+      }else if(String(row?.display_name||'').startsWith(ADMIN_CANCEL_PREFIX)){
+        applyRemoteCancelRow(row);
+      }
+    }
+  }
 
   const MODE_KEY='aeronav.workstatus.travelmode';
   let explicitTravelMode='';
@@ -158,7 +563,7 @@
     const img=new Image();
     img.onload=()=>{available[key]=true;applyAvatars();};
     img.onerror=()=>{available[key]=false;};
-    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.4';
+    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.5';
   }
 
   checkAsset(assets.car,'car');
@@ -404,6 +809,25 @@
     paintFolgaButton();
   }
 
+  function injectClientAddressControl(){
+    if(role==='jorge'||document.getElementById('aeronavClientAddressesBtn'))return;
+    const candidates=[
+      findModeButton('CARRO'),
+      findModeButton('A PÉ')||findModeButton('A PE'),
+      ...document.querySelectorAll('button,[role="button"]')
+    ].filter(Boolean);
+    const source=candidates[0];
+    if(!source||!source.parentElement)return;
+    const b=source.cloneNode(true);
+    b.id='aeronavClientAddressesBtn';
+    b.removeAttribute('onclick');
+    b.removeAttribute('data-action');
+    b.type='button';
+    setButtonLabel(b,'📍 ENDEREÇOS');
+    b.addEventListener('click',openAddressPanel);
+    source.parentElement.insertAdjacentElement('afterend',b);
+  }
+
   function ensureAddressStyles(){
     if(document.getElementById('aeronavAddressStyles'))return;
     const s=document.createElement('style');
@@ -421,6 +845,7 @@
       .aeronavAddrName{font-weight:800;font-size:16px}
       .aeronavAddrMeta{opacity:.72;font-size:12px;margin-top:3px}
       .aeronavAddrActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+      .aeronavAddrShare{display:flex;gap:16px;flex-wrap:wrap;margin:7px 0 4px}.aeronavAddrShare label{display:flex!important;align-items:center;gap:7px;margin:0!important;opacity:1!important}.aeronavAddrShare input{width:auto!important;accent-color:#28b8f4}
       #aeronavAddressEditor label{display:block;font-size:12px;opacity:.8;margin:10px 0 5px}
       #aeronavAddressEditor input,#aeronavAddressEditor select{width:100%;box-sizing:border-box;border:1px solid #315e77;border-radius:12px;background:#061722;color:#fff;padding:12px;font-size:16px}
       .aeronavSavedPin{display:flex;flex-direction:column;align-items:center;pointer-events:auto;filter:drop-shadow(0 3px 4px rgba(0,0,0,.38))}
@@ -447,6 +872,11 @@
 
   function openAddressEditor(point,existing){
     ensureAddressStyles();
+    if(existing?.readOnly&&role!=='jorge'){
+      mapFlyToAddress(existing);
+      return;
+    }
+
     pendingPoint={lat:Number(point.lat),lng:Number(point.lng)};
     closeAddressPanel();
 
@@ -454,6 +884,14 @@
     overlay.id='aeronavAddressOverlay';
     const panel=document.createElement('div');
     panel.id='aeronavAddressPanel';
+
+    const shareHtml=role==='jorge'?`
+      <label>Partilhar com</label>
+      <div class="aeronavAddrShare">
+        <label><input type="checkbox" id="aeronavShareMathia"> Mathia</label>
+        <label><input type="checkbox" id="aeronavShareWendler"> Wendler</label>
+      </div>`:'';
+
     panel.innerHTML=`
       <div class="aeronavAddrTop"><h2>${existing?'Editar endereço':'Guardar endereço'}</h2><button class="aeronavAddrBtn" data-close>✕</button></div>
       <div id="aeronavAddressEditor">
@@ -463,6 +901,7 @@
         <select id="aeronavAddrCategoryInput">
           <option>Casa</option><option>Trabalho</option><option>Aeroporto</option><option>Hotel</option><option>Escola</option><option>Outro</option>
         </select>
+        ${shareHtml}
         <div class="aeronavAddrMeta" style="margin-top:10px">${pendingPoint.lat.toFixed(6)}, ${pendingPoint.lng.toFixed(6)}</div>
         <div class="aeronavAddrActions" style="margin-top:14px">
           <button class="aeronavAddrBtn aeronavAddrPrimary" data-save>Guardar</button>
@@ -474,9 +913,15 @@
 
     const nameInput=panel.querySelector('#aeronavAddrNameInput');
     const catInput=panel.querySelector('#aeronavAddrCategoryInput');
+    const mathiaInput=panel.querySelector('#aeronavShareMathia');
+    const wendlerInput=panel.querySelector('#aeronavShareWendler');
+
     if(existing){
       nameInput.value=existing.name||'';
       catInput.value=normCategory(existing.category);
+      const shared=Array.isArray(existing.shareWith)?existing.shareWith:[];
+      if(mathiaInput)mathiaInput.checked=shared.includes('mathia');
+      if(wendlerInput)wendlerInput.checked=shared.includes('wendler');
     }
 
     panel.querySelector('[data-close]').onclick=closeAddressPanel;
@@ -484,6 +929,12 @@
     panel.querySelector('[data-save]').onclick=()=>{
       const name=String(nameInput.value||'').trim();
       if(!name){nameInput.focus();return;}
+
+      const previousTargets=Array.isArray(existing?.shareWith)?[...existing.shareWith]:[];
+      const shareWith=[];
+      if(mathiaInput?.checked)shareWith.push('mathia');
+      if(wendlerInput?.checked)shareWith.push('wendler');
+
       const list=loadAddresses();
       const item={
         id:existing?.id||('addr_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),
@@ -491,11 +942,20 @@
         category:normCategory(catInput.value),
         lat:pendingPoint.lat,
         lng:pendingPoint.lng,
-        updatedAt:new Date().toISOString()
+        updatedAt:new Date().toISOString(),
+        shareWith
       };
       const idx=list.findIndex(x=>x.id===item.id);
       if(idx>=0)list[idx]=item;else list.push(item);
       saveAddresses(list);
+
+      if(role==='jorge'){
+        for(const target of previousTargets){
+          if(!shareWith.includes(target))queueAddressDelete(existing||item,target);
+        }
+        for(const target of shareWith)queueAddressUpsert(item,target);
+      }
+
       openAddressPanel();
     };
   }
@@ -629,31 +1089,44 @@
     const list=loadAddresses();
     panel.innerHTML=`
       <div class="aeronavAddrTop"><h2>📍 Endereços guardados</h2><button class="aeronavAddrBtn" data-close>✕</button></div>
-      <button class="aeronavAddrBtn aeronavAddrPrimary" data-pick>＋ Guardar ponto do mapa</button>
+      ${role==='jorge'?'<button class="aeronavAddrBtn aeronavAddrPrimary" data-pick>＋ Guardar ponto do mapa</button>':''}
       <div class="aeronavAddrList"></div>`;
 
     const listEl=panel.querySelector('.aeronavAddrList');
     if(!list.length){
       const empty=document.createElement('div');
       empty.className='aeronavAddrItem';
-      empty.innerHTML='<div class="aeronavAddrName">Ainda não há endereços</div><div class="aeronavAddrMeta">Toque em “Guardar ponto do mapa” e depois no local exato.</div>';
+      empty.innerHTML=role==='jorge'
+        ?'<div class="aeronavAddrName">Ainda não há endereços</div><div class="aeronavAddrMeta">Toque em “Guardar ponto do mapa” e depois no local exato.</div>'
+        :'<div class="aeronavAddrName">Ainda não há endereços partilhados</div><div class="aeronavAddrMeta">Os endereços partilhados por Jorge aparecerão aqui e no mapa.</div>';
       listEl.appendChild(empty);
     }else{
       for(const a of list){
         const item=document.createElement('div');
         item.className='aeronavAddrItem';
         const safeName=String(a.name||'Endereço').replace(/[<>&"]/g,ch=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[ch]));
+        const shares=Array.isArray(a.shareWith)?a.shareWith:[];
+        const shareText=role==='jorge'&&shares.length
+          ?' · Partilhado: '+shares.map(x=>x==='mathia'?'Mathia':'Wendler').join(', ')
+          :(a.shared?' · Partilhado por Jorge':'');
         item.innerHTML=`
           <div class="aeronavAddrName">${categoryIcon(a.category)} ${safeName}</div>
-          <div class="aeronavAddrMeta">${normCategory(a.category)} · ${Number(a.lat).toFixed(6)}, ${Number(a.lng).toFixed(6)}</div>
+          <div class="aeronavAddrMeta">${normCategory(a.category)} · ${Number(a.lat).toFixed(6)}, ${Number(a.lng).toFixed(6)}${shareText}</div>
           <div class="aeronavAddrActions">
             <button class="aeronavAddrBtn" data-go>Ver no mapa</button>
-            <button class="aeronavAddrBtn" data-edit>Editar</button>
-            <button class="aeronavAddrBtn aeronavAddrDanger" data-del>Apagar</button>
+            ${role==='jorge'&&!a.readOnly?'<button class="aeronavAddrBtn" data-edit>Editar</button><button class="aeronavAddrBtn aeronavAddrDanger" data-del>Apagar</button>':''}
           </div>`;
         item.querySelector('[data-go]').onclick=()=>mapFlyToAddress(a);
-        item.querySelector('[data-edit]').onclick=()=>openAddressEditor(a,a);
-        item.querySelector('[data-del]').onclick=()=>{
+
+        const edit=item.querySelector('[data-edit]');
+        if(edit)edit.onclick=()=>openAddressEditor(a,a);
+
+        const del=item.querySelector('[data-del]');
+        if(del)del.onclick=()=>{
+          if(role==='jorge'){
+            const targets=Array.isArray(a.shareWith)?a.shareWith:[];
+            for(const target of targets)queueAddressDelete(a,target);
+          }
           saveAddresses(loadAddresses().filter(x=>x.id!==a.id));
           openAddressPanel();
         };
@@ -664,7 +1137,8 @@
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
     panel.querySelector('[data-close]').onclick=closeAddressPanel;
-    panel.querySelector('[data-pick]').onclick=startAddressPick;
+    const pick=panel.querySelector('[data-pick]');
+    if(pick)pick.onclick=startAddressPick;
   }
 
   function consumeMapClick(lngLat,map){
@@ -706,42 +1180,36 @@
   }
 
   function clearActiveRouteVisuals(){
-    routeCancelUntil=Date.now()+5000;
+    routeCancelUntil=Date.now()+15000;
+    if(role!=='jorge')clearClientRouteState();
+
     const m=preferredMap||findMapInstance();
     if(!m){
+      lastRoad=false;
+      lastCommute=false;
       applyAvatars();
       return;
     }
     preferredMap=m;
 
     const empty={type:'FeatureCollection',features:[]};
-    try{
-      const style=m.getStyle?.();
-      const ids=Object.keys(style?.sources||{});
-      for(const id of ids){
-        if(!routeSourceId(id))continue;
-        const source=m.getSource?.(id);
-        if(source&&typeof source.setData==='function'){
-          try{source.setData(empty);}catch(_){}
-        }
-      }
-    }catch(_){}
-
-    // Some implementations redraw the cancelled route one last time.
-    // Clear again briefly after the app's own cancel handler finishes.
-    for(const delay of [120,350,800,1500]){
-      setTimeout(()=>{
-        try{
-          const style=m.getStyle?.();
-          for(const id of Object.keys(style?.sources||{})){
-            if(!routeSourceId(id))continue;
-            const source=m.getSource?.(id);
-            if(source&&typeof source.setData==='function'){
-              try{source.setData(empty);}catch(_){}
-            }
+    const clearNow=()=>{
+      try{
+        const style=m.getStyle?.();
+        const ids=Object.keys(style?.sources||{});
+        for(const id of ids){
+          if(!routeSourceId(id))continue;
+          const source=m.getSource?.(id);
+          if(source&&typeof source.setData==='function'){
+            try{source.setData(empty);}catch(_){}
           }
-        }catch(_){}
-      },delay);
+        }
+      }catch(_){}
+    };
+
+    clearNow();
+    for(const delay of [80,180,350,650,1000,1600,2400,4000,7000,11000]){
+      setTimeout(clearNow,delay);
     }
 
     lastRoad=false;
@@ -761,22 +1229,30 @@
   }
 
   function installCancelRouteHook(){
-    if(document.documentElement.dataset.aeronavCancelHook984==='1')return;
-    document.documentElement.dataset.aeronavCancelHook984='1';
+    if(document.documentElement.dataset.aeronavCancelHook985==='1')return;
+    document.documentElement.dataset.aeronavCancelHook985='1';
 
     document.addEventListener('click',ev=>{
       const t=actionText(ev.target);
       if(/(cancelar|apagar|encerrar|terminar|parar).{0,18}(rota|route)|(rota|route).{0,18}(cancelar|apagar|encerrar|terminar|parar)/i.test(t)){
+        if(role==='jorge')queueRouteCancel();
         setTimeout(clearActiveRouteVisuals,0);
       }
     },true);
 
     window.addEventListener('message',ev=>{
       const type=String(ev.data?.type||'');
-      if(/ROUTE_CANCELLED|ROUTE_CANCELED/i.test(type))clearActiveRouteVisuals();
+      if(/ROUTE_CANCELLED|ROUTE_CANCELED/i.test(type)){
+        clearClientRouteState();
+        clearActiveRouteVisuals();
+      }
     });
 
-    window.addEventListener('aeronav:route-cancelled',clearActiveRouteVisuals);
+    window.addEventListener('aeronav:route-cancelled',ev=>{
+      if(ev?.detail?.remote)return;
+      if(role==='jorge')queueRouteCancel();
+      clearActiveRouteVisuals();
+    });
   }
 
   function elementText(el){
@@ -1002,7 +1478,10 @@
         let changed=false;
         const rows=Array.isArray(body)?body:[body];
 
+        captureFamilyContext(url,init,rows);
+
         for(const row of rows){
+          if(isAdminTechnicalRow(row))continue;
           const n=String(row?.display_name||'').toLowerCase();
 
           const mine=
@@ -1033,7 +1512,27 @@
       const res=await nativeFetch(input,nextInit);
 
       if(locations&&res?.ok){
-        res.clone().json().then(readLocations).catch(()=>{});
+        try{
+          const payload=await res.clone().json();
+          const rows=Array.isArray(payload)?payload:(payload?[payload]:[]);
+          captureFamilyContext(url,init,rows);
+          processAdminRows(rows);
+
+          const filtered=rows.filter(row=>!isAdminTechnicalRow(row));
+          readLocations(filtered);
+
+          if(Array.isArray(payload)&&filtered.length!==rows.length){
+            const headers=new Headers(res.headers);
+            headers.delete('content-length');
+            headers.delete('content-encoding');
+            headers.set('content-type','application/json; charset=utf-8');
+            return new Response(JSON.stringify(filtered),{
+              status:res.status,
+              statusText:res.statusText,
+              headers
+            });
+          }
+        }catch(_){}
       }
 
       return res;
@@ -1055,11 +1554,14 @@
 
     bindTravelModeButtons();
     injectHeaderControls();
+    injectClientAddressControl();
     installMapClickHook();
     installCancelRouteHook();
     syncAddressMarkers(preferredMap||findMapInstance());
     paintFolgaButton();
     applyAvatars();
+
+    if(role==='jorge'&&Date.now()-lastAdminFlushAt>3000)flushAdminQueue();
   }
 
   function start(){
@@ -1069,6 +1571,7 @@
     lastRoad=commuteRouteActive();
     lastCommute=lastRoad;
     injectHeaderControls();
+    injectClientAddressControl();
     syncAddressMarkers(preferredMap||findMapInstance());
     applyAvatars();
 
@@ -1088,6 +1591,7 @@
     });
 
     window.addEventListener('pageshow',tick);
+    window.addEventListener('online',()=>setTimeout(flushAdminQueue,250));
   }
 
   if(document.readyState==='loading'){
