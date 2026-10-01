@@ -1,0 +1,259 @@
+name: AERONAV RC12.31.2 Performance Recovery FIX
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - .github/workflows/aeronav_rc12_31_2_performance_recovery_FIX.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current AERONAV
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply RC12.31.2 performance recovery
+        shell: bash
+        run: |
+          cat > /tmp/rc12312.py <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(name):
+              p=Path(name)
+              if not p.exists():
+                  raise SystemExit(f"ERRO: ficheiro ausente: {name}")
+              return p,p.read_text(encoding="utf-8")
+
+          def sub_once(s, pattern, repl, label, flags=0):
+              s2,n=re.subn(pattern,repl,s,count=1,flags=flags)
+              if n != 1:
+                  raise SystemExit(f"ERRO {label}: substituições={n}")
+              return s2
+
+          def replace_once(s, old, new, label):
+              n=s.count(old)
+              if n != 1:
+                  raise SystemExit(f"ERRO {label}: ocorrências={n}")
+              return s.replace(old,new,1)
+
+          # ---------------- GPS Visual: shared position bus + lower housekeeping ----------------
+          p,s=read("gps-view-modes.js")
+          marker="    if(Number.isFinite(heading)&&heading>=0)lastHeading=heading;\n"
+          inject="""    if(Number.isFinite(heading)&&heading>=0)lastHeading=heading;
+              try{
+                const clean=v=>v==null?null:(Number.isFinite(Number(v))?Number(v):null);
+                const shared={
+                  timestamp:Number(pos?.timestamp)||Date.now(),
+                  coords:{
+                    latitude:clean(pos?.coords?.latitude),
+                    longitude:clean(pos?.coords?.longitude),
+                    altitude:clean(pos?.coords?.altitude),
+                    accuracy:clean(pos?.coords?.accuracy),
+                    altitudeAccuracy:clean(pos?.coords?.altitudeAccuracy),
+                    heading:clean(pos?.coords?.heading),
+                    speed:clean(pos?.coords?.speed)
+                  }
+                };
+                window.__AERONAV_LAST_GPS__=shared;
+                window.dispatchEvent(new CustomEvent('aeronav:gps',{detail:shared}));
+              }catch(_){}
+          """
+          if "window.__AERONAV_LAST_GPS__=shared" not in s:
+              s=replace_once(s,marker,inject,"GPS shared bus")
+          s=s.replace("setInterval(tick,2000);","setInterval(tick,5000);")
+          p.write_text(s,encoding="utf-8")
+
+          # ---------------- Flight Ops: consume shared GPS, fallback only if needed ----------------
+          p,s=read("flight-ops-fragment.js")
+          if "window.addEventListener('aeronav:gps'" not in s:
+              pattern=r"function startGps\(\)\{try\{navigator\.geolocation\?\.watchPosition\(onPosition,\(\)=>\{\},\{enableHighAccuracy:true,maximumAge:1000,timeout:15000\}\);\}catch\(_\)\{\}\}"
+              repl="""function startGps(){
+                try{
+                  let seen=false;
+                  const accept=p=>{if(!p?.coords)return;seen=true;onPosition(p);};
+                  if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
+                  window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
+                  setTimeout(()=>{
+                    if(seen)return;
+                    try{navigator.geolocation?.watchPosition(accept,()=>{},{enableHighAccuracy:true,maximumAge:2000,timeout:15000});}catch(_){}
+                  },10000);
+                }catch(_){}
+              }"""
+              s=sub_once(s,pattern,repl,"Flight Ops shared GPS")
+          s=s.replace("setInterval(tick,2000);","setInterval(tick,8000);")
+          p.write_text(s,encoding="utf-8")
+
+          # ---------------- Common weather animation performance ----------------
+          weather_files=["meteo-visual-voo.js","meteo-route-phase2.js","meteo-altitude-phase3.js"]
+          for name in weather_files:
+              p,s=read(name)
+
+              s=s.replace(
+                  "const dpr=Math.min(window.devicePixelRatio||1,2);",
+                  "const dpr=Math.min(window.devicePixelRatio||1,1.25);"
+              )
+
+              if "const PERF_FRAME_MS=125;" not in s:
+                  s=replace_once(
+                      s,
+                      "let raf=0;",
+                      "const PERF_FRAME_MS=125; // RC12.31.2: 8 FPS\n  let raf=0;",
+                      f"{name} PERF_FRAME_MS"
+                  )
+
+              s=s.replace(
+                  "raf=requestAnimationFrame(frame);",
+                  "raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);"
+              )
+              s=s.replace("cancelAnimationFrame(raf)","clearTimeout(raf)")
+
+              old="function frame(now){\n    if(!running)return;"
+              new="function frame(now){\n    if(!running)return;\n    if(document.hidden){running=false;raf=0;return;}"
+              if "if(document.hidden){running=false;raf=0;return;}" not in s:
+                  s=replace_once(s,old,new,f"{name} background stop")
+
+              # Keep visual movement proportional after lowering FPS.
+              s=s.replace(
+                  "const dt=Math.min(60,now-lastFrame||16);",
+                  "const dt=Math.min(PERF_FRAME_MS,now-lastFrame||PERF_FRAME_MS);"
+              )
+
+              p.write_text(s,encoding="utf-8")
+
+          # ---------------- WX1: fewer particles + shared GPS + 10s maintenance ----------------
+          p,s=read("meteo-visual-voo.js")
+          s=s.replace("for(let i=0;i<90;i++)","for(let i=0;i<45;i++)")
+          s=s.replace("for(let i=0;i<140;i++)","for(let i=0;i<70;i++)")
+          s=s.replace("for(let i=0;i<16;i++)","for(let i=0;i<8;i++)")
+
+          if "window.addEventListener('aeronav:gps',e=>accept(e.detail)" not in s:
+              pattern=r"  function startGps\(\)\{\s*try\{\s*navigator\.geolocation\?\.watchPosition\(\s*onPosition,\s*\(\)=>\{\},\s*\{enableHighAccuracy:true,maximumAge:5000,timeout:15000\}\s*\);\s*\}catch\(_\)\{\}\s*\}"
+              repl="""  function startGps(){
+                try{
+                  const accept=p=>{if(p?.coords)onPosition(p);};
+                  if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
+                  window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
+                }catch(_){}
+              }"""
+              s=sub_once(s,pattern,repl,"WX1 shared GPS",re.S)
+
+          s=s.replace("setInterval(tick,2000);","setInterval(tick,10000);")
+          p.write_text(s,encoding="utf-8")
+
+          # ---------------- WX2: 10s maintenance ----------------
+          p,s=read("meteo-route-phase2.js")
+          s=s.replace("setInterval(tick,2500);","setInterval(tick,10000);")
+          p.write_text(s,encoding="utf-8")
+
+          # ---------------- WX3: shared GPS + 10s maintenance ----------------
+          p,s=read("meteo-altitude-phase3.js")
+          if "window.addEventListener('aeronav:gps',e=>accept(e.detail)" not in s:
+              pattern=r"  function startGps\(\)\{\s*try\{\s*navigator\.geolocation\?\.watchPosition\(\s*p=>\{\s*const m=Number\(p\?\.coords\?\.altitude\);\s*if\(Number\.isFinite\(m\)\)gpsAltitudeFt=m\*3\.28084;\s*if\(levelKey==='AUTO'\)updatePanel\(\);\s*\},\s*\(\)=>\{\},\s*\{enableHighAccuracy:true,maximumAge:5000,timeout:15000\}\s*\);\s*\}catch\(_\)\{\}\s*\}"
+              repl="""  function startGps(){
+                try{
+                  const accept=p=>{
+                    const m=Number(p?.coords?.altitude);
+                    if(Number.isFinite(m))gpsAltitudeFt=m*3.28084;
+                    if(levelKey==='AUTO')updatePanel();
+                  };
+                  if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
+                  window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
+                }catch(_){}
+              }"""
+              s=sub_once(s,pattern,repl,"WX3 shared GPS",re.S)
+
+          s=s.replace("setInterval(tick,3000);","setInterval(tick,10000);")
+          p.write_text(s,encoding="utf-8")
+
+          # ---------------- Diagnostic label ----------------
+          p,s=read("diagnostic-recovery.js")
+          s=s.replace("RC12.31.1","RC12.31.2")
+          p.write_text(s,encoding="utf-8")
+
+          # ---------------- Service worker: new cache forces clean delivery ----------------
+          p,s=read("sw.js")
+          if not s.startswith("/* AERONAV RC12.31.2"):
+              s="/* AERONAV RC12.31.2 — Performance Recovery */\n"+s
+
+          s,n=re.subn(
+              r"const CACHE='aeronav-jorge-[^']+';",
+              "const CACHE='aeronav-jorge-RC12_31_2-performance-20261001-2';",
+              s,
+              count=1
+          )
+          if n != 1:
+              raise SystemExit(f"ERRO SW cache: substituições={n}")
+
+          s=s.replace("release:'RC12.31'","release:'RC12.31.2'")
+          p.write_text(s,encoding="utf-8")
+
+          print("RC12.31.2 patch aplicado")
+          PY
+
+          python3 /tmp/rc12312.py
+
+      - name: Validate JavaScript
+        shell: bash
+        run: |
+          node --check gps-view-modes.js
+          node --check flight-ops-fragment.js
+          node --check meteo-visual-voo.js
+          node --check meteo-route-phase2.js
+          node --check meteo-altitude-phase3.js
+          node --check diagnostic-recovery.js
+          node --check sw.js
+
+      - name: Validate performance targets
+        shell: bash
+        run: |
+          grep -q "window.__AERONAV_LAST_GPS__=shared" gps-view-modes.js
+          grep -q "setInterval(tick,5000)" gps-view-modes.js
+          grep -q "setInterval(tick,8000)" flight-ops-fragment.js
+
+          grep -q "PERF_FRAME_MS=125" meteo-visual-voo.js
+          grep -q "PERF_FRAME_MS=125" meteo-route-phase2.js
+          grep -q "PERF_FRAME_MS=125" meteo-altitude-phase3.js
+
+          grep -q "devicePixelRatio||1,1.25" meteo-visual-voo.js
+          grep -q "devicePixelRatio||1,1.25" meteo-route-phase2.js
+          grep -q "devicePixelRatio||1,1.25" meteo-altitude-phase3.js
+
+          grep -q "setInterval(tick,10000)" meteo-visual-voo.js
+          grep -q "setInterval(tick,10000)" meteo-route-phase2.js
+          grep -q "setInterval(tick,10000)" meteo-altitude-phase3.js
+
+          test "$(grep -o "watchPosition" meteo-visual-voo.js | wc -l)" -eq 0
+          test "$(grep -o "watchPosition" meteo-altitude-phase3.js | wc -l)" -eq 0
+
+          grep -q "RC12_31_2-performance-20261001-2" sw.js
+          grep -q "RC12.31.2" diagnostic-recovery.js
+
+      - name: Commit RC12.31.2
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            gps-view-modes.js \
+            flight-ops-fragment.js \
+            meteo-visual-voo.js \
+            meteo-route-phase2.js \
+            meteo-altitude-phase3.js \
+            diagnostic-recovery.js \
+            sw.js
+
+          if git diff --cached --quiet; then
+            echo "RC12.31.2 already applied"
+            exit 0
+          fi
+
+          git commit -m "AERONAV RC12.31.2 performance recovery FIX"
+          git push
