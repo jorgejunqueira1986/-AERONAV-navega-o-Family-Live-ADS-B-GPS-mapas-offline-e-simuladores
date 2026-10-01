@@ -1,0 +1,239 @@
+name: AERONAV RC11.98.7 Exact Trabalho Address
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/aeronav_rc11_98_7_address_exact.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current AERONAV
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply exact-address hotfix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('work-status-fragment.js')
+          s=p.read_text(encoding='utf-8')
+
+          s=s.replace(
+              '/* AERONAV RC11.98.6 - Exact address pointer anchor + Jorge Admin + Family route-cancel sync.',
+              '/* AERONAV RC11.98.7 - Exact visible-map address picking + Jorge Admin + Family route-cancel sync.',
+              1
+          )
+
+          if 'let repositionAddress=null;' not in s:
+              s=s.replace('  let pendingPoint=null;',
+                          '  let pendingPoint=null;\n  let repositionAddress=null;',1)
+
+          old_start="""  function startAddressPick(){
+              closeAddressPanel();
+              addressPickMode=true;
+              document.getElementById('aeronavAddressPickToast')?.remove();
+              const t=document.createElement('div');
+              t.id='aeronavAddressPickToast';
+              t.textContent='📍 Toque no ponto exato do mapa que quer guardar';
+              document.body.appendChild(t);
+            }"""
+          new_start="""  function startAddressPick(existing=null){
+              closeAddressPanel();
+              addressPickMode=true;
+              repositionAddress=existing||null;
+              document.getElementById('aeronavAddressPickToast')?.remove();
+              const t=document.createElement('div');
+              t.id='aeronavAddressPickToast';
+              t.textContent=existing
+                ?'📍 Toque no NOVO ponto exato de '+String(existing.name||'endereço')
+                :'📍 Toque no ponto exato do mapa que quer guardar';
+              document.body.appendChild(t);
+            }"""
+          if old_start not in s:
+              raise SystemExit('startAddressPick pattern not found')
+          s=s.replace(old_start,new_start,1)
+
+          old_consume="""  function consumeMapClick(lngLat,map){
+              if(!addressPickMode||!lngLat)return;
+              const lat=Number(lngLat.lat),lng=Number(lngLat.lng);
+              if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
+              if(isMapObject(map))preferredMap=map;
+              addressPickMode=false;
+              document.getElementById('aeronavAddressPickToast')?.remove();
+              openAddressEditor({lat,lng},null);
+            }"""
+          new_consume="""  function consumeMapClick(lngLat,map){
+              if(!addressPickMode||!lngLat)return;
+              const lat=Number(lngLat.lat),lng=Number(lngLat.lng);
+              if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
+              if(isMapObject(map))preferredMap=map;
+              addressPickMode=false;
+              document.getElementById('aeronavAddressPickToast')?.remove();
+              const existing=repositionAddress;
+              repositionAddress=null;
+              openAddressEditor({lat,lng},existing||null);
+            }"""
+          if old_consume not in s:
+              raise SystemExit('consumeMapClick pattern not found')
+          s=s.replace(old_consume,new_consume,1)
+
+          if 'data-move>Reposicionar' not in s:
+              s=s.replace(
+                  '<button class="aeronavAddrBtn" data-edit>Editar</button><button class="aeronavAddrBtn aeronavAddrDanger" data-del>Apagar</button>',
+                  '<button class="aeronavAddrBtn" data-move>Reposicionar</button><button class="aeronavAddrBtn" data-edit>Editar</button><button class="aeronavAddrBtn aeronavAddrDanger" data-del>Apagar</button>',
+                  1
+              )
+
+          if "const move=item.querySelector('[data-move]');" not in s:
+              old_wire="""        const edit=item.querySelector('[data-edit]');
+                  if(edit)edit.onclick=()=>openAddressEditor(a,a);"""
+              new_wire="""        const move=item.querySelector('[data-move]');
+                  if(move)move.onclick=()=>startAddressPick(a);
+
+                  const edit=item.querySelector('[data-edit]');
+                  if(edit)edit.onclick=()=>openAddressEditor(a,a);"""
+              if old_wire not in s:
+                  raise SystemExit('address wire pattern not found')
+              s=s.replace(old_wire,new_wire,1)
+
+          if 'function installExactAddressClickHook()' not in s:
+              anchor='  function installMapClickHook(){'
+              if anchor not in s:
+                  raise SystemExit('installMapClickHook anchor missing')
+              helper="""  function installExactAddressClickHook(){
+              if(document.documentElement.dataset.aeronavExactAddressHook987==='1')return;
+              document.documentElement.dataset.aeronavExactAddressHook987='1';
+
+              document.addEventListener('click',ev=>{
+                if(!addressPickMode)return;
+                const x=Number(ev.clientX),y=Number(ev.clientY);
+                if(!Number.isFinite(x)||!Number.isFinite(y))return;
+
+                const candidates=[];
+                try{
+                  const known=['map','mainMap','aeronavMap','mapInstance','mapa'];
+                  const seen=new Set();
+
+                  const consider=m=>{
+                    if(!isMapObject(m)||seen.has(m))return;
+                    seen.add(m);
+                    const canvas=m.getCanvas?.();
+                    if(!canvas)return;
+                    const r=canvas.getBoundingClientRect();
+                    if(r.width<80||r.height<80)return;
+                    if(x<r.left||x>r.right||y<r.top||y>r.bottom)return;
+                    candidates.push({m,r,area:r.width*r.height});
+                  };
+
+                  for(const k of known){
+                    try{consider(window[k]);}catch(_){}
+                  }
+                  for(const k of Object.getOwnPropertyNames(window)){
+                    try{consider(window[k]);}catch(_){}
+                  }
+                }catch(_){}
+
+                if(!candidates.length)return;
+
+                candidates.sort((a,b)=>a.area-b.area);
+                const chosen=candidates[0];
+
+                try{
+                  const p=chosen.m.unproject([x-chosen.r.left,y-chosen.r.top]);
+                  if(!p||!Number.isFinite(Number(p.lat))||!Number.isFinite(Number(p.lng)))return;
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  consumeMapClick({lat:Number(p.lat),lng:Number(p.lng)},chosen.m);
+                }catch(_){}
+              },true);
+            }
+
+            """
+              s=s.replace(anchor,helper+anchor,1)
+
+          # Start hook
+          s=s.replace(
+              "    bindTravelModeButtons();\n    installMapClickHook();",
+              "    bindTravelModeButtons();\n    installExactAddressClickHook();\n    installMapClickHook();",
+              1
+          )
+
+          # Tick hook
+          s=s.replace(
+              "    injectClientAddressControl();\n    installMapClickHook();",
+              "    injectClientAddressControl();\n    installExactAddressClickHook();\n    installMapClickHook();",
+              1
+          )
+
+          # Recreate markers after an address save/update so moved coordinates cannot stay cached.
+          if 'addressMarkers.clear();' not in s[s.find('function saveAddresses'):s.find('function normCategory')]:
+              old_save="""    try{syncAddressMarkers(preferredMap||findMapInstance());}catch(_){}"""
+              new_save="""    try{
+              const m=preferredMap||findMapInstance();
+              if(m){
+                for(const marker of addressMarkers.values()){try{marker.remove();}catch(_){}}
+                addressMarkers.clear();
+                syncAddressMarkers(m);
+              }
+            }catch(_){}"""
+              if old_save in s:
+                  s=s.replace(old_save,new_save,1)
+
+          p.write_text(s,encoding='utf-8')
+
+          # Force all three PWAs to fetch the new module.
+          patches=[
+              ('sw.js','aeronav-jorge-RC11_98_7-address-exact-20261001-1',
+               './work-status-fragment.js?v=RC11.98','./work-status-fragment.js?v=RC11.98.7'),
+              ('mathia/sw.js','aeronav-mathia-RC11_98_7-address-exact-20261001-1',
+               '../work-status-fragment.js?v=RC11.98','../work-status-fragment.js?v=RC11.98.7'),
+              ('wendler/sw.js','aeronav-wendler-RC11_98_7-address-exact-20261001-1',
+               '../work-status-fragment.js?v=RC11.98','../work-status-fragment.js?v=RC11.98.7')
+          ]
+
+          for fn,new_cache,old_q,new_q in patches:
+              q=Path(fn)
+              t=q.read_text(encoding='utf-8')
+              t=re.sub(r"const CACHE='[^']+';",f"const CACHE='{new_cache}';",t,count=1)
+              t=t.replace(old_q,new_q)
+              if 'RC11.98.7' not in t.splitlines()[0]:
+                  t='/* AERONAV RC11.98.7 — Exact address picking */\n'+t
+              q.write_text(t,encoding='utf-8')
+          PY
+
+      - name: Validate RC11.98.7
+        shell: bash
+        run: |
+          node --check work-status-fragment.js
+          node --check sw.js
+          node --check mathia/sw.js
+          node --check wendler/sw.js
+          grep -q "RC11.98.7" work-status-fragment.js
+          grep -q "Reposicionar" work-status-fragment.js
+          grep -q "installExactAddressClickHook" work-status-fragment.js
+          grep -q "RC11.98.7" sw.js
+          grep -q "RC11.98.7" mathia/sw.js
+          grep -q "RC11.98.7" wendler/sw.js
+
+      - name: Commit RC11.98.7
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add work-status-fragment.js sw.js mathia/sw.js wendler/sw.js
+          if git diff --cached --quiet; then
+            echo "RC11.98.7 already applied"
+            exit 0
+          fi
+          git commit -m "AERONAV RC11.98.7 exact address picking and reposition"
+          git push
