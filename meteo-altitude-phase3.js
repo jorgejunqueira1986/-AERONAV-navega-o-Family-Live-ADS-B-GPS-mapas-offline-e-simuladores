@@ -34,6 +34,7 @@
   let map=null,host=null,canvas=null,ctx=null;
   let routeCoords=[],routeSig='',samples=[];
   let lastFetchAt=0,fetchBusy=false;
+  const PERF_FRAME_MS=125; // RC12.31.2: 8 FPS
   let raf=0,running=false,lastFrame=0;
   let gpsAltitudeFt=null;
   let lastAutoP=250;
@@ -168,7 +169,7 @@
   function resizeCanvas(){
     if(!canvas||!host)return;
     const r=host.getBoundingClientRect();
-    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const dpr=Math.min(window.devicePixelRatio||1,1.25);
     const w=Math.max(1,Math.round(r.width*dpr));
     const h=Math.max(1,Math.round(r.height*dpr));
     if(canvas.width!==w||canvas.height!==h){
@@ -600,6 +601,7 @@
 
   function frame(now){
     if(!running)return;
+    if(document.hidden){running=false;raf=0;return;}
     if(!lastFrame)lastFrame=now;
     lastFrame=now;
 
@@ -636,18 +638,18 @@
       }
     }
 
-    raf=requestAnimationFrame(frame);
+    raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);
   }
 
   function startAnimation(){
     if(running)return;
     running=true;lastFrame=0;
-    raf=requestAnimationFrame(frame);
+    raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);
   }
 
   function stopAnimation(){
     running=false;
-    if(raf)cancelAnimationFrame(raf);
+    if(raf)clearTimeout(raf);
     raf=0;
     removeBadges();
     if(ctx&&host){
@@ -668,18 +670,16 @@
   }
 
   function startGps(){
-    try{
-      navigator.geolocation?.watchPosition(
-        p=>{
-          const m=Number(p?.coords?.altitude);
-          if(Number.isFinite(m))gpsAltitudeFt=m*3.28084;
-          if(levelKey==='AUTO')updatePanel();
-        },
-        ()=>{},
-        {enableHighAccuracy:true,maximumAge:5000,timeout:15000}
-      );
-    }catch(_){}
-  }
+  try{
+    const accept=p=>{
+      const m=Number(p?.coords?.altitude);
+      if(Number.isFinite(m))gpsAltitudeFt=m*3.28084;
+      if(levelKey==='AUTO')updatePanel();
+    };
+    if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
+    window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
+  }catch(_){}
+}
 
   function tick(){
     ensureUi();
@@ -693,7 +693,7 @@
     ensureUi();
     startGps();
     tick();
-    setInterval(tick,3000);
+    setInterval(tick,10000);
     window.addEventListener('resize',resizeCanvas);
     window.addEventListener('pageshow',()=>setTimeout(()=>refresh(true),500));
     document.addEventListener('visibilitychange',()=>{

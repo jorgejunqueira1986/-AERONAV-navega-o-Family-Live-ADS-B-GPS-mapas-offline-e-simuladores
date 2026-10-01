@@ -21,6 +21,7 @@
   let mapHost=null;
   let canvas=null;
   let ctx=null;
+  const PERF_FRAME_MS=125; // RC12.31.2: 8 FPS
   let raf=0;
   let running=false;
   let lastFrame=0;
@@ -133,7 +134,7 @@
   function resizeCanvas(){
     if(!canvas||!mapHost)return;
     const r=mapHost.getBoundingClientRect();
-    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const dpr=Math.min(window.devicePixelRatio||1,1.25);
     const w=Math.max(1,Math.round(r.width*dpr));
     const h=Math.max(1,Math.round(r.height*dpr));
     if(canvas.width!==w||canvas.height!==h){
@@ -323,21 +324,21 @@
   function seedParticles(w,h){
     windParticles.length=0;rainDrops.length=0;cloudBlobs.length=0;
 
-    for(let i=0;i<90;i++){
+    for(let i=0;i<45;i++){
       windParticles.push({
         x:Math.random()*w,y:Math.random()*h,
         life:Math.random(),len:8+Math.random()*22
       });
     }
 
-    for(let i=0;i<140;i++){
+    for(let i=0;i<70;i++){
       rainDrops.push({
         x:Math.random()*w,y:Math.random()*h,
         len:7+Math.random()*14,speed:.55+Math.random()*.9
       });
     }
 
-    for(let i=0;i<16;i++){
+    for(let i=0;i<8;i++){
       cloudBlobs.push({
         x:Math.random()*w,y:Math.random()*h,
         rx:70+Math.random()*150,ry:28+Math.random()*70,
@@ -453,8 +454,9 @@
 
   function frame(now){
     if(!running)return;
+    if(document.hidden){running=false;raf=0;return;}
     if(!lastFrame)lastFrame=now;
-    const dt=Math.min(60,now-lastFrame||16);
+    const dt=Math.min(PERF_FRAME_MS,now-lastFrame||PERF_FRAME_MS);
     lastFrame=now;
 
     resizeCanvas();
@@ -467,19 +469,19 @@
       drawThunder(ctx,r.width,r.height,now);
     }
 
-    raf=requestAnimationFrame(frame);
+    raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);
   }
 
   function startAnimation(){
     if(running)return;
     running=true;
     lastFrame=0;
-    raf=requestAnimationFrame(frame);
+    raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);
   }
 
   function stopAnimation(){
     running=false;
-    if(raf)cancelAnimationFrame(raf);
+    if(raf)clearTimeout(raf);
     raf=0;
     if(ctx&&mapHost){
       const r=mapHost.getBoundingClientRect();
@@ -496,14 +498,12 @@
   }
 
   function startGps(){
-    try{
-      navigator.geolocation?.watchPosition(
-        onPosition,
-        ()=>{},
-        {enableHighAccuracy:true,maximumAge:5000,timeout:15000}
-      );
-    }catch(_){}
-  }
+  try{
+    const accept=p=>{if(p?.coords)onPosition(p);};
+    if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
+    window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
+  }catch(_){}
+}
 
   function tick(){
     ensureUi();
@@ -526,7 +526,7 @@
     }catch(_){}
 
     tick();
-    setInterval(tick,2000);
+    setInterval(tick,10000);
     window.addEventListener('resize',resizeCanvas);
     window.addEventListener('pageshow',()=>setTimeout(tick,300));
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(tick,300);});

@@ -278,6 +278,23 @@
     const heading=Number(pos?.coords?.heading);
     if(Number.isFinite(lat)&&Number.isFinite(lng))lastPos={lat,lng};
     if(Number.isFinite(heading)&&heading>=0)lastHeading=heading;
+    try{
+      const clean=v=>v==null?null:(Number.isFinite(Number(v))?Number(v):null);
+      const shared={
+        timestamp:Number(pos?.timestamp)||Date.now(),
+        coords:{
+          latitude:clean(pos?.coords?.latitude),
+          longitude:clean(pos?.coords?.longitude),
+          altitude:clean(pos?.coords?.altitude),
+          accuracy:clean(pos?.coords?.accuracy),
+          altitudeAccuracy:clean(pos?.coords?.altitudeAccuracy),
+          heading:clean(pos?.coords?.heading),
+          speed:clean(pos?.coords?.speed)
+        }
+      };
+      window.__AERONAV_LAST_GPS__=shared;
+      window.dispatchEvent(new CustomEvent('aeronav:gps',{detail:shared}));
+    }catch(_){}
     cameraForMode(false);
     updateHud();
   }
@@ -310,7 +327,7 @@
     setButtons();
     startGps();
     setTimeout(()=>renderMode(true),600);
-    setInterval(tick,2000);
+    setInterval(tick,5000);
     window.addEventListener('pageshow',()=>setTimeout(()=>renderMode(true),350));
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>renderMode(true),350);});
   }

@@ -229,8 +229,19 @@ function onPosition(p){
   if(Number.isFinite(sp)&&sp>=0)gs=Math.min(800,sp*KT);
   last={lat,lng,alt:Number.isFinite(alt)?alt:null};lastAt=now;updateTelemetry();updateState(p);
 }
-function startGps(){try{navigator.geolocation?.watchPosition(onPosition,()=>{},{enableHighAccuracy:true,maximumAge:1000,timeout:15000});}catch(_){}}
+function startGps(){
+  try{
+    let seen=false;
+    const accept=p=>{if(!p?.coords)return;seen=true;onPosition(p);};
+    if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
+    window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
+    setTimeout(()=>{
+      if(seen)return;
+      try{navigator.geolocation?.watchPosition(accept,()=>{},{enableHighAccuracy:true,maximumAge:2000,timeout:15000});}catch(_){}
+    },10000);
+  }catch(_){}
+}
 function tick(){bindModes();styles();if(role==='jorge'){telemetry();updateTelemetry();metarPanel();detectIcaos();}}
-function start(){styles();bindModes();startGps();tick();setInterval(tick,2000);window.addEventListener('pageshow',tick);document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});}
+function start(){styles();bindModes();startGps();tick();setInterval(tick,8000);window.addEventListener('pageshow',tick);document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick();});}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

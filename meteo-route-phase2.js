@@ -19,6 +19,7 @@
   let host=null;
   let canvas=null;
   let ctx=null;
+  const PERF_FRAME_MS=125; // RC12.31.2: 8 FPS
   let raf=0;
   let running=false;
   let lastFrame=0;
@@ -119,7 +120,7 @@
   function resizeCanvas(){
     if(!canvas||!host)return;
     const r=host.getBoundingClientRect();
-    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const dpr=Math.min(window.devicePixelRatio||1,1.25);
     const w=Math.max(1,Math.round(r.width*dpr));
     const h=Math.max(1,Math.round(r.height*dpr));
     if(canvas.width!==w||canvas.height!==h){
@@ -544,6 +545,7 @@
 
   function frame(now){
     if(!running)return;
+    if(document.hidden){running=false;raf=0;return;}
     if(!lastFrame)lastFrame=now;
     lastFrame=now;
 
@@ -576,19 +578,19 @@
       }
     }
 
-    raf=requestAnimationFrame(frame);
+    raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);
   }
 
   function startAnimation(){
     if(running)return;
     running=true;
     lastFrame=0;
-    raf=requestAnimationFrame(frame);
+    raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);
   }
 
   function stopAnimation(){
     running=false;
-    if(raf)cancelAnimationFrame(raf);
+    if(raf)clearTimeout(raf);
     raf=0;
     removeBadges();
     if(ctx&&host){
@@ -627,7 +629,7 @@
     ensureSummary();
     tick();
 
-    setInterval(tick,2500);
+    setInterval(tick,10000);
     window.addEventListener('resize',resizeCanvas);
     window.addEventListener('pageshow',()=>setTimeout(()=>refreshRouteWeather(true),400));
     document.addEventListener('visibilitychange',()=>{
