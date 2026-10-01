@@ -1,17 +1,47 @@
-AERONAV RC11.99 FLIGHT OPS
+AERONAV RC12.10 — METEO VISUAL VOO
 
-Inclui:
-1. Ground Speed ao vivo.
-2. TAS AUTO: usa TAS real se disponível; caso contrário acompanha GS como estimativa marcada com *.
-3. Rate of Climb/Descent em ft/min.
-4. METAR do aeroporto de partida e destino.
-5. Máquina de estados de voo: descolagem na origem; aterragem apenas depois de estado AIRBORNE/aproximação.
-6. Mathia/Wendler: alerta grande dentro da AERONAV + notificação persistente do sistema quando suportado.
+O pacote é autónomo: instala/garante também RC12.00 GPS Visual Modes e RC11.99 Flight Ops.
 
-Instalação:
-- Colocar aeronav_rc11_99_flight_ops.yml em .github/workflows/
-- Commit para main.
-- Aguardar "AERONAV RC11.99 Flight Ops" ficar verde em Actions.
-- Fechar e reabrir as PWAs.
+NO MODO VOO:
+- WX: liga/desliga o conjunto meteorológico.
+- WIND: partículas animadas movem-se segundo direção e intensidade real do vento.
+- RAIN: chuva animada proporcional à precipitação/chuva/aguaceiros recebidos.
+- CLOUD: camada de nuvens animada com densidade proporcional à cobertura de nuvens.
+- TROVOADA: quando o weather code indicar trovoada, há efeito visual de relâmpago.
+- Painel WX mostra:
+  direção/velocidade do vento,
+  rajada,
+  precipitação,
+  cobertura de nuvens,
+  temperatura,
+  condição meteorológica.
 
-Nota: iOS/Android controlam o tamanho físico da notificação do sistema. O alerta dentro da AERONAV é grande.
+DADOS:
+- posição GPS atual de Jorge;
+- atualização meteorológica a cada ~10 minutos ou após grande deslocação;
+- cache local do último dado para perda temporária de Internet.
+
+IMPORTANTE:
+- As animações representam os dados meteorológicos recebidos no ponto atual do avião.
+- Não são imagens de radar nem pretendem representar a posição exacta de cada nuvem individual.
+- Em CARRO e A PÉ, as camadas WX ficam escondidas.
+
+MATHIA / WENDLER:
+- RC11.99 Flight Ops é mantido/injetado para continuar a receber eventos grandes de descolagem/aterragem.
+
+INSTALAÇÃO:
+1. Extraia o ZIP.
+2. No GitHub vá a .github/workflows/
+3. Faça upload de aeronav_rc12_10_meteo_visual_voo.yml
+4. Commit diretamente em main.
+5. Abra Actions.
+6. Aguarde "AERONAV RC12.10 Meteo Visual VOO" ficar verde.
+7. Feche completamente Jorge, Mathia e Wendler e abra novamente.
+
+Preserva:
+- Family
+- Endereços
+- Folga
+- Hiace
+- Angola Offline
+- PMTiles
