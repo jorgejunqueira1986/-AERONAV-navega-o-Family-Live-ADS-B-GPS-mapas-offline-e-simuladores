@@ -1,0 +1,255 @@
+name: AERONAV RC12.31.2 Performance Recovery FINAL
+
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - .github/workflows/aeronav_rc12_31_2_performance_recovery_FINAL.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current AERONAV
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply tested RC12.31.2 performance recovery
+        shell: bash
+        run: |
+          cat > /tmp/rc12312.js <<'NODE'
+          const fs=require('fs');
+
+          const read=p=>fs.readFileSync(p,'utf8');
+          const write=(p,s)=>fs.writeFileSync(p,s,'utf8');
+
+          const files={
+            "gps-view-modes.js":read("gps-view-modes.js"),
+            "flight-ops-fragment.js":read("flight-ops-fragment.js"),
+            "meteo-visual-voo.js":read("meteo-visual-voo.js"),
+            "meteo-route-phase2.js":read("meteo-route-phase2.js"),
+            "meteo-altitude-phase3.js":read("meteo-altitude-phase3.js"),
+            "diagnostic-recovery.js":read("diagnostic-recovery.js"),
+            "sw.js":read("sw.js")
+          };
+
+          let s=files["gps-view-modes.js"];
+          if(!s.includes("window.__AERONAV_LAST_GPS__=shared")){
+            s=s.replace(
+              /(\s*if\(Number\.isFinite\(heading\)&&heading>=0\)lastHeading=heading;\n)/,
+              `$1    try{
+                const clean=v=>v==null?null:(Number.isFinite(Number(v))?Number(v):null);
+                const shared={
+                  timestamp:Number(pos?.timestamp)||Date.now(),
+                  coords:{
+                    latitude:clean(pos?.coords?.latitude),
+                    longitude:clean(pos?.coords?.longitude),
+                    altitude:clean(pos?.coords?.altitude),
+                    accuracy:clean(pos?.coords?.accuracy),
+                    altitudeAccuracy:clean(pos?.coords?.altitudeAccuracy),
+                    heading:clean(pos?.coords?.heading),
+                    speed:clean(pos?.coords?.speed)
+                  }
+                };
+                window.__AERONAV_LAST_GPS__=shared;
+                window.dispatchEvent(new CustomEvent('aeronav:gps',{detail:shared}));
+              }catch(_){}
+          `
+            );
+          }
+          s=s.replace("setInterval(tick,2000);","setInterval(tick,5000);");
+          files["gps-view-modes.js"]=s;
+
+          s=files["flight-ops-fragment.js"];
+          if(!s.includes("window.addEventListener('aeronav:gps'")){
+            s=s.replace(
+              /function startGps\(\)\{try\{navigator\.geolocation\?\.watchPosition\(onPosition,\(\)=>\{\},\{enableHighAccuracy:true,maximumAge:1000,timeout:15000\}\);\}catch\(_\)\{\}\}/,
+          `function startGps(){
+            try{
+              let seen=false;
+              const accept=p=>{if(!p?.coords)return;seen=true;onPosition(p);};
+              if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
+              window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
+              setTimeout(()=>{
+                if(seen)return;
+                try{navigator.geolocation?.watchPosition(accept,()=>{},{enableHighAccuracy:true,maximumAge:2000,timeout:15000});}catch(_){}
+              },10000);
+            }catch(_){}
+          }`
+            );
+          }
+          s=s.replace("setInterval(tick,2000);","setInterval(tick,8000);");
+          files["flight-ops-fragment.js"]=s;
+
+          for(const name of ["meteo-visual-voo.js","meteo-route-phase2.js","meteo-altitude-phase3.js"]){
+            s=files[name];
+
+            s=s.replace(
+              "const dpr=Math.min(window.devicePixelRatio||1,2);",
+              "const dpr=Math.min(window.devicePixelRatio||1,1.25);"
+            );
+
+            if(!s.includes("const PERF_FRAME_MS=125;")){
+              s=s.replace(
+                /\blet raf=0(?=[,;])/,
+                "const PERF_FRAME_MS=125; // RC12.31.2: 8 FPS\n  let raf=0"
+              );
+            }
+
+            s=s.replaceAll(
+              "raf=requestAnimationFrame(frame);",
+              "raf=setTimeout(()=>frame(performance.now()),PERF_FRAME_MS);"
+            );
+            s=s.replaceAll("cancelAnimationFrame(raf)","clearTimeout(raf)");
+
+            if(!s.includes("if(document.hidden){running=false;raf=0;return;}")){
+              s=s.replace(
+                "function frame(now){\n    if(!running)return;",
+                "function frame(now){\n    if(!running)return;\n    if(document.hidden){running=false;raf=0;return;}"
+              );
+            }
+
+            s=s.replace(
+              "const dt=Math.min(60,now-lastFrame||16);",
+              "const dt=Math.min(PERF_FRAME_MS,now-lastFrame||PERF_FRAME_MS);"
+            );
+
+            files[name]=s;
+          }
+
+          s=files["meteo-visual-voo.js"];
+          s=s.replace("for(let i=0;i<90;i++)","for(let i=0;i<45;i++)");
+          s=s.replace("for(let i=0;i<140;i++)","for(let i=0;i<70;i++)");
+          s=s.replace("for(let i=0;i<16;i++)","for(let i=0;i<8;i++)");
+
+          if(!s.includes("window.addEventListener('aeronav:gps',e=>accept(e.detail)")){
+            s=s.replace(
+              /  function startGps\(\)\{\s*try\{\s*navigator\.geolocation\?\.watchPosition\(\s*onPosition,\s*\(\)=>\{\},\s*\{enableHighAccuracy:true,maximumAge:5000,timeout:15000\}\s*\);\s*\}catch\(_\)\{\}\s*\}/s,
+          `  function startGps(){
+            try{
+              const accept=p=>{if(p?.coords)onPosition(p);};
+              if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
+              window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
+            }catch(_){}
+          }`
+            );
+          }
+
+          s=s.replace("setInterval(tick,2000);","setInterval(tick,10000);");
+          files["meteo-visual-voo.js"]=s;
+
+          files["meteo-route-phase2.js"]=
+            files["meteo-route-phase2.js"].replace(
+              "setInterval(tick,2500);",
+              "setInterval(tick,10000);"
+            );
+
+          s=files["meteo-altitude-phase3.js"];
+          if(!s.includes("window.addEventListener('aeronav:gps',e=>accept(e.detail)")){
+            s=s.replace(
+              /  function startGps\(\)\{\s*try\{\s*navigator\.geolocation\?\.watchPosition\(\s*p=>\{\s*const m=Number\(p\?\.coords\?\.altitude\);\s*if\(Number\.isFinite\(m\)\)gpsAltitudeFt=m\*3\.28084;\s*if\(levelKey==='AUTO'\)updatePanel\(\);\s*\},\s*\(\)=>\{\},\s*\{enableHighAccuracy:true,maximumAge:5000,timeout:15000\}\s*\);\s*\}catch\(_\)\{\}\s*\}/s,
+          `  function startGps(){
+            try{
+              const accept=p=>{
+                const m=Number(p?.coords?.altitude);
+                if(Number.isFinite(m))gpsAltitudeFt=m*3.28084;
+                if(levelKey==='AUTO')updatePanel();
+              };
+              if(window.__AERONAV_LAST_GPS__)accept(window.__AERONAV_LAST_GPS__);
+              window.addEventListener('aeronav:gps',e=>accept(e.detail),{passive:true});
+            }catch(_){}
+          }`
+            );
+          }
+
+          s=s.replace("setInterval(tick,3000);","setInterval(tick,10000);");
+          files["meteo-altitude-phase3.js"]=s;
+
+          files["diagnostic-recovery.js"]=
+            files["diagnostic-recovery.js"].replaceAll("RC12.31.1","RC12.31.2");
+
+          s=files["sw.js"];
+          if(!s.startsWith("/* AERONAV RC12.31.2")){
+            s="/* AERONAV RC12.31.2 — Performance Recovery */\n"+s;
+          }
+          s=s.replace(
+            /const CACHE='aeronav-jorge-[^']+';/,
+            "const CACHE='aeronav-jorge-RC12_31_2-performance-20261001-3';"
+          );
+          s=s.replaceAll("release:'RC12.31'","release:'RC12.31.2'");
+          files["sw.js"]=s;
+
+          const checks={
+            gpsBus:files["gps-view-modes.js"].includes("window.__AERONAV_LAST_GPS__=shared"),
+            gpsTimer:files["gps-view-modes.js"].includes("setInterval(tick,5000)"),
+            flightTimer:files["flight-ops-fragment.js"].includes("setInterval(tick,8000)"),
+            wx1fps:files["meteo-visual-voo.js"].includes("PERF_FRAME_MS=125"),
+            wx2fps:files["meteo-route-phase2.js"].includes("PERF_FRAME_MS=125"),
+            wx3fps:files["meteo-altitude-phase3.js"].includes("PERF_FRAME_MS=125"),
+            wx1timer:files["meteo-visual-voo.js"].includes("setInterval(tick,10000)"),
+            wx2timer:files["meteo-route-phase2.js"].includes("setInterval(tick,10000)"),
+            wx3timer:files["meteo-altitude-phase3.js"].includes("setInterval(tick,10000)"),
+            wx1NoGps:!files["meteo-visual-voo.js"].includes("watchPosition"),
+            wx3NoGps:!files["meteo-altitude-phase3.js"].includes("watchPosition"),
+            diag:files["diagnostic-recovery.js"].includes("RC12.31.2"),
+            sw:files["sw.js"].includes("RC12_31_2-performance-20261001-3")
+          };
+
+          const failed=Object.entries(checks).filter(([,ok])=>!ok);
+          if(failed.length){
+            console.error("Performance validation failed:",failed);
+            process.exit(1);
+          }
+
+          for(const [name,content] of Object.entries(files)){
+            try{ new Function(content); }
+            catch(e){
+              console.error("Syntax error in",name,e.message);
+              process.exit(1);
+            }
+          }
+
+          for(const [name,content] of Object.entries(files))write(name,content);
+
+          console.log("RC12.31.2 FINAL aplicado e validado:",checks);
+          NODE
+
+          node /tmp/rc12312.js
+
+      - name: Validate final JavaScript
+        shell: bash
+        run: |
+          node --check gps-view-modes.js
+          node --check flight-ops-fragment.js
+          node --check meteo-visual-voo.js
+          node --check meteo-route-phase2.js
+          node --check meteo-altitude-phase3.js
+          node --check diagnostic-recovery.js
+          node --check sw.js
+
+      - name: Commit RC12.31.2 FINAL
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            gps-view-modes.js \
+            flight-ops-fragment.js \
+            meteo-visual-voo.js \
+            meteo-route-phase2.js \
+            meteo-altitude-phase3.js \
+            diagnostic-recovery.js \
+            sw.js
+
+          if git diff --cached --quiet; then
+            echo "RC12.31.2 FINAL already applied"
+            exit 0
+          fi
+
+          git commit -m "AERONAV RC12.31.2 performance recovery FINAL"
+          git push
