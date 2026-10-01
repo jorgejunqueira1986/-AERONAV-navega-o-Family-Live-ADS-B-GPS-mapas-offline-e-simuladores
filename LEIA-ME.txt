@@ -1,0 +1,17 @@
+AERONAV RC11.99 FLIGHT OPS
+
+Inclui:
+1. Ground Speed ao vivo.
+2. TAS AUTO: usa TAS real se disponível; caso contrário acompanha GS como estimativa marcada com *.
+3. Rate of Climb/Descent em ft/min.
+4. METAR do aeroporto de partida e destino.
+5. Máquina de estados de voo: descolagem na origem; aterragem apenas depois de estado AIRBORNE/aproximação.
+6. Mathia/Wendler: alerta grande dentro da AERONAV + notificação persistente do sistema quando suportado.
+
+Instalação:
+- Colocar aeronav_rc11_99_flight_ops.yml em .github/workflows/
+- Commit para main.
+- Aguardar "AERONAV RC11.99 Flight Ops" ficar verde em Actions.
+- Fechar e reabrir as PWAs.
+
+Nota: iOS/Android controlam o tamanho físico da notificação do sistema. O alerta dentro da AERONAV é grande.
