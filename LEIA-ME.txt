@@ -1,47 +1,38 @@
-AERONAV RC12.10 — METEO VISUAL VOO
+AERONAV RC12.20 — METEO ROUTE · FASE 2
 
-O pacote é autónomo: instala/garante também RC12.00 GPS Visual Modes e RC11.99 Flight Ops.
+REQUER RC12.10 já instalada (o workflow valida essa base).
 
-NO MODO VOO:
-- WX: liga/desliga o conjunto meteorológico.
-- WIND: partículas animadas movem-se segundo direção e intensidade real do vento.
-- RAIN: chuva animada proporcional à precipitação/chuva/aguaceiros recebidos.
-- CLOUD: camada de nuvens animada com densidade proporcional à cobertura de nuvens.
-- TROVOADA: quando o weather code indicar trovoada, há efeito visual de relâmpago.
-- Painel WX mostra:
-  direção/velocidade do vento,
-  rajada,
-  precipitação,
-  cobertura de nuvens,
-  temperatura,
-  condição meteorológica.
+NOVO:
+- Lê a rota aérea que está realmente desenhada no mapa.
+- Amostra até 7 pontos ao longo da rota.
+- Consulta meteorologia actual em cada ponto.
+- Desenha no próprio mapa, em cada zona da rota:
+  vento animado,
+  chuva localizada,
+  nuvens localizadas,
+  indicação visual de trovoada.
+- Pequenas etiquetas WX ao longo do percurso.
+- Painel WX ROUTE mostra:
+  número de pontos analisados,
+  máxima precipitação,
+  máxima rajada,
+  máxima cobertura de nuvens,
+  resumo das condições mais relevantes.
+- Actualiza a rota meteorológica de 15 em 15 minutos ou quando a rota muda.
 
-DADOS:
-- posição GPS atual de Jorge;
-- atualização meteorológica a cada ~10 minutos ou após grande deslocação;
-- cache local do último dado para perda temporária de Internet.
+LIMIARES VISUAIS:
+- precipitação >= 2.0 mm/h: destacada no resumo;
+- rajadas >= 30 kt: destacadas;
+- nuvens >= 85%: destacadas;
+- weather code >= 95: trovoada indicada.
 
 IMPORTANTE:
-- As animações representam os dados meteorológicos recebidos no ponto atual do avião.
-- Não são imagens de radar nem pretendem representar a posição exacta de cada nuvem individual.
-- Em CARRO e A PÉ, as camadas WX ficam escondidas.
-
-MATHIA / WENDLER:
-- RC11.99 Flight Ops é mantido/injetado para continuar a receber eventos grandes de descolagem/aterragem.
+É uma visualização informativa baseada em modelo meteorológico.
+Não substitui radar meteorológico de bordo, SIGMET, METAR/TAF oficial ou decisão operacional.
 
 INSTALAÇÃO:
-1. Extraia o ZIP.
-2. No GitHub vá a .github/workflows/
-3. Faça upload de aeronav_rc12_10_meteo_visual_voo.yml
-4. Commit diretamente em main.
-5. Abra Actions.
-6. Aguarde "AERONAV RC12.10 Meteo Visual VOO" ficar verde.
-7. Feche completamente Jorge, Mathia e Wendler e abra novamente.
-
-Preserva:
-- Family
-- Endereços
-- Folga
-- Hiace
-- Angola Offline
-- PMTiles
+1. No GitHub vá a .github/workflows/
+2. Upload de aeronav_rc12_20_meteo_route_phase2.yml
+3. Commit para main
+4. Actions -> aguardar "AERONAV RC12.20 Meteo Route Phase 2" verde
+5. Fechar e reabrir AERONAV
