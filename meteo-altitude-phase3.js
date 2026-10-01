@@ -122,6 +122,7 @@
     ensureStyle();
     const p=ensureHost();
     if(!p)return false;
+    const panelHost=$('#mapDataPanel')||p;
 
     if(!canvas||canvas.parentElement!==p){
       canvas?.remove();
@@ -133,17 +134,17 @@
     resizeCanvas();
 
     let ctl=$('#aeronavPhase3Control');
-    if(!ctl||ctl.parentElement!==p){
+    if(!ctl||ctl.parentElement!==panelHost){
       ctl?.remove();
       ctl=document.createElement('div');
       ctl.id='aeronavPhase3Control';
       ctl.innerHTML='<button id="aeronavPhase3Level">FL WX · AUTO</button>';
-      p.appendChild(ctl);
+      panelHost.appendChild(ctl);
       $('#aeronavPhase3Level')?.addEventListener('click',cycleLevel);
     }
 
     let panel=$('#aeronavPhase3Panel');
-    if(!panel||panel.parentElement!==p){
+    if(!panel||panel.parentElement!==panelHost){
       panel?.remove();
       panel=document.createElement('div');
       panel.id='aeronavPhase3Panel';
@@ -162,7 +163,7 @@
           <div class="p3Risk"><div class="k">CONVECT.</div><div class="v" id="p3Conv">—</div></div>
         </div>
         <div class="p3Foot">Estimativas de modelo. Não substitui SIGMET, METAR/TAF, radar de bordo ou despacho operacional.</div>`;
-      p.appendChild(panel);
+      panelHost.appendChild(panel);
     }
 
     updateControl();

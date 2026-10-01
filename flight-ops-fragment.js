@@ -56,8 +56,7 @@ function styles(){
   `; document.head.appendChild(s);
 }
 function dataHost(){
-  const d=[...document.querySelectorAll('*')].find(e=>up(txt(e))==='DADOS');
-  return d?.parentElement?.parentElement||d?.parentElement||document.querySelector('main')||document.body;
+  return document.getElementById('mapDataPanel')||document.querySelector('main')||document.body;
 }
 function telemetry(){
   if(role!=='jorge'||document.getElementById('foTelemetry'))return;
@@ -66,7 +65,7 @@ function telemetry(){
   w.innerHTML=`<div class="foTile"><div class="foLab">GROUND SPEED</div><div id="foGS" class="foVal">—</div></div>
   <div class="foTile"><div class="foLab">TRUE AIRSPEED · AUTO</div><div id="foTAS" class="foVal">—</div></div>
   <div class="foTile"><div class="foLab">RATE OF CLIMB/DESCENT</div><div id="foVS" class="foVal">—</div></div>`;
-  h.insertAdjacentElement('afterbegin',w);
+  h.appendChild(w);
 }
 function realTas(){
   for(const k of ['trueAirspeed','true_airspeed','tasKt','tas']){

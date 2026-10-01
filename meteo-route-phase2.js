@@ -385,7 +385,7 @@
   }
 
   function ensureSummary(){
-    const p=ensureHost();
+    const p=$('#mapDataPanel')||ensureHost();
     if(!p)return null;
 
     let box=$('#aeronavRouteWxSummary');

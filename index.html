@@ -535,6 +535,58 @@ body{min-height:var(--app-vh);margin:0}
 </style>
 
 <!-- AERONAV RC11.86 · removed-family marker cleanup + RC11.85 counter + RC11.80 base -->
+<style id="aeronav-map-clean-rc12314">
+  #screen-map{position:relative;min-height:0!important;padding-bottom:calc(72px + var(--safe-bottom))}
+  #screen-map .map-toolbar{position:relative;display:block!important;width:100%;padding:6px max(8px,var(--safe-right)) 6px max(8px,var(--safe-left))!important;overflow:visible!important;background:#041727}
+  #screen-map .map-toolbar>:not(.mobile-map-controls):not(.mobile-map-menu){display:none!important}
+  .mobile-map-controls{display:grid;grid-template-columns:48px minmax(72px,1fr) 48px 54px;gap:6px;width:100%}
+  .mobile-map-controls button{height:42px;min-width:0;border:1px solid #285d7b;border-radius:12px;background:#0a2b45;color:#f4fbff;font-size:14px;font-weight:900;padding:0 8px;white-space:nowrap;box-shadow:inset 0 1px 0 #ffffff0b}
+  .mobile-map-controls button:nth-child(2){color:#78dcff}
+  .mobile-map-controls button:last-child{font-size:22px;letter-spacing:1px}
+  .mobile-map-menu{position:absolute;z-index:95;right:max(8px,var(--safe-right));top:54px;width:min(340px,calc(100vw - 18px));max-height:min(60dvh,470px);overflow:auto;padding:9px;border:1px solid #2a6384;border-radius:17px;background:#041a2bf5;box-shadow:0 20px 60px #000c;backdrop-filter:blur(18px);grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .mobile-map-menu.show{display:grid}
+  .mobile-map-menu button{min-width:0;min-height:44px;padding:9px 8px;border:1px solid #24536e;border-radius:12px;background:#082b45;color:#eaf8ff;font-size:11px;font-weight:850;white-space:normal;line-height:1.15}
+  .map-wrap{height:var(--mobile-map-height,56dvh)!important;min-height:330px!important;max-height:none!important;border-radius:0!important}
+  #map,.offline-map{height:100%!important;min-height:0!important;max-height:none!important}
+  .training-badge{left:8px!important;bottom:8px!important;max-width:calc(100% - 76px)!important;padding:6px 9px!important;border-radius:999px!important;display:block!important;overflow:hidden}
+  .training-badge strong{display:block;font-size:9px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .training-badge span{display:none!important}
+  .nav-hud{top:8px!important;left:8px!important;right:8px!important;gap:5px!important}
+  .nav-hud-cell{padding:6px 7px!important;border-radius:10px!important}
+  .nav-hud-cell span{font-size:8px!important}.nav-hud-cell strong{font-size:12px!important}
+  #mapDataPanel{display:none;position:fixed;z-index:176;left:max(8px,var(--safe-left));right:max(8px,var(--safe-right));bottom:calc(72px + var(--safe-bottom));max-height:min(44dvh,430px);overflow:auto;padding:8px;background:#031521f7;border:1px solid #2b6383;border-radius:19px;box-shadow:0 22px 70px #000d;backdrop-filter:blur(18px)}
+  #mapDataPanel.open{display:block}
+  .map-data-panel-head{position:sticky;top:-8px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 6px 9px;background:#031521f5;border-bottom:1px solid #17425b}
+  .map-data-panel-head strong{font-size:13px}.map-data-panel-head button{width:34px;height:34px;border-radius:50%;border:1px solid #285d7b;background:#0a2b45;color:#fff}
+  #mapDataPanel .telemetry{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;margin:8px 0 0!important;border-radius:13px!important}
+  #mapDataPanel .telemetry>div{padding:8px 6px!important;min-width:0}
+  #mapDataPanel .telemetry span{font-size:8px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #mapDataPanel .telemetry strong{font-size:13px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #mapDataPanel .live-nav-strip{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;margin:7px 0 0!important;border-radius:13px!important;overflow:hidden!important}
+  #mapDataPanel .live-nav-cell{min-width:0;padding:8px!important}
+  #mapDataPanel .live-nav-cell span{font-size:8px!important}#mapDataPanel .live-nav-cell strong{font-size:12px!important}
+  #mapDataPanel .drive-nav-card:not(.hidden){display:block!important;margin:7px 0 0!important;max-width:100%!important;overflow:hidden!important}
+
+/* RC12.31.4: compact map controls on iPad and desktop as well as iPhone. */
+#screen-map #aeronavFlightHud,#screen-map #aeronavViewBadge{display:none!important}
+#screen-map .mobile-map-menu{display:none}
+#screen-map .mobile-map-menu.show{display:grid}
+#screen-map #mapDataPanel:not(.open){display:none!important}
+#screen-map #mapDataPanel.open{display:block!important}
+#mapDataPanel :is(#aeronavWxToolbar,#aeronavWxPanel,#aeronavWxLegend,#aeronavPhase3Control,#aeronavPhase3Panel,#aeronavRouteWxSummary){position:static!important;inset:auto!important;transform:none!important;width:auto!important;min-width:0!important;max-width:100%!important;margin:10px 0!important;pointer-events:auto!important;box-shadow:none!important}
+#mapDataPanel #aeronavWxToolbar{flex-direction:row!important;flex-wrap:wrap!important;gap:8px!important}
+#mapDataPanel #aeronavWxLegend{justify-content:flex-start!important;flex-wrap:wrap!important}
+#mapDataPanel #foTelemetry{grid-template-columns:repeat(3,minmax(0,1fr));margin:10px 0}
+#mapDataPanel #foMetars{margin:10px 0}
+#mapDataPanel .map-data-panel-head{position:sticky!important;top:-8px!important;z-index:30!important}
+#screen-map #mobileMapControls{max-width:520px;margin:0 auto;grid-template-columns:48px minmax(72px,1fr) 48px 54px}
+@media(min-width:601px){
+ #screen-map #mapDataPanel{left:auto;right:max(12px,var(--safe-right));width:min(460px,calc(100vw - 24px));max-height:min(65dvh,650px)}
+ #screen-map .map-wrap{min-height:240px!important}
+}
+@media(max-height:500px){#screen-map .map-wrap{min-height:160px!important}#screen-map #mapDataPanel{max-height:55dvh}}
+
+</style>
 </head>
 <body>
   <div id="app">
@@ -576,7 +628,7 @@ body{min-height:var(--app-vh);margin:0}
         <div class="map-toolbar">
           <div class="mobile-map-controls" id="mobileMapControls" aria-label="Controlos compactos do mapa">
             <button type="button" id="mobileCenterBtn" aria-label="Minha posição">⌖</button>
-            <button type="button" id="mobileMapDataBtn" aria-label="Mostrar dados">DADOS</button>
+            <button type="button" id="mobileMapDataBtn" aria-label="Mostrar dados" aria-expanded="false" aria-controls="mapDataPanel">DADOS</button>
             <button type="button" id="mobileFullBtn" aria-label="Ecrã inteiro">⛶</button>
             <button type="button" id="mobileMapMenuBtn" aria-label="Mais opções do mapa" aria-expanded="false">•••</button>
           </div>
@@ -6353,19 +6405,21 @@ body{min-height:var(--app-vh);margin:0}
   const $=s=>document.querySelector(s);
   const closeMapMenu=()=>{const m=$('#mobileMapMenu'),b=$('#mobileMapMenuBtn');if(m){m.classList.remove('show');m.setAttribute('aria-hidden','true')}if(b)b.setAttribute('aria-expanded','false')};
   const toggleMapMenu=()=>{const m=$('#mobileMapMenu'),b=$('#mobileMapMenuBtn');if(!m||!b)return;const open=!m.classList.contains('show');m.classList.toggle('show',open);m.setAttribute('aria-hidden',open?'false':'true');b.setAttribute('aria-expanded',open?'true':'false')};
-  const setDataOpen=open=>{const p=$('#mapDataPanel'),b=$('#mobileMapDataBtn');if(!p)return;p.classList.toggle('open',!!open);p.setAttribute('aria-hidden',open?'false':'true');if(b)b.textContent=open?'FECHAR':'DADOS'};
+  const setDataOpen=open=>{const p=$('#mapDataPanel'),b=$('#mobileMapDataBtn');if(!p)return;p.classList.toggle('open',!!open);p.setAttribute('aria-hidden',open?'false':'true');if(b){b.textContent=open?'FECHAR':'DADOS';b.setAttribute('aria-expanded',String(!!open));}};
   const updateMapHeight=()=>{
-    const w=window.innerWidth||document.documentElement.clientWidth;if(w>600){document.documentElement.style.removeProperty('--mobile-map-height');return}
+    const w=window.innerWidth||document.documentElement.clientWidth;
     const vv=(window.visualViewport&&window.visualViewport.height)||window.innerHeight||document.documentElement.clientHeight;
     const header=$('.app-header'),toolbar=$('#screen-map .map-toolbar'),bottom=$('.aeronav-bottom-nav');
     const h1=header?header.getBoundingClientRect().height:0,h2=toolbar?toolbar.getBoundingClientRect().height:0,h3=bottom?bottom.getBoundingClientRect().height:68;
-    const available=Math.max(220,Math.floor(vv-h1-h2-h3));document.documentElement.style.setProperty('--mobile-map-height',available+'px');
+    const available=Math.max(160,Math.floor(vv-h1-h2-h3));document.documentElement.style.setProperty('--mobile-map-height',available+'px');
   };
   $('#mobileMapMenuBtn')?.addEventListener('click',e=>{e.stopPropagation();toggleMapMenu()});
   $('#mobileCenterBtn')?.addEventListener('click',()=>$('#myPositionBtn')?.click());
   $('#mobileFullBtn')?.addEventListener('click',()=>$('#fullScreenBtn')?.click());
   $('#mobileMapDataBtn')?.addEventListener('click',()=>setDataOpen(!$('#mapDataPanel')?.classList.contains('open')));
   $('#mobileMapDataClose')?.addEventListener('click',()=>setDataOpen(false));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){setDataOpen(false);closeMapMenu();}});
+  window.addEventListener('aeronav:screen-change',()=>{setDataOpen(false);closeMapMenu();});
   document.querySelectorAll('[data-map-proxy]').forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.mapProxy;document.getElementById(id)?.click();closeMapMenu()}));
   document.querySelectorAll('[data-drive-proxy]').forEach(b=>b.addEventListener('click',()=>{document.querySelector(`#driveToolbar [data-drive-view="${b.dataset.driveProxy}"]`)?.click();closeMapMenu()}));
   document.addEventListener('click',e=>{if(!e.target.closest('#mobileMapMenu')&&!e.target.closest('#mobileMapMenuBtn'))closeMapMenu()});

@@ -155,6 +155,7 @@
     ensureStyle();
     const host=ensureHost();
     if(!host)return;
+    const panelHost=$('#mapDataPanel')||host;
 
     if(!canvas||canvas.parentElement!==host){
       canvas?.remove();
@@ -165,7 +166,7 @@
     }
 
     let bar=$('#aeronavWxToolbar');
-    if(!bar||bar.parentElement!==host){
+    if(!bar||bar.parentElement!==panelHost){
       bar?.remove();
       bar=document.createElement('div');
       bar.id='aeronavWxToolbar';
@@ -174,7 +175,7 @@
         <button class="aeronavWxBtn" data-wx="wind">WIND</button>
         <button class="aeronavWxBtn" data-wx="rain">RAIN</button>
         <button class="aeronavWxBtn" data-wx="cloud">CLOUD</button>`;
-      host.appendChild(bar);
+      panelHost.appendChild(bar);
 
       for(const b of bar.querySelectorAll('button')){
         b.addEventListener('click',()=>{
@@ -193,7 +194,7 @@
     }
 
     let panel=$('#aeronavWxPanel');
-    if(!panel||panel.parentElement!==host){
+    if(!panel||panel.parentElement!==panelHost){
       panel?.remove();
       panel=document.createElement('div');
       panel.id='aeronavWxPanel';
@@ -206,11 +207,11 @@
         <div class="wxRow"><span>Temperatura</span><strong id="wxTemp">—</strong></div>
         <div class="wxRow"><span>Condição</span><strong id="wxCond">—</strong></div>
         <div class="wxFoot" id="wxUpdated">Modelo meteorológico · aguardando posição</div>`;
-      host.appendChild(panel);
+      panelHost.appendChild(panel);
     }
 
     let legend=$('#aeronavWxLegend');
-    if(!legend||legend.parentElement!==host){
+    if(!legend||legend.parentElement!==panelHost){
       legend?.remove();
       legend=document.createElement('div');
       legend.id='aeronavWxLegend';
@@ -218,7 +219,7 @@
         <span class="wxChip" id="wxWindChip">WIND —</span>
         <span class="wxChip" id="wxCloudChip">CLOUD —</span>
         <span class="wxChip" id="wxRainChip">RAIN —</span>`;
-      host.appendChild(legend);
+      panelHost.appendChild(legend);
     }
 
     paintButtons();
