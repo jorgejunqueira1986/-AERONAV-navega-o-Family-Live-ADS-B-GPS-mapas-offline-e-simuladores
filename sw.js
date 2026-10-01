@@ -1,3 +1,4 @@
+/* AERONAV RC11.98.7 — Exact address picking */
 /* AERONAV — RC11.98 Work/Home avatars + Folga; RC11.97 Angola Offline preserved
    Policy:
    - App shell + exact runtime libraries: cached for offline use.
@@ -5,7 +6,7 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC11_98-work-folga-20260930-1';
+const CACHE='aeronav-jorge-RC11_98_7-address-exact-20261001-1';
 const LOCAL=[
   './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js','./vendor/pmtiles-3.2.1.js','./work-status-fragment.js'
 ];
@@ -121,7 +122,7 @@ async function injectAngolaMapsIntoMainNavigation(response,request){
     if(!fr||!fr.ok)return fallback;
     const fragment=await fr.text();
     let body=html.replace(marker,fragment+'\n'+marker);
-    if(!body.includes('work-status-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./work-status-fragment.js?v=RC11.98"></script></body>');
+    if(!body.includes('work-status-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./work-status-fragment.js?v=RC11.98.7"></script></body>');
     const headers=new Headers(response.headers);
     headers.delete('content-length');
     headers.delete('content-encoding');

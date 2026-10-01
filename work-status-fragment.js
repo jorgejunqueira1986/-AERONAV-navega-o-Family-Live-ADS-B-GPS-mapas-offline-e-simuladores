@@ -1,4 +1,4 @@
-/* AERONAV RC11.98.6 - Exact address pointer anchor + Jorge Admin + Family route-cancel sync.
+/* AERONAV RC11.98.7 - Exact visible-map address picking + Jorge Admin + Family route-cancel sync.
    Preserves RC11.98.4, RC11.98.1 and RC11.97 Angola Offline.
    ADMIN:
    - Jorge chooses whether each saved address is shared with Mathia, Wendler, both or neither.
@@ -30,6 +30,7 @@
   const ADDRESS_KEY='aeronav.saved.addresses.'+role+'.v1';
   let addressPickMode=false;
   let pendingPoint=null;
+  let repositionAddress=null;
   let lastCommute=false;
   let folgaButtonRef=null;
 
@@ -493,7 +494,14 @@
       localStorage.setItem(ADDRESS_KEY,JSON.stringify(list||[]));
       window.dispatchEvent(new CustomEvent('aeronav:addresses-changed',{detail:{role,addresses:list||[]}}));
     }catch(_){}
-    try{syncAddressMarkers(preferredMap||findMapInstance());}catch(_){}
+    try{
+    const m=preferredMap||findMapInstance();
+    if(m){
+      for(const marker of addressMarkers.values()){try{marker.remove();}catch(_){}}
+      addressMarkers.clear();
+      syncAddressMarkers(m);
+    }
+  }catch(_){}
   }
 
   function normCategory(v){
@@ -862,13 +870,16 @@
     document.getElementById('aeronavAddressOverlay')?.remove();
   }
 
-  function startAddressPick(){
+  function startAddressPick(existing=null){
     closeAddressPanel();
     addressPickMode=true;
+    repositionAddress=existing||null;
     document.getElementById('aeronavAddressPickToast')?.remove();
     const t=document.createElement('div');
     t.id='aeronavAddressPickToast';
-    t.textContent='📍 Toque no ponto exato do mapa que quer guardar';
+    t.textContent=existing
+      ?'📍 Toque no NOVO ponto exato de '+String(existing.name||'endereço')
+      :'📍 Toque no ponto exato do mapa que quer guardar';
     document.body.appendChild(t);
   }
 
@@ -1126,9 +1137,12 @@
           <div class="aeronavAddrMeta">${normCategory(a.category)} · ${Number(a.lat).toFixed(6)}, ${Number(a.lng).toFixed(6)}${shareText}</div>
           <div class="aeronavAddrActions">
             <button class="aeronavAddrBtn" data-go>Ver no mapa</button>
-            ${role==='jorge'&&!a.readOnly?'<button class="aeronavAddrBtn" data-edit>Editar</button><button class="aeronavAddrBtn aeronavAddrDanger" data-del>Apagar</button>':''}
+            ${role==='jorge'&&!a.readOnly?'<button class="aeronavAddrBtn" data-move>Reposicionar</button><button class="aeronavAddrBtn" data-edit>Editar</button><button class="aeronavAddrBtn aeronavAddrDanger" data-del>Apagar</button>':''}
           </div>`;
         item.querySelector('[data-go]').onclick=()=>mapFlyToAddress(a);
+
+        const move=item.querySelector('[data-move]');
+        if(move)move.onclick=()=>startAddressPick(a);
 
         const edit=item.querySelector('[data-edit]');
         if(edit)edit.onclick=()=>openAddressEditor(a,a);
@@ -1160,10 +1174,60 @@
     if(isMapObject(map))preferredMap=map;
     addressPickMode=false;
     document.getElementById('aeronavAddressPickToast')?.remove();
-    openAddressEditor({lat,lng},null);
+    const existing=repositionAddress;
+    repositionAddress=null;
+    openAddressEditor({lat,lng},existing||null);
   }
 
-  function installMapClickHook(){
+  function installExactAddressClickHook(){
+    if(document.documentElement.dataset.aeronavExactAddressHook987==='1')return;
+    document.documentElement.dataset.aeronavExactAddressHook987='1';
+
+    document.addEventListener('click',ev=>{
+      if(!addressPickMode)return;
+      const x=Number(ev.clientX),y=Number(ev.clientY);
+      if(!Number.isFinite(x)||!Number.isFinite(y))return;
+
+      const candidates=[];
+      try{
+        const known=['map','mainMap','aeronavMap','mapInstance','mapa'];
+        const seen=new Set();
+
+        const consider=m=>{
+          if(!isMapObject(m)||seen.has(m))return;
+          seen.add(m);
+          const canvas=m.getCanvas?.();
+          if(!canvas)return;
+          const r=canvas.getBoundingClientRect();
+          if(r.width<80||r.height<80)return;
+          if(x<r.left||x>r.right||y<r.top||y>r.bottom)return;
+          candidates.push({m,r,area:r.width*r.height});
+        };
+
+        for(const k of known){
+          try{consider(window[k]);}catch(_){}
+        }
+        for(const k of Object.getOwnPropertyNames(window)){
+          try{consider(window[k]);}catch(_){}
+        }
+      }catch(_){}
+
+      if(!candidates.length)return;
+
+      candidates.sort((a,b)=>a.area-b.area);
+      const chosen=candidates[0];
+
+      try{
+        const p=chosen.m.unproject([x-chosen.r.left,y-chosen.r.top]);
+        if(!p||!Number.isFinite(Number(p.lat))||!Number.isFinite(Number(p.lng)))return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        consumeMapClick({lat:Number(p.lat),lng:Number(p.lng)},chosen.m);
+      }catch(_){}
+    },true);
+  }
+
+    function installMapClickHook(){
     try{
       const proto=window.maplibregl?.Map?.prototype;
       if(!proto)return false;
@@ -1567,6 +1631,7 @@
     bindTravelModeButtons();
     injectHeaderControls();
     injectClientAddressControl();
+    installExactAddressClickHook();
     installMapClickHook();
     installCancelRouteHook();
     syncAddressMarkers(preferredMap||findMapInstance());
@@ -1578,6 +1643,7 @@
 
   function start(){
     bindTravelModeButtons();
+    installExactAddressClickHook();
     installMapClickHook();
     installCancelRouteHook();
     lastRoad=commuteRouteActive();
