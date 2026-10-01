@@ -1,11 +1,12 @@
-/* AERONAV RC11.98.3 - Saved Addresses + reliable Work/Home commute + Jorge Folga UI.
+/* AERONAV RC11.98.4 - Exact saved-address pins + reliable route cancel + visible controls.
    Preserves RC11.98.1 and RC11.97 Angola Offline.
    FIXES:
-   - Restores ENDERECOS and FOLGA controls at startup.
-   - FOLGA has priority over the work-car avatar.
-   - Walking/flight never use the Hiace.
-   - Commute detection no longer scans old saved routes.
-   - Hiace is used only for a current CARRO route that matches Casa <-> Trabalho. */
+   - Casa/Trabalho use the exact MapLibre click coordinate from the real map instance.
+   - Every saved address is shown permanently on the map as a named/category marker.
+   - ENDERECOS and FOLGA use deep clones of the real mode buttons and stay visible below the mode row.
+   - Cancelar rota immediately clears dynamic route GeoJSON from the map.
+   - Casa <-> Trabalho detection can use the current route GeoJSON when app route state is private.
+   - FOLGA still has priority; A PE and VOO never use the Hiace. */
 (()=>{
   'use strict';
   if(window.__AERONAV_WORK_STATUS_RC1198)return;
@@ -30,6 +31,10 @@
   let pendingPoint=null;
   let lastCommute=false;
   let folgaButtonRef=null;
+
+  let preferredMap=null;
+  const addressMarkers=new Map();
+  let routeCancelUntil=0;
 
   const MODE_KEY='aeronav.workstatus.travelmode';
   let explicitTravelMode='';
@@ -83,6 +88,7 @@
       localStorage.setItem(ADDRESS_KEY,JSON.stringify(list||[]));
       window.dispatchEvent(new CustomEvent('aeronav:addresses-changed',{detail:{role,addresses:list||[]}}));
     }catch(_){}
+    try{syncAddressMarkers(preferredMap||findMapInstance());}catch(_){}
   }
 
   function normCategory(v){
@@ -152,7 +158,7 @@
     const img=new Image();
     img.onload=()=>{available[key]=true;applyAvatars();};
     img.onerror=()=>{available[key]=false;};
-    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.3';
+    img.src=url+(url.includes('?')?'&':'?')+'v=RC11.98.4';
   }
 
   checkAsset(assets.car,'car');
@@ -187,37 +193,73 @@
            !/flight|voo/.test(txt);
   }
 
-  function routeLooksActive(route){
-    if(route&&typeof route==='object')return true;
+  function routeSourceId(id){
+    return /(route|rota|direction|navigation|nav[-_]?route|trip|itinerary|journey|road[-_]?route|flight[-_]?route)/i.test(String(id||''));
+  }
+
+  function readSourceData(source){
+    if(!source)return null;
     try{
-      const nodes=[...document.querySelectorAll('*')].filter(el=>{
-        const t=String(el.textContent||'').trim().toUpperCase();
-        return t==='DTG';
-      }).slice(0,6);
-      for(const n of nodes){
-        const card=n.parentElement;
-        const txt=String(card?.textContent||'').replace(/\s+/g,' ').trim();
-        if(/\bDTG\b/i.test(txt)&&/\d/.test(txt)&&!/[—–]\s*$/.test(txt))return true;
+      if(source._data&&typeof source._data==='object')return source._data;
+    }catch(_){}
+    try{
+      const s=source.serialize?.();
+      if(s?.data&&typeof s.data==='object')return s.data;
+    }catch(_){}
+    return null;
+  }
+
+  function currentRouteGeoJSON(){
+    const m=preferredMap||findMapInstance();
+    if(!m)return null;
+    try{
+      const style=m.getStyle?.();
+      const ids=Object.keys(style?.sources||{});
+      for(const id of ids){
+        if(!routeSourceId(id))continue;
+        const source=m.getSource?.(id);
+        const data=readSourceData(source);
+        if(data){
+          const pts=[];
+          collectCoords(data,pts,0);
+          if(pts.length>=2)return data;
+        }
       }
     }catch(_){}
+    return null;
+  }
+
+  function routeLooksActive(route){
+    if(Date.now()<routeCancelUntil)return false;
+    if(route&&typeof route==='object'){
+      const pts=[];collectCoords(route,pts,0);
+      if(pts.length>=2)return true;
+    }
+    const geo=currentRouteGeoJSON();
+    if(geo){
+      const pts=[];collectCoords(geo,pts,0);
+      if(pts.length>=2)return true;
+    }
     return false;
   }
 
   function commuteRouteActive(){
     if(currentTravelMode()!=='car')return false;
+    if(Date.now()<routeCancelUntil)return false;
 
     const route=getRoute();
-    if(!routeLooksActive(route))return false;
-    if(!route)return false;
+    const geo=currentRouteGeoJSON();
+    const active=route||geo;
+    if(!routeLooksActive(active))return false;
 
     let txt='';
-    try{txt=JSON.stringify(route).toLowerCase();}catch(_){}
+    try{txt=JSON.stringify(active).toLowerCase();}catch(_){}
 
     const hasHome=/\bcasa\b|\bhome\b|resid[eê]ncia/.test(txt);
     const hasWork=/trabalho|work|emprego|office|escrit[oó]rio/.test(txt);
 
     if(hasHome&&hasWork)return true;
-    return savedCommuteByCoords(route);
+    return savedCommuteByCoords(active);
   }
 
   function isFolga(){
@@ -258,29 +300,40 @@
     })||null;
   }
 
+  function setButtonLabel(btn,text){
+    btn.innerHTML='';
+    const span=document.createElement('span');
+    span.textContent=text;
+    span.style.cssText='display:flex;align-items:center;justify-content:center;width:100%;height:100%;white-space:nowrap;';
+    btn.appendChild(span);
+  }
+
   function cloneModeButton(source,id,text){
-    const b=source.cloneNode(false);
+    const b=source.cloneNode(true);
     b.id=id;
     b.removeAttribute('href');
     b.removeAttribute('onclick');
     b.removeAttribute('data-action');
+    b.removeAttribute('aria-current');
+    b.removeAttribute('aria-selected');
     b.type='button';
-    b.textContent=text;
-    b.style.position='relative';
-    b.style.inset='auto';
-    b.style.margin='0';
-    b.style.width='100%';
-    b.style.minWidth='0';
-    b.style.maxWidth='none';
-    b.style.transform='none';
+    setButtonLabel(b,text);
+    b.style.removeProperty('display');
+    b.style.removeProperty('visibility');
+    b.style.removeProperty('opacity');
+    b.style.setProperty('position','relative','important');
+    b.style.setProperty('inset','auto','important');
+    b.style.setProperty('transform','none','important');
+    b.style.setProperty('pointer-events','auto','important');
     return b;
   }
 
   function commonModeContainer(voo,car,walk){
     if(!car)return null;
     let n=car.parentElement;
-    for(let i=0;n&&i<6;i++,n=n.parentElement){
-      if((!voo||n.contains(voo))&&(!walk||n.contains(walk)))return n;
+    for(let i=0;n&&i<7;i++,n=n.parentElement){
+      const r=n.getBoundingClientRect?.();
+      if((!voo||n.contains(voo))&&(!walk||n.contains(walk))&&(!r||r.height<220))return n;
     }
     return car.parentElement;
   }
@@ -290,11 +343,11 @@
 
     bindTravelModeButtons();
 
-    const stale=document.getElementById('aeronavFolgaBtn');
-    if(stale&&stale.dataset.aeronavHeaderControl!=='1')stale.remove();
-
     const existing=document.getElementById('aeronavSecondaryModeRow');
     if(existing){
+      existing.style.removeProperty('display');
+      existing.style.removeProperty('visibility');
+      existing.style.removeProperty('opacity');
       folgaButtonRef=document.getElementById('aeronavFolgaBtn');
       paintFolgaButton();
       return;
@@ -303,22 +356,35 @@
     const voo=findModeButton('VOO');
     const car=findModeButton('CARRO');
     const walk=findModeButton('A PÉ')||findModeButton('A PE');
-    if(!car||!voo)return;
+    if(!voo||!car||!walk)return;
 
     const row=commonModeContainer(voo,car,walk);
     if(!row||!row.parentElement)return;
 
-    const holder=document.createElement('div');
+    const holder=row.cloneNode(false);
     holder.id='aeronavSecondaryModeRow';
-    holder.style.cssText=[
-      'display:grid',
-      'grid-template-columns:repeat(3,minmax(0,1fr))',
-      'gap:12px',
-      'margin:8px 0 10px',
-      'width:100%',
-      'box-sizing:border-box',
-      'align-items:stretch'
-    ].join(';');
+    holder.removeAttribute('hidden');
+    holder.style.removeProperty('display');
+    holder.style.removeProperty('visibility');
+    holder.style.removeProperty('opacity');
+
+    // Keep the same three-column rhythm as VOO / CARRO / A PÉ.
+    const rowStyle=getComputedStyle(row);
+    if(rowStyle.display==='grid'){
+      holder.style.display='grid';
+      holder.style.gridTemplateColumns=rowStyle.gridTemplateColumns||'repeat(3,minmax(0,1fr))';
+      holder.style.gap=rowStyle.gap||'12px';
+    }else{
+      holder.style.display='grid';
+      holder.style.gridTemplateColumns='repeat(3,minmax(0,1fr))';
+      holder.style.gap='12px';
+    }
+    holder.style.width='100%';
+    holder.style.boxSizing='border-box';
+    holder.style.marginTop='8px';
+    holder.style.marginBottom='8px';
+    holder.style.position='relative';
+    holder.style.zIndex='2';
 
     const addresses=cloneModeButton(voo,'aeronavAddressesBtn','📍 ENDEREÇOS');
     addresses.dataset.aeronavHeaderControl='1';
@@ -357,6 +423,9 @@
       .aeronavAddrActions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
       #aeronavAddressEditor label{display:block;font-size:12px;opacity:.8;margin:10px 0 5px}
       #aeronavAddressEditor input,#aeronavAddressEditor select{width:100%;box-sizing:border-box;border:1px solid #315e77;border-radius:12px;background:#061722;color:#fff;padding:12px;font-size:16px}
+      .aeronavSavedPin{display:flex;flex-direction:column;align-items:center;pointer-events:auto;filter:drop-shadow(0 3px 4px rgba(0,0,0,.38))}
+      .aeronavSavedPinIcon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#073451;border:2px solid #fff;font-size:18px}
+      .aeronavSavedPinLabel{margin-top:3px;max-width:120px;padding:3px 7px;border-radius:8px;background:rgba(3,24,38,.9);color:#fff;font:700 11px system-ui,-apple-system,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       #aeronavAddressPickToast{position:fixed;z-index:2147483600;left:50%;top:calc(18px + env(safe-area-inset-top,0px));transform:translateX(-50%);max-width:92vw;background:#07283c;color:#fff;border:1px solid #39a9dc;border-radius:999px;padding:10px 16px;font:750 14px system-ui,-apple-system,sans-serif;box-shadow:0 8px 26px rgba(0,0,0,.35)}
     `;
     document.head.appendChild(s);
@@ -431,12 +500,32 @@
     };
   }
 
+  function isMapObject(v){
+    return !!(v&&typeof v==='object'&&
+      typeof v.flyTo==='function'&&
+      typeof v.getCenter==='function'&&
+      typeof v.project==='function'&&
+      typeof v.unproject==='function'&&
+      typeof v.getCanvas==='function');
+  }
+
   function findMapInstance(){
+    if(isMapObject(preferredMap))return preferredMap;
+    const known=['map','mainMap','aeronavMap','mapInstance','mapa'];
+    for(const k of known){
+      try{
+        if(isMapObject(window[k])){
+          preferredMap=window[k];
+          return preferredMap;
+        }
+      }catch(_){}
+    }
     try{
       for(const k of Object.getOwnPropertyNames(window)){
         let v;
         try{v=window[k];}catch(_){continue;}
-        if(v&&typeof v==='object'&&typeof v.flyTo==='function'&&typeof v.getCenter==='function'){
+        if(isMapObject(v)){
+          preferredMap=v;
           return v;
         }
       }
@@ -444,12 +533,84 @@
     return null;
   }
 
+  function categoryIcon(cat){
+    switch(normCategory(cat)){
+      case 'Casa': return '🏠';
+      case 'Trabalho': return '🏢';
+      case 'Aeroporto': return '✈️';
+      case 'Hotel': return '🏨';
+      case 'Escola': return '🏫';
+      default: return '📍';
+    }
+  }
+
+  function markerElement(a){
+    const el=document.createElement('div');
+    el.className='aeronavSavedPin';
+    el.dataset.aeronavAddressId=a.id;
+    const icon=document.createElement('div');
+    icon.className='aeronavSavedPinIcon';
+    icon.textContent=categoryIcon(a.category);
+    const label=document.createElement('div');
+    label.className='aeronavSavedPinLabel';
+    label.textContent=a.name||normCategory(a.category);
+    el.append(icon,label);
+    el.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      mapFlyToAddress(a);
+    });
+    return el;
+  }
+
+  function syncAddressMarkers(map){
+    if(!isMapObject(map)||!window.maplibregl?.Marker)return false;
+    preferredMap=map;
+    const list=loadAddresses();
+    const wanted=new Set(list.map(a=>a.id));
+
+    for(const [id,marker] of addressMarkers){
+      if(!wanted.has(id)){
+        try{marker.remove();}catch(_){}
+        addressMarkers.delete(id);
+      }
+    }
+
+    for(const a of list){
+      const lng=Number(a.lng),lat=Number(a.lat);
+      if(!Number.isFinite(lng)||!Number.isFinite(lat))continue;
+      let marker=addressMarkers.get(a.id);
+      if(!marker){
+        try{
+          marker=new window.maplibregl.Marker({
+            element:markerElement(a),
+            anchor:'bottom'
+          }).setLngLat([lng,lat]).addTo(map);
+          addressMarkers.set(a.id,marker);
+        }catch(_){}
+      }else{
+        try{marker.setLngLat([lng,lat]);}catch(_){}
+        try{
+          const el=marker.getElement?.();
+          if(el){
+            const ic=el.querySelector('.aeronavSavedPinIcon');
+            const lb=el.querySelector('.aeronavSavedPinLabel');
+            if(ic)ic.textContent=categoryIcon(a.category);
+            if(lb)lb.textContent=a.name||normCategory(a.category);
+          }
+        }catch(_){}
+      }
+    }
+    return true;
+  }
+
   function mapFlyToAddress(a){
-    const m=findMapInstance();
+    const m=preferredMap||findMapInstance();
     if(m){
+      preferredMap=m;
       try{
-        const z=Math.max(Number(m.getZoom?.()||0),16);
+        const z=Math.max(Number(m.getZoom?.()||0),17);
         m.flyTo({center:[Number(a.lng),Number(a.lat)],zoom:z});
+        syncAddressMarkers(m);
       }catch(_){}
     }
     try{window.dispatchEvent(new CustomEvent('aeronav:address-selected',{detail:a}));}catch(_){}
@@ -483,7 +644,7 @@
         item.className='aeronavAddrItem';
         const safeName=String(a.name||'Endereço').replace(/[<>&"]/g,ch=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[ch]));
         item.innerHTML=`
-          <div class="aeronavAddrName">${safeName}</div>
+          <div class="aeronavAddrName">${categoryIcon(a.category)} ${safeName}</div>
           <div class="aeronavAddrMeta">${normCategory(a.category)} · ${Number(a.lat).toFixed(6)}, ${Number(a.lng).toFixed(6)}</div>
           <div class="aeronavAddrActions">
             <button class="aeronavAddrBtn" data-go>Ver no mapa</button>
@@ -506,10 +667,11 @@
     panel.querySelector('[data-pick]').onclick=startAddressPick;
   }
 
-  function consumeMapClick(lngLat){
+  function consumeMapClick(lngLat,map){
     if(!addressPickMode||!lngLat)return;
     const lat=Number(lngLat.lat),lng=Number(lngLat.lng);
     if(!Number.isFinite(lat)||!Number.isFinite(lng))return;
+    if(isMapObject(map))preferredMap=map;
     addressPickMode=false;
     document.getElementById('aeronavAddressPickToast')?.remove();
     openAddressEditor({lat,lng},null);
@@ -519,21 +681,102 @@
     try{
       const proto=window.maplibregl?.Map?.prototype;
       if(!proto)return false;
-      if(proto.__aeronavAddressHook)return true;
-      const nativeFire=proto.fire;
-      proto.fire=function(type,data){
-        try{
-          const eventType=typeof type==='string'?type:type?.type;
-          const payload=typeof type==='string'?data:type;
-          if(eventType==='click'&&addressPickMode&&payload?.lngLat){
-            setTimeout(()=>consumeMapClick(payload.lngLat),0);
-          }
-        }catch(_){}
-        return nativeFire.apply(this,arguments);
-      };
-      proto.__aeronavAddressHook=true;
+      if(!proto.__aeronavAddressHook984){
+        const nativeFire=proto.fire;
+        proto.fire=function(type,data){
+          try{
+            if(isMapObject(this))preferredMap=this;
+            const eventType=typeof type==='string'?type:type?.type;
+            const payload=typeof type==='string'?data:type;
+            if(eventType==='click'&&addressPickMode&&payload?.lngLat){
+              setTimeout(()=>consumeMapClick(payload.lngLat,this),0);
+            }
+            if(/^(load|styledata|idle)$/.test(String(eventType||''))){
+              setTimeout(()=>syncAddressMarkers(this),0);
+            }
+          }catch(_){}
+          return nativeFire.apply(this,arguments);
+        };
+        proto.__aeronavAddressHook984=true;
+      }
+      const m=preferredMap||findMapInstance();
+      if(m)syncAddressMarkers(m);
       return true;
     }catch(_){return false;}
+  }
+
+  function clearActiveRouteVisuals(){
+    routeCancelUntil=Date.now()+5000;
+    const m=preferredMap||findMapInstance();
+    if(!m){
+      applyAvatars();
+      return;
+    }
+    preferredMap=m;
+
+    const empty={type:'FeatureCollection',features:[]};
+    try{
+      const style=m.getStyle?.();
+      const ids=Object.keys(style?.sources||{});
+      for(const id of ids){
+        if(!routeSourceId(id))continue;
+        const source=m.getSource?.(id);
+        if(source&&typeof source.setData==='function'){
+          try{source.setData(empty);}catch(_){}
+        }
+      }
+    }catch(_){}
+
+    // Some implementations redraw the cancelled route one last time.
+    // Clear again briefly after the app's own cancel handler finishes.
+    for(const delay of [120,350,800,1500]){
+      setTimeout(()=>{
+        try{
+          const style=m.getStyle?.();
+          for(const id of Object.keys(style?.sources||{})){
+            if(!routeSourceId(id))continue;
+            const source=m.getSource?.(id);
+            if(source&&typeof source.setData==='function'){
+              try{source.setData(empty);}catch(_){}
+            }
+          }
+        }catch(_){}
+      },delay);
+    }
+
+    lastRoad=false;
+    lastCommute=false;
+    setTimeout(applyAvatars,0);
+  }
+
+  function actionText(target){
+    let out='';
+    let n=target;
+    for(let i=0;n&&i<5;i++,n=n.parentElement){
+      out+=' '+String(n.textContent||'');
+      out+=' '+String(n.getAttribute?.('aria-label')||'');
+      out+=' '+String(n.getAttribute?.('title')||'');
+    }
+    return out.replace(/\s+/g,' ').trim().toLowerCase();
+  }
+
+  function installCancelRouteHook(){
+    if(document.documentElement.dataset.aeronavCancelHook984==='1')return;
+    document.documentElement.dataset.aeronavCancelHook984='1';
+
+    document.addEventListener('click',ev=>{
+      const t=actionText(ev.target);
+      if(/(cancelar|apagar|encerrar|terminar|parar).{0,18}(rota|route)|(rota|route).{0,18}(cancelar|apagar|encerrar|terminar|parar)/i.test(t)){
+        setTimeout(clearActiveRouteVisuals,0);
+      }
+    },true);
+
+    window.addEventListener('message',ev=>{
+      const type=String(ev.data?.type||'');
+      if(/ROUTE_CANCELLED|ROUTE_CANCELED/i.test(type))clearActiveRouteVisuals();
+    });
+
+    window.addEventListener('aeronav:route-cancelled',clearActiveRouteVisuals);
   }
 
   function elementText(el){
@@ -813,16 +1056,20 @@
     bindTravelModeButtons();
     injectHeaderControls();
     installMapClickHook();
+    installCancelRouteHook();
+    syncAddressMarkers(preferredMap||findMapInstance());
     paintFolgaButton();
     applyAvatars();
   }
 
   function start(){
     bindTravelModeButtons();
+    installMapClickHook();
+    installCancelRouteHook();
     lastRoad=commuteRouteActive();
     lastCommute=lastRoad;
     injectHeaderControls();
-    installMapClickHook();
+    syncAddressMarkers(preferredMap||findMapInstance());
     applyAvatars();
 
     try{
@@ -834,7 +1081,7 @@
       });
     }catch(_){}
 
-    setInterval(tick,1200);
+    setInterval(tick,1000);
 
     document.addEventListener('visibilitychange',()=>{
       if(!document.hidden)tick();
