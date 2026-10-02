@@ -185,7 +185,7 @@
   }
 
   function updateHud(){
-    if(mode!=='flight')return;
+    if(window.__AERONAV_COCKPIT_LITE__||mode!=='flight')return;
     ensureHud();
 
     const set=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
@@ -248,6 +248,7 @@
       target={center,zoom:Math.min(19,zoom),pitch:42,bearing:lastHeading||Number(m.getBearing?.()||0),duration:650,padding:{top:45,bottom:135,left:10,right:10}};
     }
 
+    if(mode==='flight'&&Number.isFinite(window.__AERONAV_COCKPIT_PITCH__)){target.pitch=window.__AERONAV_COCKPIT_PITCH__;target.padding={top:55,bottom:70,left:10,right:10};}
     try{m.easeTo(target);}catch(_){}
   }
 

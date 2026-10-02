@@ -1344,7 +1344,7 @@ body{min-height:var(--app-vh);margin:0}
   function followOwnshipCamera(p,{instant=false}={}){
     if(!state.map||!state.mapReady||!p)return;
     if(state.mode!=='drive'){
-      try{state.map.easeTo({center:[p.lon,p.lat],zoom:state.map.getZoom(),pitch:0,duration:instant?0:300});}catch(_){}
+      try{state.map.easeTo({center:[p.lon,p.lat],zoom:state.map.getZoom(),pitch:state.mode==='flight'?(window.__AERONAV_COCKPIT_PITCH__??0):0,duration:instant?0:300});}catch(_){}
       return;
     }
     const cam=state.drive.followCamera||(state.drive.followCamera={lastAt:0,lastPoint:null,heading:null});
@@ -6284,7 +6284,30 @@ body{min-height:var(--app-vh);margin:0}
     $('#msScreenCert')?.addEventListener('click',()=>{const u=msfsBootstrapUrl();if(u)window.open(u,'_blank');}); $('#msScreenTest')?.addEventListener('click',()=>{const u=msfsSecureUrl();if(u)window.open(u,'_blank');});
   }
 
-  function renderAllScreens(){ renderTabs(); syncPremiumShell(); if(state.activeTab==='home')renderHomeScreen(); if(state.activeTab==='journey')renderJourneyScreen(); if(state.activeTab==='route')renderRouteScreen(); if(state.activeTab==='data')renderDataHubScreen(); if(state.activeTab==='weather')renderWeatherScreen(); if(state.activeTab==='winds')renderWindScreen(); if(state.activeTab==='charts')renderChartsScreen(); if(state.activeTab==='adc')renderAdcScreen(); if(state.activeTab==='decea')renderDeceaScreen(); if(state.activeTab==='traffic')renderTrafficScreen(); if(state.activeTab==='tools')renderToolsScreen(); if(state.activeTab==='health')renderHealthScreen(); if(state.activeTab==='offline')renderOfflineScreen(); if(state.activeTab==='gps')renderGpsScreen(); if(state.activeTab==='family')renderFamilyScreen(); if(state.activeTab==='xplane')renderXPlaneScreen(); if(state.activeTab==='msfs')renderMsfsScreen(); if(state.activeTab==='addons')renderAddonsScreen(); if(state.activeTab==='driveassist')renderDriveAssistScreen(); if(state.activeTab==='navassist')renderNavAssistScreen(); }
+  // Compact cockpit reads existing state; never starts GPS or fetches data.
+  window.AERONAVCockpit={
+    snapshot(){
+      const p=state.currentPosition,r=state.currentRoute?.kind==='flight'?state.currentRoute:null;
+      const now=Date.now(),fresh=!!p&&Number.isFinite(p.at)&&now-p.at<30000;
+      const number=v=>typeof v==='number'&&Number.isFinite(v)?v:null;
+      const gs=fresh&&number(p.speed)!==null?p.speed*1.943844492:null;
+      const d=r?routeDestination():null;
+      const distance=fresh&&d?haversine(p,d):null;
+      const ete=distance!==null&&gs>5?distance/(gs/1.943844492):null;
+      const ac=AIRCRAFT.find(a=>a.id===(r?.aircraft?.id||state.aircraftPref));
+      const wind=currentWindForAltitude(p?.altitude);
+      return {mode:state.mode,tab:state.activeTab,fresh,source:state.positionSource==='xplane'?'X-PLANE':state.positionSource==='msfs'?'MSFS':p?.source==='peer-gps'?'GPS PARTILHADO':'GPS',
+        aircraft:ac?.name||'Aeronave',route:!!r,from:r?(r.from?.icao||r.from?.name||'Origem'):'—',to:r?(r.to?.icao||r.to?.name||'Destino'):'—',
+        gs,tas:fresh?number(navTasKt()):null,alt:fresh&&!p.altitudeUnreliable&&number(p.altitude)!==null?p.altitude*3.28084:null,
+        vs:fresh?number(state.glass.vsiFpm):null,heading:fresh?number(p.heading):null,
+        windDir:number(wind?.dir),windSpeed:number(wind?.speed),distanceNm:distance===null?null:distance/1852,eteSeconds:ete,
+        eta:ete!==null?new Date(now+ete*1000).toISOString():null};
+    },
+    camera(pitch){if(state.mode==='flight'&&state.map)try{state.map.easeTo({pitch:Math.max(0,Math.min(55,pitch)),duration:350});}catch(_){}},
+    navigate(tab){if(['route','traffic'].includes(tab))setTab(tab);}
+  };
+
+  function renderAllScreens(){ window.dispatchEvent(new Event('aeronav:cockpit-change')); renderTabs(); syncPremiumShell(); if(state.activeTab==='home')renderHomeScreen(); if(state.activeTab==='journey')renderJourneyScreen(); if(state.activeTab==='route')renderRouteScreen(); if(state.activeTab==='data')renderDataHubScreen(); if(state.activeTab==='weather')renderWeatherScreen(); if(state.activeTab==='winds')renderWindScreen(); if(state.activeTab==='charts')renderChartsScreen(); if(state.activeTab==='adc')renderAdcScreen(); if(state.activeTab==='decea')renderDeceaScreen(); if(state.activeTab==='traffic')renderTrafficScreen(); if(state.activeTab==='tools')renderToolsScreen(); if(state.activeTab==='health')renderHealthScreen(); if(state.activeTab==='offline')renderOfflineScreen(); if(state.activeTab==='gps')renderGpsScreen(); if(state.activeTab==='family')renderFamilyScreen(); if(state.activeTab==='xplane')renderXPlaneScreen(); if(state.activeTab==='msfs')renderMsfsScreen(); if(state.activeTab==='addons')renderAddonsScreen(); if(state.activeTab==='driveassist')renderDriveAssistScreen(); if(state.activeTab==='navassist')renderNavAssistScreen(); }
 
 
   async function storePmtilesFile(f,kind){
@@ -6430,5 +6453,6 @@ body{min-height:var(--app-vh);margin:0}
 })();
 </script>
 
+<script src="./cockpit-lite.js?v=RC12.32"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-/* AERONAV RC12.31.4 — Lightweight Diagnostic Hotfix
+/* AERONAV RC12.32 — Lightweight Diagnostic Hotfix
    Same RC12.31 diagnostics/recovery, without continuous polling or repeated map resize.
 */
 (()=>{
@@ -12,9 +12,10 @@ if(window.__AERONAV_DIAGNOSTIC_RC12311)return;
 window.__AERONAV_DIAGNOSTIC_RC12311=true;
 window.__AERONAV_DIAGNOSTIC_RC1231=true;
 
-const RELEASE='RC12.31.4';
-const CACHE_TOKEN='RC12_31';
+const RELEASE='RC12.32';
+const CACHE_TOKEN='RC12_32';
 const MODULES=[
+  {key:'cockpit',label:'Cockpit',flag:'__AERONAV_COCKPIT_LITE__',probe:'cockpitLiteStyles',src:'./cockpit-lite.js?v=RC12.32'},
   {key:'gps',label:'GPS',flag:'__AERONAV_GPS_VIEW_MODES_RC1200',probe:'aeronavGpsViewStyles',src:'./gps-view-modes.js?v=RC12.00'},
   {key:'flight',label:'Flight Ops',flag:'__AERONAV_RC1199',probe:'foCss',src:'./flight-ops-fragment.js?v=RC11.99'},
   {key:'wx1',label:'WX1',flag:'__AERONAV_METEO_VISUAL_RC1210',probe:'aeronavMeteoVisualCss',src:'./meteo-visual-voo.js?v=RC12.10'},
@@ -137,7 +138,7 @@ function ensureUi(){
   ensureStyle();
   let b=document.getElementById('aeronavDiagBtn');
   if(!b){
-    b=document.createElement('button');b.id='aeronavDiagBtn';b.type='button';b.textContent='RC12.31.4';
+    b=document.createElement('button');b.id='aeronavDiagBtn';b.type='button';b.textContent='RC12.32';
     b.addEventListener('click',async()=>{
       const p=document.getElementById('aeronavDiagPanel');if(!p)return;
       const opening=p.hidden;
@@ -149,7 +150,7 @@ function ensureUi(){
   let p=document.getElementById('aeronavDiagPanel');
   if(!p){
     p=document.createElement('section');p.id='aeronavDiagPanel';p.hidden=true;
-    p.innerHTML='<div class="adHead"><b>AERONAV RC12.31.4 · Diagnóstico</b><button id="adClose">×</button></div>'+
+    p.innerHTML='<div class="adHead"><b>AERONAV RC12.32 · Diagnóstico</b><button id="adClose">×</button></div>'+
       '<div class="adSub">Modo leve: só verifica quando necessário.</div>'+
       '<div id="adRows"></div>'+
       '<div class="adActions"><button id="adRecover" class="primary">Recuperar agora</button><button id="adRefresh">Atualizar</button><button id="adReload" class="danger">Recarregar limpo</button><button id="adCopy">Copiar diagnóstico</button></div>'+
@@ -174,12 +175,12 @@ function render(s){
   rows.push(row('MapLibre',s.maplibre,s.maplibre?'carregado':'não carregou'));
   rows.push(row('Ligação ao mapa',s.mapLinked,s.mapLinked?'ligada':'mapa não encontrado'));
   rows.push(row('Service Worker',s.swController,s.swController?'ativo':'sem controlo'));
-  rows.push(row('Cache RC12.31',s.swReleaseOk,s.swReleaseOk?(s.localReady?'pronto':'ativo · '+s.localCount+' locais'):(s.cacheVersion||'cache antigo/indisponível'),s.swController&&!s.swReleaseOk));
+  rows.push(row('Cache RC12.32',s.swReleaseOk,s.swReleaseOk?(s.localReady?'pronto':'ativo · '+s.localCount+' locais'):(s.cacheVersion||'cache antigo/indisponível'),s.swController&&!s.swReleaseOk));
   rows.push(row('Internet',s.online,s.online?'online':'offline',!s.online));
   document.getElementById('adRows').innerHTML=rows.join('');
   const ok=allCoreOk(s),b=document.getElementById('aeronavDiagBtn');
   b.className=ok?'ok':(s.swController?'warn':'bad');
-  b.textContent=ok?'RC12.31.4 ✓':'RC12.31.4 !';
+  b.textContent=ok?'RC12.32 ✓':'RC12.32 !';
   const err=s.errors.length?'\nErros: '+s.errors.slice(0,3).join(' | '):'';
   document.getElementById('adLog').textContent='Cache: '+(s.cacheVersion||'—')+'\nLocal: '+s.localCount+' · Remote: '+s.remoteCount+err;
 }
@@ -189,7 +190,7 @@ function renderBadgeOnly(){
   if(!b)return;
   const ok=quickCoreOk();
   b.className=ok?'ok':'warn';
-  b.textContent=ok?'RC12.31.4 ✓':'RC12.31.4';
+  b.textContent=ok?'RC12.32 ✓':'RC12.32';
 }
 async function refresh(openBad=false,deepMap=false){
   if(refreshBusy)return lastSnapshot;
@@ -233,7 +234,7 @@ async function recover(){
   recoverBusy=true;
   ensureUi();
   const btn=document.getElementById('adRecover'),log=document.getElementById('adLog');
-  btn.disabled=true;log.textContent='Recuperação RC12.31.4 em curso…';
+  btn.disabled=true;log.textContent='Recuperação RC12.32 em curso…';
   try{
     try{const reg=await navigator.serviceWorker?.getRegistration();await reg?.update?.();}catch(e){safeError('SW update: '+(e?.message||e));}
     const removed=await clearOldCaches();
@@ -253,7 +254,7 @@ async function recover(){
     if(warm)log.textContent+='\nCache: '+(warm.localReady?'pronto ✓':(warm.localCount+' ficheiros locais'));
     await sleep(350);
     const s=await refresh(false,false);
-    log.textContent+='\n'+(allCoreOk(s)?'RC12.31.4: sistema recuperado ✓':'RC12.31.4: ainda há itens pendentes.');
+    log.textContent+='\n'+(allCoreOk(s)?'RC12.32: sistema recuperado ✓':'RC12.32: ainda há itens pendentes.');
   }catch(e){
     safeError(e?.message||e);log.textContent+='\nErro: '+String(e?.message||e);
   }finally{

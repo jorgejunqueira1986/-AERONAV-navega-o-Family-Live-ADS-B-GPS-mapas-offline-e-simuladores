@@ -1,4 +1,4 @@
-/* AERONAV RC12.31.4 — bounded UI work + versioned offline shell */
+/* AERONAV RC12.32 — bounded UI work + versioned offline shell */
 /* AERONAV RC12.31.2 — Performance Recovery */
 /* AERONAV RC12.31 — Diagnostic + Recovery */
 /* AERONAV RC12.30 — Meteo Altitude Phase 3 */
@@ -12,8 +12,9 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_31_4-map-clean-20261002-1';
+const CACHE='aeronav-jorge-RC12_32-cockpit-lite-20261002-1';
 const LOCAL=[
+  './cockpit-lite.js',
   "./assets/people/mathia-avatar-rc12313.png","./assets/people/jorge-avatar-rc12313.png",
   './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js','./vendor/pmtiles-3.2.1.js','./work-status-fragment.js','./meteo-visual-voo.js','./meteo-route-phase2.js','./meteo-altitude-phase3.js','./diagnostic-recovery.js','./gps-view-modes.js','./flight-ops-fragment.js'
 ];
@@ -149,13 +150,13 @@ async function injectAngolaMapsIntoMainNavigation(response,request){
       if(maplibreScript.test(body))body=body.replace(maplibreScript,'$1'+mapBridge);
       else body=body.replace(/<head([^>]*)>/i,m=>m+mapBridge);
     }
-    if(!body.includes('work-status-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./work-status-fragment.js?v=RC12.31.4"></script></body>');
-    if(!body.includes('flight-ops-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./flight-ops-fragment.js?v=RC12.31.4"></script></body>');
-    if(!body.includes('gps-view-modes.js'))body=body.replace(/<\/body>/i,'<script src="./gps-view-modes.js?v=RC12.31.4"></script></body>');
-    if(!body.includes('meteo-visual-voo.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-visual-voo.js?v=RC12.31.4"></script></body>');
-    if(!body.includes('meteo-route-phase2.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-route-phase2.js?v=RC12.31.4"></script></body>');
-    if(!body.includes('meteo-altitude-phase3.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-altitude-phase3.js?v=RC12.31.4"></script></body>');
-    if(!body.includes('diagnostic-recovery.js'))body=body.replace(/<\/body>/i,'<script src="./diagnostic-recovery.js?v=RC12.31.4"></script></body>');
+    if(!body.includes('work-status-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./work-status-fragment.js?v=RC12.32"></script></body>');
+    if(!body.includes('flight-ops-fragment.js'))body=body.replace(/<\/body>/i,'<script src="./flight-ops-fragment.js?v=RC12.32"></script></body>');
+    if(!body.includes('gps-view-modes.js'))body=body.replace(/<\/body>/i,'<script src="./gps-view-modes.js?v=RC12.32"></script></body>');
+    if(!body.includes('meteo-visual-voo.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-visual-voo.js?v=RC12.32"></script></body>');
+    if(!body.includes('meteo-route-phase2.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-route-phase2.js?v=RC12.32"></script></body>');
+    if(!body.includes('meteo-altitude-phase3.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-altitude-phase3.js?v=RC12.32"></script></body>');
+    if(!body.includes('diagnostic-recovery.js'))body=body.replace(/<\/body>/i,'<script src="./diagnostic-recovery.js?v=RC12.32"></script></body>');
     const headers=new Headers(response.headers);
     headers.delete('content-length');
     headers.delete('content-encoding');
@@ -205,7 +206,7 @@ self.addEventListener('message',event=>{
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
         cacheVersion:CACHE,
-        release:'RC12.31.4'
+        release:'RC12.32'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){
