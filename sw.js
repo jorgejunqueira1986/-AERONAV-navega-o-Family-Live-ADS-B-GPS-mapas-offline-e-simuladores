@@ -12,7 +12,7 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_33-adsb-radius-20261002-1';
+const CACHE='aeronav-jorge-RC12_33-roads-neutral-20261002-2';
 const LOCAL=[
   './cockpit-lite.js',
   "./assets/people/mathia-avatar-rc12313.png","./assets/people/jorge-avatar-rc12313.png",
