@@ -276,7 +276,7 @@
 
   function onPosition(pos){
     const lat=Number(pos?.coords?.latitude),lng=Number(pos?.coords?.longitude);
-    const heading=Number(pos?.coords?.heading);
+    const heading=pos?.coords?.heading==null?NaN:Number(pos.coords.heading);
     if(Number.isFinite(lat)&&Number.isFinite(lng))lastPos={lat,lng};
     if(Number.isFinite(heading)&&heading>=0)lastHeading=heading;
     cameraForMode(false);

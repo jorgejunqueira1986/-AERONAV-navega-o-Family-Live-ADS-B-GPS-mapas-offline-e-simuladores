@@ -30,8 +30,8 @@
     return p.lon>=bounds[0]&&p.lon<=bounds[2]&&p.lat>=bounds[1]&&p.lat<=bounds[3];
   }
   function angolaAssetByName(name){
-    const clean=String(name||'').split('/').pop();
-    return ANGOLA_MAP_ASSETS.find(a=>a.name===clean)||null;
+    const clean=String(name||'').split('/').pop().replace(/(?: \(\d+\)|-\d+)(?=\.pmtiles$)/i,'');
+    return ANGOLA_MAP_ASSETS.find(a=>a.name.toLowerCase()===clean.toLowerCase())||null;
   }
   function angolaMb(n){return (Number(n||0)/1024/1024).toFixed(Number(n||0)>100*1024*1024?0:1)+' MB';}
 
@@ -97,6 +97,10 @@
   async function angolaSaveFile(file,asset){
     if(!file||!asset)throw new Error('Ficheiro Angola não reconhecido.');
     if(file.size!==asset.size)throw new Error('Tamanho diferente do pacote oficial: esperado '+asset.size+' bytes, recebido '+file.size+'. Termine o download antes de importar.');
+    try{await navigator.storage?.persist?.();}catch(_){}
+    const estimate=await navigator.storage?.estimate?.().catch(()=>null);
+    const existing=await dbGet('maps',asset.id).catch(()=>null);
+    if(!existing&&estimate?.quota&&estimate.quota-estimate.usage<file.size)throw new Error('Espaço insuficiente no armazenamento da aplicação.');
     const originalHeader=await angolaVerifyBlob(file,file.size);
     // Importing does not need MapLibre, WebGL, or an external CDN.
     await angolaLoadReader();
@@ -112,7 +116,7 @@
     const rec={id:asset.id,kind:asset.kind,name:asset.name,key:asset.name,size:file.size,
       savedAt:Date.now(),tileType:h.tileType,
       tileFormat:typeof pmtilesTileFormat==='function'?pmtilesTileFormat(h.tileType):String(h.tileType||''),
-      bounds:asset.bounds,minZoom:h.minZoom,maxZoom:h.maxZoom,pmtilesSchema:detected,vectorLayers,
+      bounds:[h.minLon,h.minLat,h.maxLon,h.maxLat],minZoom:h.minZoom,maxZoom:h.maxZoom,pmtilesSchema:detected,vectorLayers,
       qualityProfile:state.mapQuality,deviceLocal:true,bundle:'angola-offline-v1',sourceUrl:asset.url,
       blob:file.slice(0,file.size,'application/octet-stream')};
     angolaProgress(asset.role+': a gravar '+angolaMb(file.size)+' no dispositivo… Mantenha a aplicação aberta.');
@@ -193,7 +197,8 @@
   function angolaSafeLayerId(s){return String(s||'layer').replace(/[^a-zA-Z0-9_-]+/g,'-').slice(0,80);}
   async function angolaApplyVfrOverlay(){
     if(state.mode!=='flight'||!state.map)return false;
-    const rec=await dbGet('maps',ANGOLA_VFR_ID).catch(()=>null);if(!rec?.blob)return false;
+    initPmtilesProtocol();if(!state.pmtilesProtocol)return false;
+    const rec=await angolaFindRecord(ANGOLA_VFR_ID);if(!rec?.blob)return false;
     await angolaWaitStyle(2500);if(!state.map)return false;
     try{
       if(state.map.getSource?.(ANGOLA_VFR_SOURCE_ID))return true;
@@ -216,16 +221,25 @@
     }catch(e){console.warn('AERONAV Angola VFR',e);return false;}
   }
 
-  async function angolaUseOfflineBaseIfNeeded(){
+  async function angolaFindRecord(id){
+    const direct=await dbGet('maps',id).catch(()=>null);if(direct?.blob)return direct;
+    const all=await dbAll('maps').catch(()=>[]);return all.find(r=>angolaAssetByName(r.name)?.id===id)||null;
+  }
+  let angolaBasePromise=null;
+  function angolaUseOfflineBaseIfNeeded(){
+    if(angolaBasePromise)return angolaBasePromise;
+    angolaBasePromise=angolaUseOfflineBase().finally(()=>{angolaBasePromise=null;});return angolaBasePromise;
+  }
+  async function angolaUseOfflineBase(){
     const offline=state.net==='offline'||!navigator.onLine;
     const p=angolaPos(state.currentPosition);
     if(!offline||(p&&!angolaInside(p,ANGOLA_MAP_BOUNDS)))return false;
-    const vector=await dbGet('maps',ANGOLA_VECTOR_ID).catch(()=>null);
+    const vector=await angolaFindRecord(ANGOLA_VECTOR_ID);
     if(!vector?.blob)return false;
     if(state.offlineMapRecord?.id!==vector.id||state.currentMapStyle!=='offline'){
       state.offlineMapRecord=vector;
       await ensureMapStack(true);
-      await useOfflinePmtiles(vector);
+      if(!await useOfflinePmtiles(vector))return false;
       await angolaWaitStyle(3500);
     }
     if(state.mode==='flight')await angolaApplyVfrOverlay();
@@ -237,7 +251,7 @@
     const result=[];
     for(const asset of ANGOLA_MAP_ASSETS){
       let installed=false;
-      try{const rec=await angolaMapTransaction('readonly',store=>store.get(asset.id));if(rec?.blob){await angolaVerifyBlob(rec.blob,asset.size);installed=true;}}catch(e){console.warn('Angola status',asset.role,e);}
+      try{const rec=await angolaFindRecord(asset.id);if(rec?.blob){await angolaVerifyBlob(rec.blob,asset.size);installed=true;}}catch(e){console.warn('Angola status',asset.role,e);}
       result.push({...asset,installed});
     }
     return result;
@@ -252,15 +266,13 @@
     if(revision!==angolaCardRevision||!cards.isConnected)return;
     document.getElementById('angolaOfflineCard')?.remove();
     const card=document.createElement('div');card.className='card';card.id='angolaOfflineCard';
-    card.innerHTML=`<div class="page-head"><div><h3>🇦🇴 Angola Offline</h3><p>RC11.97 · Importação verificada no dispositivo.</p></div><span class="badge ${ready===8?'ok':'info'}">${ready}/8</span></div>
+    card.innerHTML=`<div class="page-head"><div><h3>🇦🇴 Angola Offline</h3><p>RC12.35 · Mapas guardados neste dispositivo.</p></div><span class="badge ${ready===8?'ok':'info'}">${ready}/8</span></div>
       <div class="sub">VECTOR para mapa base, VFR para VOO e 6 blocos de terreno para relevo offline. Os ficheiros grandes ficam no dispositivo, não dentro do GitHub Pages.</div>
-      <div class="list" style="margin-top:10px">${status.map(a=>`<div class="list-item"><div class="item-icon">${a.kind==='aviation'?'✈':a.kind==='terrain'?'⛰':'🗺️'}</div><div class="item-main"><strong>${a.role}</strong><small>${a.name} · ${angolaMb(a.size)}</small></div><span class="badge ${a.installed?'ok':'info'}">${a.installed?'PRONTO':'FALTA'}</span></div>`).join('')}</div>
+      <div class="list" style="margin-top:10px">${status.map(a=>`<div class="list-item"><div class="item-icon">${a.kind==='aviation'?'✈':a.kind==='terrain'?'⛰':'🗺️'}</div><div class="item-main"><strong>${a.role}</strong><small>${a.name} · ${angolaMb(a.size)} · <a href="${a.url}" target="_blank" rel="noopener">Descarregar</a></small></div><span class="badge ${a.installed?'ok':'info'}">${a.installed?'GUARDADO':'FALTA'}</span></div>`).join('')}</div>
       <div id="angolaImportProgress" role="status" aria-live="polite" style="margin-top:10px;overflow-wrap:anywhere"></div>
       <div class="btn-row" style="margin-top:12px"><button class="primary-btn" id="angolaImportBtn">Importar ficheiros PMTiles</button>${ready?'<button class="secondary-btn" id="angolaOpenBtn">Usar Angola Offline</button>':''}</div>
-      <div class="notice good" style="margin-top:10px">Também deixei os campos VOO e CONDUÇÃO abaixo apontados automaticamente para o Release oficial do GitHub.</div>`;
+      <div class="notice good" style="margin-top:10px">Descarregue os ficheiros para Ficheiros e use Importar. VECTOR é o mapa-base; VFR acrescenta dados aeronáuticos. Não use VFR sozinho como mapa-base.</div>`;
     cards.insertBefore(card,cards.firstChild);
-    const av=document.querySelector('#aviationPmtilesUrl');if(av&&!av.value)av.value=ANGOLA_MAP_ASSETS.find(a=>a.id===ANGOLA_VFR_ID).url;
-    const tr=document.querySelector('#terrestrialPmtilesUrl');if(tr&&!tr.value)tr.value=ANGOLA_MAP_ASSETS.find(a=>a.id===ANGOLA_VECTOR_ID).url;
     angolaProgress(angolaImportState.message);
     card.querySelector('#angolaImportBtn')?.addEventListener('click',()=>{
       if(angolaImportState.busy)return;
@@ -271,7 +283,7 @@
       state.net='offline';localStorage.setItem('aeronav.net','offline');
       try{syncSegments();}catch(_){}
       try{setTab('map');}catch(_){}
-      await angolaUseOfflineBaseIfNeeded();
+      try{if(!await angolaUseOfflineBaseIfNeeded())toast('Importe primeiro o VECTOR Angola para abrir o mapa-base.');}catch(e){toast('Mapa Angola: '+(e.message||e));}
     });
   }
 

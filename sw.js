@@ -12,12 +12,8 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_33-roads-neutral-20261002-2';
-const LOCAL=[
-  './cockpit-lite.js',
-  "./assets/people/mathia-avatar-rc12313.png","./assets/people/jorge-avatar-rc12313.png",
-  './','./index.html','./manifest.json','./sw.js','./family-viewer.html','./wendler.html','./family-viewer-preview.html','./cockpit-audio.js','./family-call.js','./icons/icon-192.png','./icons/icon-512.png','./assets/aeronav-hero.jpg','./assets/people/jorge-avatar.jpeg','./assets/people/mathia-avatar.jpeg','./assets/people/jorge-avatar-3d.png','./assets/people/mathia-avatar-3d.png','./assets/aircraft/cessna-152.png','./assets/aircraft/taag-dash8-q400.png','./assets/aircraft/taag-a220-300.png','./assets/aircraft/taag-b787-9.png','./assets/aircraft/taag-b787-10.png','./assets/aircraft/taag-b777-300er.png','./assets/aircraft/traffic-generic.png','./assets/vehicles/toyota-yaris-ld-37-23-fm.png','./angola-offline-fragment.js','./vendor/pmtiles-3.2.1.js','./work-status-fragment.js','./meteo-visual-voo.js','./meteo-route-phase2.js','./meteo-altitude-phase3.js','./diagnostic-recovery.js','./gps-view-modes.js','./flight-ops-fragment.js'
-];
+const CACHE='aeronav-jorge-RC12_35-offline-routes-20261004-1';
+const LOCAL=["./cockpit-lite.js", "./assets/people/mathia-avatar-rc12313.png", "./assets/people/jorge-avatar-rc12313.png", "./index.html", "./manifest.json", "./sw.js", "./family-viewer.html", "./wendler.html", "./family-viewer-preview.html", "./cockpit-audio.js", "./family-call.js", "./angola-offline-fragment.js", "./vendor/pmtiles-3.2.1.js", "./work-status-fragment.js", "./meteo-visual-voo.js", "./meteo-route-phase2.js", "./meteo-altitude-phase3.js", "./diagnostic-recovery.js", "./gps-view-modes.js", "./flight-ops-fragment.js", "./", "./vendor/maplibre-gl-5.24.0.js", "./vendor/maplibre-gl-5.24.0.css", "./vendor/fonts/Noto Sans Regular/0-255.pbf", "./vendor/fonts/Noto Sans Regular/256-511.pbf"];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js',
@@ -59,7 +55,7 @@ async function warm(){
   }));
   const local=localResults.reduce((a,b)=>a+b,0),remote=remoteResults.reduce((a,b)=>a+b,0);
   return {
-    shellReady:!!(await c.match('./index.html')),
+    shellReady:local===LOCAL.length,
     localReady:local===LOCAL.length,
     localCount:local,
     remoteReady:remote===REMOTE.length,
@@ -105,14 +101,14 @@ async function networkFirst(request){
 }
 
 self.addEventListener('install',event=>{
-  event.waitUntil(warm().then(()=>self.skipWaiting()));
+  event.waitUntil(warm().then(result=>{if(!result.localReady)throw new Error('Núcleo offline incompleto; versão anterior preservada.');return self.skipWaiting();}));
 });
 
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
     const keys=await caches.keys();
     await Promise.all(keys.filter(k=>k!==CACHE &&
-      (k.startsWith('app-nav-')||(k.startsWith('aeronav-')&&!k.startsWith('aeronav-mathia-')&&!k.startsWith('aeronav-wendler-'))))
+      (k.startsWith('app-nav-')||(k.startsWith('aeronav-')&&!k.startsWith('aeronav-mathia-')&&!k.startsWith('aeronav-wendler-')&&!k.startsWith('aeronav-family-'))))
       .map(k=>caches.delete(k)));
     await self.clients.claim();
   })());
@@ -129,7 +125,7 @@ async function injectAngolaMapsIntoMainNavigation(response,request){
     const html=await response.text();
     const marker='  // ---------- PMTiles offline basemap ----------';
     let body=html;
-    if(html.includes(marker)){
+    if(html.includes(marker)&&!html.includes('AERONAV_ANGOLA_INLINE_RC1235_BEGIN')){
       try{
         const c=await caches.open(CACHE);
         const fragUrl=new URL('./angola-offline-fragment.js',self.location.href).href;
@@ -200,13 +196,13 @@ self.addEventListener('message',event=>{
       for(const u of REMOTE){if(await c.match(u))remote++;}
       for(const u of LOCAL){if(await c.match(u))local++;}
       port.postMessage({
-        shellReady:!!(await c.match('./index.html')),
+        shellReady:local===LOCAL.length,
         localReady:local===LOCAL.length,
         localCount:local,
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
         cacheVersion:CACHE,
-        release:'RC12.32'
+        release:'RC12.35'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){
