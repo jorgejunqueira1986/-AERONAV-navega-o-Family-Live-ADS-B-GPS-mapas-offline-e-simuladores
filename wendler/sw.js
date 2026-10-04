@@ -1,7 +1,7 @@
 /* AERONAV RC12.10 — Flight event client preserved */
 /* AERONAV RC11.98.7 — Exact address picking */
 /* AERONAV RC11.98 — Wendler Work/Home avatar + Jorge Folga viewer */
-const CACHE='aeronav-wendler-RC12_10-flight-events-20261001-1';
+const CACHE='aeronav-wendler-RC12_35-gps-age-20261004-1';
 const CORE=['./','./index.html','./manifest.json','./icons/icon-192.png','./icons/icon-512.png','../assets/people/wendler-avatar-3d.png','../work-status-fragment.js','../flight-ops-fragment.js'];
 async function injectWorkStatus(response){
   if(!response||!response.ok)return response;
