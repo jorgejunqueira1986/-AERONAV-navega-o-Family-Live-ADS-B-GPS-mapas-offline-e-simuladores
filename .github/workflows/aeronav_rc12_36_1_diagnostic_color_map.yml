@@ -1,0 +1,125 @@
+name: AERONAV RC12.36.1 Diagnostic Color Map
+
+'on':
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply diagnostic and colour-map fix
+        shell: bash
+        run: |
+          cat > /tmp/install_rc12_36_1.py <<'PY'
+          from pathlib import Path
+          import re
+
+          root=Path(".")
+          index_path=root/"index.html"
+          diag_path=root/"diagnostic-recovery.js"
+          sw_path=root/"sw.js"
+
+          for p in (index_path,diag_path,sw_path):
+              if not p.exists():
+                  raise SystemExit(f"Ficheiro obrigatório não encontrado: {p}")
+
+          index=index_path.read_text(encoding="utf-8")
+          diag=diag_path.read_text(encoding="utf-8")
+          sw=sw_path.read_text(encoding="utf-8")
+
+          diag=diag.replace("RC12.35","RC12.36").replace("RC12_35","RC12_36")
+          if "const RELEASE='RC12.36';" not in diag or "const CACHE_TOKEN='RC12_36';" not in diag:
+              raise SystemExit("Falhou a atualização do diagnóstico para RC12.36.")
+
+          index=index.replace(
+              './diagnostic-recovery.js?v=RC12.36',
+              './diagnostic-recovery.js?v=RC12.36.1'
+          )
+
+          def replace_function(text,start_name,end_name,replacement):
+              pat=("  function "+re.escape(start_name)+r"\([^\n]*\)\{.*?\n  \}\n  function "+re.escape(end_name))
+              m=re.search(pat,text,flags=re.S)
+              if not m:
+                  raise SystemExit(f"Não encontrei o bloco {start_name}.")
+              suffix="\n  function "+end_name
+              return text[:m.start()]+replacement+suffix+text[m.end():]
+
+          index=replace_function(index,"shortbreadPmtilesLayers","openmaptilesPmtilesLayers","  function shortbreadPmtilesLayers(){\n    const roadMinor=['service','residential','unclassified','living_street','pedestrian','track','footway','path','cycleway','steps','busway','bus_guideway'];\n    const roadMedium=['tertiary','tertiary_link','secondary','secondary_link'];\n    const roadMajor=['motorway','motorway_link','trunk','trunk_link','primary','primary_link'];\n    const rail=['rail','narrow_gauge','tram','light_rail','subway','monorail','funicular'];\n    return [\n      {id:'sb-ocean',type:'fill',source:'offline','source-layer':'ocean',paint:{'fill-color':'#0b4f6c','fill-opacity':1}},\n      {id:'sb-land',type:'fill',source:'offline','source-layer':'land',paint:{'fill-color':['match',['get','kind'],\n        'forest','#2e6b4f',\n        ['grass','meadow'],'#477a4a',\n        'orchard','#6f7540',\n        'vineyard','#704f56',\n        ['sand','beach'],'#8a7449',\n        '#243d3b'\n      ],'fill-opacity':0.88}},\n      {id:'sb-sites',type:'fill',source:'offline','source-layer':'sites',paint:{'fill-color':['match',['get','kind'],\n        'parking','#38434d',\n        ['school','college'],'#334f7a',\n        'university','#4c4e80',\n        'hospital','#6b3e50',\n        'construction','#72582f',\n        'industrial','#5a4b43',\n        '#34444a'\n      ],'fill-opacity':0.78}},\n      {id:'sb-water-polygons',type:'fill',source:'offline','source-layer':'water_polygons',paint:{'fill-color':'#0f6486','fill-opacity':0.98}},\n      {id:'sb-water-lines',type:'line',source:'offline','source-layer':'water_lines',paint:{'line-color':'#35a4cf','line-width':['interpolate',['linear'],['zoom'],7,0.6,14,2.3,18,4.5]}},\n      {id:'sb-boundaries',type:'line',source:'offline','source-layer':'boundaries',paint:{'line-color':['case',['==',['get','admin_level'],2],'#c0a6d8','#8d789f'],'line-width':['case',['==',['get','admin_level'],2],1.5,0.9],'line-opacity':0.72,'line-dasharray':[3,2]}},\n      {id:'sb-buildings',type:'fill',source:'offline','source-layer':'buildings',minzoom:14,paint:{'fill-color':'#566575','fill-opacity':0.90,'fill-outline-color':'#75879b'}},\n      {id:'sb-runway',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],['runway','taxiway'],true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#d9d1b8','line-width':['interpolate',['linear'],['zoom'],10,1.8,14,4.8,18,10.5]}},\n      {id:'sb-rail',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],rail,true,false],paint:{'line-color':'#a88a9a','line-width':['interpolate',['linear'],['zoom'],8,0.8,15,2.1],'line-dasharray':[2,2]}},\n      {id:'sb-road-minor-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMinor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#233a45','line-width':['interpolate',['linear'],['zoom'],11,1.2,14,3.5,17,7.8]}},\n      {id:'sb-road-minor',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMinor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#8cb0bb','line-width':['interpolate',['linear'],['zoom'],11,0.7,14,2.1,17,5.2]}},\n      {id:'sb-road-medium-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMedium,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#5d4a2d','line-width':['interpolate',['linear'],['zoom'],8,1.6,13,4.4,17,9.3]}},\n      {id:'sb-road-medium',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMedium,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#e7d29b','line-width':['interpolate',['linear'],['zoom'],8,1.0,13,2.9,17,6.5]}},\n      {id:'sb-road-major-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMajor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#6c511f','line-width':['interpolate',['linear'],['zoom'],5,1.9,11,5.0,16,11.4]}},\n      {id:'sb-road-major',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMajor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#f5c84c','line-width':['interpolate',['linear'],['zoom'],5,1.1,11,3.3,16,8.0]}},\n      {id:'sb-place-labels',type:'symbol',source:'offline','source-layer':'place_labels',minzoom:3,layout:{'text-field':['coalesce',['get','name_pt'],['get','name'],['get','name_en']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],4,10,8,12,12,14,16,17],'text-max-width':10,'text-allow-overlap':false},paint:{'text-color':'#f0f8fa','text-halo-color':'#071a24','text-halo-width':1.7}},\n      {id:'sb-water-labels',type:'symbol',source:'offline','source-layer':'water_polygons_labels',minzoom:7,layout:{'text-field':['coalesce',['get','name_pt'],['get','name'],['get','name_en']],'text-font':['Noto Sans Regular'],'text-size':11},paint:{'text-color':'#80d6f1','text-halo-color':'#071a24','text-halo-width':1.4}},\n      {id:'sb-street-labels',type:'symbol',source:'offline','source-layer':'street_labels',minzoom:12,layout:{'symbol-placement':'line','symbol-spacing':300,'text-field':['coalesce',['get','name'],['get','ref']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],12,9,16,11,19,13],'text-max-angle':35},paint:{'text-color':'#f4ebcb','text-halo-color':'#071a24','text-halo-width':1.5}}\n    ];\n  }")
+          index=replace_function(index,"openmaptilesPmtilesLayers","protomapsPmtilesLayers","  function openmaptilesPmtilesLayers(){\n    return [\n      {id:'omt-landcover',type:'fill',source:'offline','source-layer':'landcover',paint:{'fill-color':'#2e6b4f','fill-opacity':0.72}},\n      {id:'omt-landuse',type:'fill',source:'offline','source-layer':'landuse',paint:{'fill-color':'#51493a','fill-opacity':0.62}},\n      {id:'omt-water',type:'fill',source:'offline','source-layer':'water',paint:{'fill-color':'#0f6486','fill-opacity':0.98}},\n      {id:'omt-building',type:'fill',source:'offline','source-layer':'building',paint:{'fill-color':'#596776','fill-opacity':0.88}},\n      {id:'omt-boundary',type:'line',source:'offline','source-layer':'boundary',paint:{'line-color':'#a28eb8','line-width':1.1,'line-opacity':0.72,'line-dasharray':[3,2]}},\n      {id:'omt-roads-minor',type:'line',source:'offline','source-layer':'transportation',filter:['match',['get','class'],['minor','service','path','track'],true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#8cb0bb','line-width':['interpolate',['linear'],['zoom'],8,0.7,14,2.4,17,5.2]}},\n      {id:'omt-roads-major',type:'line',source:'offline','source-layer':'transportation',filter:['match',['get','class'],['motorway','trunk','primary','secondary','tertiary'],true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['match',['get','class'],['motorway','trunk','primary'],'#f5c84c',['secondary','tertiary'],'#e7d29b','#d8dee2'],'line-width':['interpolate',['linear'],['zoom'],6,0.9,12,2.8,17,7.2]}},\n      {id:'omt-roads-rail',type:'line',source:'offline','source-layer':'transportation',filter:['==',['get','class'],'rail'],paint:{'line-color':'#a88a9a','line-width':1.1,'line-dasharray':[2,2]}}\n    ];\n  }")
+          index=replace_function(index,"protomapsPmtilesLayers","localPmtilesStyle","  function protomapsPmtilesLayers(metadata={}){\n    const ids=new Set(pmtilesVectorLayerIds(metadata));\n    const has=id=>!ids.size||ids.has(id);\n    const layers=[\n      {id:'pm-earth',type:'fill',source:'offline','source-layer':'earth',paint:{'fill-color':'#253d3a'}},\n      {id:'pm-landcover',type:'fill',source:'offline','source-layer':'landcover',paint:{'fill-color':'#2e6b4f','fill-opacity':0.76}},\n      {id:'pm-landuse',type:'fill',source:'offline','source-layer':'landuse',paint:{'fill-color':'#51493a','fill-opacity':0.66}},\n      {id:'pm-water',type:'fill',source:'offline','source-layer':'water',paint:{'fill-color':'#0f6486','fill-opacity':0.98}},\n      {id:'pm-boundaries',type:'line',source:'offline','source-layer':'boundaries',paint:{'line-color':'#a28eb8','line-width':['interpolate',['linear'],['zoom'],2,0.6,8,1.2,14,1.9],'line-dasharray':[3,2],'line-opacity':0.72}},\n      {id:'pm-buildings',type:'fill',source:'offline','source-layer':'buildings',minzoom:13,paint:{'fill-color':'#596776','fill-opacity':0.82}},\n      {id:'pm-road-casing',type:'line',source:'offline','source-layer':'roads',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#503e26','line-width':['interpolate',['linear'],['zoom'],5,1.6,10,2.8,14,5.7,17,10.3],'line-opacity':0.96}},\n      {id:'pm-roads',type:'line',source:'offline','source-layer':'roads',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['match',['get','kind'],['highway','major_road'],'#f5c84c',['medium_road'],'#e7d29b',['minor_road'],'#8cb0bb','#7895a0'],'line-width':['interpolate',['linear'],['zoom'],5,0.7,10,1.4,14,3.3,17,7.4],'line-opacity':0.99}},\n      {id:'pm-road-labels',type:'symbol',source:'offline','source-layer':'roads',minzoom:12,filter:['has','name'],layout:{'symbol-placement':'line','text-field':['coalesce',['get','name:pt'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],12,9,16,11,19,13],'symbol-spacing':350,'text-allow-overlap':false},paint:{'text-color':'#f4ebcb','text-halo-color':'#071a24','text-halo-width':2}},\n      {id:'pm-water-labels',type:'symbol',source:'offline','source-layer':'water',minzoom:5,filter:['has','name'],layout:{'text-field':['coalesce',['get','name:pt'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],5,9,14,12],'text-allow-overlap':false},paint:{'text-color':'#80d6f1','text-halo-color':'#071a24','text-halo-width':1.5}},\n      {id:'pm-places',type:'symbol',source:'offline','source-layer':'places',layout:{'text-field':['coalesce',['get','name:pt'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],3,10,7,12,11,14,16,17],'text-max-width':12,'text-allow-overlap':false,'text-padding':3},paint:{'text-color':'#f0f8fa','text-halo-color':'#071a24','text-halo-width':2}},\n      {id:'pm-pois',type:'symbol',source:'offline','source-layer':'pois',minzoom:13,filter:['has','name'],layout:{'text-field':['coalesce',['get','name:pt'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':10,'text-offset':[0,0.9],'text-anchor':'top','text-allow-overlap':false},paint:{'text-color':'#d5e3e8','text-halo-color':'#071a24','text-halo-width':1.5}}\n    ];\n    return layers.filter(l=>has(l['source-layer']));\n  }")
+
+          index=index.replace(
+              "layers:[{id:'background',type:'background',paint:{'background-color':'#071a24'}},...dataLayers]",
+              "layers:[{id:'background',type:'background',paint:{'background-color':'#0a2230'}},...dataLayers]"
+          )
+
+          sw,repl_count=re.subn(
+              r"const CACHE='aeronav-jorge-RC12_36-offline-routes-20261004-\d+';",
+              "const CACHE='aeronav-jorge-RC12_36-offline-routes-20261005-3';",
+              sw,
+              count=1
+          )
+          if repl_count!=1:
+              raise SystemExit("Não encontrei o CACHE RC12.36 no service worker.")
+
+          required_index=[
+              "function shortbreadPmtilesLayers()",
+              "'#f5c84c'",
+              "'#0f6486'",
+              "'#2e6b4f'",
+              "./diagnostic-recovery.js?v=RC12.36.1",
+              "AERONAV_PROTOMAPS_MANAGER_RC1236_BEGIN"
+          ]
+          for token in required_index:
+              if token not in index:
+                  raise SystemExit("Validação index falhou: "+token)
+
+          index_path.write_text(index,encoding="utf-8")
+          diag_path.write_text(diag,encoding="utf-8")
+          sw_path.write_text(sw,encoding="utf-8")
+          print("RC12.36.1 diagnóstico + mapa a cores aplicado.")
+
+          PY
+          python3 /tmp/install_rc12_36_1.py
+
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          node --check diagnostic-recovery.js
+          python3 - <<'PY'
+          import re, subprocess, pathlib, sys
+          html=pathlib.Path("index.html").read_text(encoding="utf-8")
+          scripts=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>',html,re.S|re.I)
+          for n,body in enumerate(scripts):
+              p=pathlib.Path(f"/tmp/aeronav-inline-{n}.js")
+              p.write_text(body,encoding="utf-8")
+              r=subprocess.run(["node","--check",str(p)],capture_output=True,text=True)
+              if r.returncode:
+                  print(r.stderr)
+                  sys.exit(r.returncode)
+          print(f"Validated {len(scripts)} inline scripts")
+          PY
+          grep -q "const RELEASE='RC12.36';" diagnostic-recovery.js
+          grep -q "aeronav-jorge-RC12_36-offline-routes-20261005-3" sw.js
+          grep -q "#f5c84c" index.html
+          grep -q "#0f6486" index.html
+          grep -q "#2e6b4f" index.html
+
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html diagnostic-recovery.js sw.js
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "RC12.36.1 fix diagnostic version and colour offline maps"
+            git push
+          fi
