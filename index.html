@@ -2920,139 +2920,59 @@ body{min-height:var(--app-vh);margin:0}
     const roadMajor=['motorway','motorway_link','trunk','trunk_link','primary','primary_link'];
     const rail=['rail','narrow_gauge','tram','light_rail','subway','monorail','funicular'];
     return [
-      {id:'sb-ocean',type:'fill',source:'offline','source-layer':'ocean',paint:{'fill-color':'#0b4054','fill-opacity':1}},
-      {id:'sb-land',type:'fill',source:'offline','source-layer':'land',paint:{'fill-color':['match',['get','kind'],'forest','#17352f',['grass','meadow'],'#1c3b33','orchard','#263c31','vineyard','#2a3b31','#17302f'],'fill-opacity':0.80}},
-      {id:'sb-sites',type:'fill',source:'offline','source-layer':'sites',paint:{'fill-color':['match',['get','kind'],'parking','#25343b',['school','university','college'],'#293746','hospital','#3b3037','construction','#3d382e','#22323a'],'fill-opacity':0.68}},
-      {id:'sb-water-polygons',type:'fill',source:'offline','source-layer':'water_polygons',paint:{'fill-color':'#0c4258','fill-opacity':0.96}},
-      {id:'sb-water-lines',type:'line',source:'offline','source-layer':'water_lines',paint:{'line-color':'#1c6985','line-width':['interpolate',['linear'],['zoom'],7,0.5,14,2.1,18,4]}},
-      {id:'sb-boundaries',type:'line',source:'offline','source-layer':'boundaries',paint:{'line-color':['case',['==',['get','admin_level'],2],'#9aaeb8','#617681'],'line-width':['case',['==',['get','admin_level'],2],1.4,0.8],'line-opacity':0.62,'line-dasharray':[3,2]}},
-      {id:'sb-buildings',type:'fill',source:'offline','source-layer':'buildings',minzoom:14,paint:{'fill-color':'#314a55','fill-opacity':0.86,'fill-outline-color':'#49616a'}},
-      {id:'sb-runway',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],['runway','taxiway'],true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#79888d','line-width':['interpolate',['linear'],['zoom'],10,1.6,14,4.5,18,10]}},
-      {id:'sb-rail',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],rail,true,false],paint:{'line-color':'#788990','line-width':['interpolate',['linear'],['zoom'],8,0.7,15,2.0],'line-dasharray':[2,2]}},
-      {id:'sb-road-minor-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMinor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#233b46','line-width':['interpolate',['linear'],['zoom'],11,1.1,14,3.3,17,7.5]}},
-      {id:'sb-road-minor',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMinor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#78909a','line-width':['interpolate',['linear'],['zoom'],11,0.6,14,2.0,17,5.0]}},
-      {id:'sb-road-medium-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMedium,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#2a414a','line-width':['interpolate',['linear'],['zoom'],8,1.5,13,4.2,17,9]}},
-      {id:'sb-road-medium',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMedium,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#a9bdc4','line-width':['interpolate',['linear'],['zoom'],8,0.9,13,2.8,17,6.3]}},
-      {id:'sb-road-major-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMajor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#31464d','line-width':['interpolate',['linear'],['zoom'],5,1.8,11,4.8,16,11]}},
-      {id:'sb-road-major',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMajor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#b5c8ce','line-width':['interpolate',['linear'],['zoom'],5,1.0,11,3.2,16,7.8]}},
-      {id:'sb-place-labels',type:'symbol',source:'offline','source-layer':'place_labels',minzoom:3,layout:{'text-field':['coalesce',['get','name_pt'],['get','name'],['get','name_en']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],4,10,8,12,12,14,16,17],'text-max-width':10,'text-allow-overlap':false},paint:{'text-color':'#e8f4f7','text-halo-color':'#071a24','text-halo-width':1.5}},
-      {id:'sb-water-labels',type:'symbol',source:'offline','source-layer':'water_polygons_labels',minzoom:7,layout:{'text-field':['coalesce',['get','name_pt'],['get','name'],['get','name_en']],'text-font':['Noto Sans Regular'],'text-size':11},paint:{'text-color':'#79bed5','text-halo-color':'#071a24','text-halo-width':1.3}},
-      {id:'sb-street-labels',type:'symbol',source:'offline','source-layer':'street_labels',minzoom:12,layout:{'symbol-placement':'line','symbol-spacing':300,'text-field':['coalesce',['get','name'],['get','ref']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],12,9,16,11,19,13],'text-max-angle':35},paint:{'text-color':'#c9d9de','text-halo-color':'#071a24','text-halo-width':1.4}}
+      {id:'sb-ocean',type:'fill',source:'offline','source-layer':'ocean',paint:{'fill-color':'#0b4f6c','fill-opacity':1}},
+      {id:'sb-land',type:'fill',source:'offline','source-layer':'land',paint:{'fill-color':['match',['get','kind'],
+        'forest','#2e6b4f',['grass','meadow'],'#477a4a','orchard','#6f7540','vineyard','#704f56',['sand','beach'],'#8a7449','#243d3b'],'fill-opacity':0.88}},
+      {id:'sb-sites',type:'fill',source:'offline','source-layer':'sites',paint:{'fill-color':['match',['get','kind'],
+        'parking','#38434d',['school','college'],'#334f7a','university','#4c4e80','hospital','#6b3e50','construction','#72582f','industrial','#5a4b43','#34444a'],'fill-opacity':0.78}},
+      {id:'sb-water-polygons',type:'fill',source:'offline','source-layer':'water_polygons',paint:{'fill-color':'#0f6486','fill-opacity':0.98}},
+      {id:'sb-water-lines',type:'line',source:'offline','source-layer':'water_lines',paint:{'line-color':'#35a4cf','line-width':['interpolate',['linear'],['zoom'],7,0.6,14,2.3,18,4.5]}},
+      {id:'sb-boundaries',type:'line',source:'offline','source-layer':'boundaries',paint:{'line-color':['case',['==',['get','admin_level'],2],'#c0a6d8','#8d789f'],'line-width':['case',['==',['get','admin_level'],2],1.5,0.9],'line-opacity':0.72,'line-dasharray':[3,2]}},
+      {id:'sb-buildings',type:'fill',source:'offline','source-layer':'buildings',minzoom:14,paint:{'fill-color':'#566575','fill-opacity':0.90,'fill-outline-color':'#75879b'}},
+      {id:'sb-runway',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],['runway','taxiway'],true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#d9d1b8','line-width':['interpolate',['linear'],['zoom'],10,1.8,14,4.8,18,10.5]}},
+      {id:'sb-rail',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],rail,true,false],paint:{'line-color':'#a88a9a','line-width':['interpolate',['linear'],['zoom'],8,0.8,15,2.1],'line-dasharray':[2,2]}},
+      {id:'sb-road-minor-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMinor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#233a45','line-width':['interpolate',['linear'],['zoom'],11,1.2,14,3.5,17,7.8]}},
+      {id:'sb-road-minor',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMinor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#8cb0bb','line-width':['interpolate',['linear'],['zoom'],11,0.7,14,2.1,17,5.2]}},
+      {id:'sb-road-medium-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMedium,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#5d4a2d','line-width':['interpolate',['linear'],['zoom'],8,1.6,13,4.4,17,9.3]}},
+      {id:'sb-road-medium',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMedium,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#e7d29b','line-width':['interpolate',['linear'],['zoom'],8,1.0,13,2.9,17,6.5]}},
+      {id:'sb-road-major-casing',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMajor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#6c511f','line-width':['interpolate',['linear'],['zoom'],5,1.9,11,5.0,16,11.4]}},
+      {id:'sb-road-major',type:'line',source:'offline','source-layer':'streets',filter:['match',['get','kind'],roadMajor,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#f5c84c','line-width':['interpolate',['linear'],['zoom'],5,1.1,11,3.3,16,8.0]}},
+      {id:'sb-place-labels',type:'symbol',source:'offline','source-layer':'place_labels',minzoom:3,layout:{'text-field':['coalesce',['get','name_pt'],['get','name'],['get','name_en']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],4,10,8,12,12,14,16,17],'text-max-width':10,'text-allow-overlap':false},paint:{'text-color':'#f0f8fa','text-halo-color':'#071a24','text-halo-width':1.7}},
+      {id:'sb-water-labels',type:'symbol',source:'offline','source-layer':'water_polygons_labels',minzoom:7,layout:{'text-field':['coalesce',['get','name_pt'],['get','name'],['get','name_en']],'text-font':['Noto Sans Regular'],'text-size':11},paint:{'text-color':'#80d6f1','text-halo-color':'#071a24','text-halo-width':1.4}},
+      {id:'sb-street-labels',type:'symbol',source:'offline','source-layer':'street_labels',minzoom:12,layout:{'symbol-placement':'line','symbol-spacing':300,'text-field':['coalesce',['get','name'],['get','ref']],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],12,9,16,11,19,13],'text-max-angle':35},paint:{'text-color':'#f4ebcb','text-halo-color':'#071a24','text-halo-width':1.5}}
     ];
   }
   function openmaptilesPmtilesLayers(){
     return [
-      {id:'omt-landcover',type:'fill',source:'offline','source-layer':'landcover',paint:{'fill-color':'#17352f','fill-opacity':0.45}},
-      {id:'omt-landuse',type:'fill',source:'offline','source-layer':'landuse',paint:{'fill-color':'#1a2f35','fill-opacity':0.50}},
-      {id:'omt-water',type:'fill',source:'offline','source-layer':'water',paint:{'fill-color':'#0c4258','fill-opacity':0.95}},
-      {id:'omt-building',type:'fill',source:'offline','source-layer':'building',paint:{'fill-color':'#24404b','fill-opacity':0.8}},
-      {id:'omt-boundary',type:'line',source:'offline','source-layer':'boundary',paint:{'line-color':'#3a5965','line-width':1,'line-opacity':0.55}},
-      {id:'omt-roads-minor',type:'line',source:'offline','source-layer':'transportation',filter:['match',['get','class'],['minor','service','path','track'],true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#55717d','line-width':['interpolate',['linear'],['zoom'],8,0.6,14,2.3,17,5]}},
-      {id:'omt-roads-major',type:'line',source:'offline','source-layer':'transportation',filter:['match',['get','class'],['motorway','trunk','primary','secondary','tertiary'],true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#b5c8ce','line-width':['interpolate',['linear'],['zoom'],6,0.8,12,2.6,17,7]}},
-      {id:'omt-roads-rail',type:'line',source:'offline','source-layer':'transportation',filter:['==',['get','class'],'rail'],paint:{'line-color':'#7d8990','line-width':1,'line-dasharray':[2,2]}}
+      {id:'omt-landcover',type:'fill',source:'offline','source-layer':'landcover',paint:{'fill-color':'#2e6b4f','fill-opacity':0.72}},
+      {id:'omt-landuse',type:'fill',source:'offline','source-layer':'landuse',paint:{'fill-color':'#51493a','fill-opacity':0.62}},
+      {id:'omt-water',type:'fill',source:'offline','source-layer':'water',paint:{'fill-color':'#0f6486','fill-opacity':0.98}},
+      {id:'omt-building',type:'fill',source:'offline','source-layer':'building',paint:{'fill-color':'#596776','fill-opacity':0.88}},
+      {id:'omt-boundary',type:'line',source:'offline','source-layer':'boundary',paint:{'line-color':'#a28eb8','line-width':1.1,'line-opacity':0.72,'line-dasharray':[3,2]}},
+      {id:'omt-roads-minor',type:'line',source:'offline','source-layer':'transportation',filter:['match',['get','class'],['minor','service','path','track'],true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#8cb0bb','line-width':['interpolate',['linear'],['zoom'],8,0.7,14,2.4,17,5.2]}},
+      {id:'omt-roads-major',type:'line',source:'offline','source-layer':'transportation',filter:['match',['get','class'],['motorway','trunk','primary','secondary','tertiary'],true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['match',['get','class'],['motorway','trunk','primary'],'#f5c84c',['secondary','tertiary'],'#e7d29b','#d8dee2'],'line-width':['interpolate',['linear'],['zoom'],6,0.9,12,2.8,17,7.2]}},
+      {id:'omt-roads-rail',type:'line',source:'offline','source-layer':'transportation',filter:['==',['get','class'],'rail'],paint:{'line-color':'#a88a9a','line-width':1.1,'line-dasharray':[2,2]}}
     ];
   }
   function protomapsPmtilesLayers(metadata={}){
     const ids=new Set(pmtilesVectorLayerIds(metadata));
     const has=id=>!ids.size||ids.has(id);
     const layers=[
-      {id:'pm-earth',type:'fill',source:'offline','source-layer':'earth',
-        paint:{'fill-color':'#19343a'}},
-      {id:'pm-landcover',type:'fill',source:'offline','source-layer':'landcover',
-        paint:{'fill-color':'#234638','fill-opacity':0.62}},
-      {id:'pm-landuse',type:'fill',source:'offline','source-layer':'landuse',
-        paint:{'fill-color':'#294447','fill-opacity':0.58}},
-      {id:'pm-water',type:'fill',source:'offline','source-layer':'water',
-        paint:{'fill-color':'#0b4054','fill-opacity':0.98}},
-      {id:'pm-boundaries',type:'line',source:'offline','source-layer':'boundaries',
-        paint:{
-          'line-color':'#7f9aa5',
-          'line-width':['interpolate',['linear'],['zoom'],2,0.5,8,1.1,14,1.8],
-          'line-dasharray':[3,2],
-          'line-opacity':0.62
-        }},
-      {id:'pm-buildings',type:'fill',source:'offline','source-layer':'buildings',minzoom:13,
-        paint:{'fill-color':'#526a73','fill-opacity':0.72}},
-      {id:'pm-road-casing',type:'line',source:'offline','source-layer':'roads',
-        layout:{'line-cap':'round','line-join':'round'},
-        paint:{
-          'line-color':'#15262d',
-          'line-width':['interpolate',['linear'],['zoom'],5,1.5,10,2.7,14,5.5,17,10],
-          'line-opacity':0.95
-        }},
-      {id:'pm-roads',type:'line',source:'offline','source-layer':'roads',
-        layout:{'line-cap':'round','line-join':'round'},
-        paint:{
-          'line-color':['match',['get','kind'],
-            ['highway','major_road'],'#c7d7dc',
-            ['medium_road'],'#9eb4bb',
-            ['minor_road'],'#708993',
-            '#607984'
-          ],
-          'line-width':['interpolate',['linear'],['zoom'],5,0.6,10,1.3,14,3.2,17,7.2],
-          'line-opacity':0.98
-        }},
-      {id:'pm-road-labels',type:'symbol',source:'offline','source-layer':'roads',minzoom:12,
-        filter:['has','name'],
-        layout:{
-          'symbol-placement':'line',
-          'text-field':['coalesce',['get','name:pt'],['get','name'],''],
-          'text-font':['Noto Sans Regular'],
-          'text-size':['interpolate',['linear'],['zoom'],12,9,16,11,19,13],
-          'symbol-spacing':350,
-          'text-allow-overlap':false
-        },
-        paint:{
-          'text-color':'#c9dbe0',
-          'text-halo-color':'#071a24',
-          'text-halo-width':2
-        }},
-      {id:'pm-water-labels',type:'symbol',source:'offline','source-layer':'water',minzoom:5,
-        filter:['has','name'],
-        layout:{
-          'text-field':['coalesce',['get','name:pt'],['get','name'],''],
-          'text-font':['Noto Sans Regular'],
-          'text-size':['interpolate',['linear'],['zoom'],5,9,14,12],
-          'text-allow-overlap':false
-        },
-        paint:{
-          'text-color':'#67c8e5',
-          'text-halo-color':'#071a24',
-          'text-halo-width':1.5
-        }},
-      {id:'pm-places',type:'symbol',source:'offline','source-layer':'places',
-        layout:{
-          'text-field':['coalesce',['get','name:pt'],['get','name'],''],
-          'text-font':['Noto Sans Regular'],
-          'text-size':['interpolate',['linear'],['zoom'],3,10,7,12,11,14,16,17],
-          'text-max-width':12,
-          'text-allow-overlap':false,
-          'text-padding':3
-        },
-        paint:{
-          'text-color':'#eef8fa',
-          'text-halo-color':'#071a24',
-          'text-halo-width':2
-        }},
-      {id:'pm-pois',type:'symbol',source:'offline','source-layer':'pois',minzoom:13,
-        filter:['has','name'],
-        layout:{
-          'text-field':['coalesce',['get','name:pt'],['get','name'],''],
-          'text-font':['Noto Sans Regular'],
-          'text-size':10,
-          'text-offset':[0,0.9],
-          'text-anchor':'top',
-          'text-allow-overlap':false
-        },
-        paint:{
-          'text-color':'#b9cbd1',
-          'text-halo-color':'#071a24',
-          'text-halo-width':1.5
-        }}
+      {id:'pm-earth',type:'fill',source:'offline','source-layer':'earth',paint:{'fill-color':'#253d3a'}},
+      {id:'pm-landcover',type:'fill',source:'offline','source-layer':'landcover',paint:{'fill-color':'#2e6b4f','fill-opacity':0.76}},
+      {id:'pm-landuse',type:'fill',source:'offline','source-layer':'landuse',paint:{'fill-color':'#51493a','fill-opacity':0.66}},
+      {id:'pm-water',type:'fill',source:'offline','source-layer':'water',paint:{'fill-color':'#0f6486','fill-opacity':0.98}},
+      {id:'pm-boundaries',type:'line',source:'offline','source-layer':'boundaries',paint:{'line-color':'#a28eb8','line-width':['interpolate',['linear'],['zoom'],2,0.6,8,1.2,14,1.9],'line-dasharray':[3,2],'line-opacity':0.72}},
+      {id:'pm-buildings',type:'fill',source:'offline','source-layer':'buildings',minzoom:13,paint:{'fill-color':'#596776','fill-opacity':0.82}},
+      {id:'pm-road-casing',type:'line',source:'offline','source-layer':'roads',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#503e26','line-width':['interpolate',['linear'],['zoom'],5,1.6,10,2.8,14,5.7,17,10.3],'line-opacity':0.96}},
+      {id:'pm-roads',type:'line',source:'offline','source-layer':'roads',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['match',['get','kind'],['highway','major_road'],'#f5c84c',['medium_road'],'#e7d29b',['minor_road'],'#8cb0bb','#7895a0'],'line-width':['interpolate',['linear'],['zoom'],5,0.7,10,1.4,14,3.3,17,7.4],'line-opacity':0.99}},
+      {id:'pm-road-labels',type:'symbol',source:'offline','source-layer':'roads',minzoom:12,filter:['has','name'],layout:{'symbol-placement':'line','text-field':['coalesce',['get','name:pt'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],12,9,16,11,19,13],'symbol-spacing':350,'text-allow-overlap':false},paint:{'text-color':'#f4ebcb','text-halo-color':'#071a24','text-halo-width':2}},
+      {id:'pm-water-labels',type:'symbol',source:'offline','source-layer':'water',minzoom:5,filter:['has','name'],layout:{'text-field':['coalesce',['get','name:pt'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],5,9,14,12],'text-allow-overlap':false},paint:{'text-color':'#80d6f1','text-halo-color':'#071a24','text-halo-width':1.5}},
+      {id:'pm-places',type:'symbol',source:'offline','source-layer':'places',layout:{'text-field':['coalesce',['get','name:pt'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],3,10,7,12,11,14,16,17],'text-max-width':12,'text-allow-overlap':false,'text-padding':3},paint:{'text-color':'#f0f8fa','text-halo-color':'#071a24','text-halo-width':2}},
+      {id:'pm-pois',type:'symbol',source:'offline','source-layer':'pois',minzoom:13,filter:['has','name'],layout:{'text-field':['coalesce',['get','name:pt'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':10,'text-offset':[0,0.9],'text-anchor':'top','text-allow-overlap':false},paint:{'text-color':'#d5e3e8','text-halo-color':'#071a24','text-halo-width':1.5}}
     ];
     return layers.filter(l=>has(l['source-layer']));
   }
-
   function localPmtilesStyle(key,tileType,metadata={}){
     const sourceType = tileType===1 ? 'vector' : 'raster';
     const attribution=metadata?.attribution||'© OpenStreetMap contributors';
@@ -3068,7 +2988,7 @@ body{min-height:var(--app-vh);margin:0}
       // If the producer omitted it, try Shortbread first because BBBike uses it for PM vector extracts.
       dataLayers=shortbreadPmtilesLayers();
     }
-    return applyMapQualityProfile({version:8,glyphs:new URL('./vendor/fonts/{fontstack}/{range}.pbf',location.href).href.replace(/%7B/g,'{').replace(/%7D/g,'}'),sources:{offline:source},layers:[{id:'background',type:'background',paint:{'background-color':'#071a24'}},...dataLayers],metadata:{'aeronav:pmtiles-schema':schema,'aeronav:quality':state.mapQuality}});
+    return applyMapQualityProfile({version:8,glyphs:new URL('./vendor/fonts/{fontstack}/{range}.pbf',location.href).href.replace(/%7B/g,'{').replace(/%7D/g,'}'),sources:{offline:source},layers:[{id:'background',type:'background',paint:{'background-color':'#0a2230'}},...dataLayers],metadata:{'aeronav:pmtiles-schema':schema,'aeronav:quality':state.mapQuality}});
   }
   function offlineMapAvailable(maps,kind){
     return maps.some(m=>m.blob&&(
@@ -7420,7 +7340,7 @@ body{min-height:var(--app-vh);margin:0}
 <script src="./meteo-visual-voo.js?v=RC12.36"></script>
 <script src="./meteo-route-phase2.js?v=RC12.36"></script>
 <script src="./meteo-altitude-phase3.js?v=RC12.36"></script>
-<script src="./diagnostic-recovery.js?v=RC12.36"></script>
+<script src="./diagnostic-recovery.js?v=RC12.36.1"></script>
 <script src="./cockpit-lite.js?v=RC12.32"></script>
 </body>
 </html>
