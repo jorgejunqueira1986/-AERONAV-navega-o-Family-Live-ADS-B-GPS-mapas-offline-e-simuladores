@@ -1,0 +1,213 @@
+name: AERONAV RC12.36 Aviation Protomaps
+
+'on':
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply RC12.36
+        shell: bash
+        run: |
+          cat > /tmp/install_rc12_36.py <<'PY'
+
+          from pathlib import Path
+          import re
+
+          root=Path(".")
+          index_path=root/"index.html"
+          sw_path=root/"sw.js"
+
+          if not index_path.exists():
+              raise SystemExit("index.html não encontrado na raiz do repositório.")
+          if not sw_path.exists():
+              raise SystemExit("sw.js não encontrado na raiz do repositório.")
+
+          index=index_path.read_text(encoding="utf-8")
+          sw=sw_path.read_text(encoding="utf-8")
+
+          def replace_once(text, old, new, label):
+              count=text.count(old)
+              if count!=1:
+                  raise SystemExit(f"{label}: esperado 1 ocorrência, encontradas {count}.")
+              return text.replace(old,new,1)
+
+          # Version bump.
+          index=index.replace("RC12.35","RC12.36")
+          sw=sw.replace("RC12.35","RC12.36").replace("RC12_35","RC12_36")
+
+          # 1) Terrain local must also work in VOO.
+          index=replace_once(
+              index,
+              "if(state.mode!=='drive'||!state.map)return false;",
+              "if(!['drive','flight'].includes(state.mode)||!state.map)return false;",
+              "terrain mode"
+          )
+
+          index=replace_once(
+              index,
+              "if(state.mode==='flight')await angolaApplyVfrOverlay();\n    else if(state.mode==='drive')await angolaApplyTerrain();",
+              "if(state.mode==='flight'){await angolaApplyTerrain();await angolaApplyVfrOverlay();}\n    else if(state.mode==='drive')await angolaApplyTerrain();",
+              "offline Angola overlays"
+          )
+
+          index=replace_once(
+              index,
+              "try{if(state.mode==='flight')await angolaApplyVfrOverlay();else if(state.mode==='drive'&&(state.net==='offline'||state.currentMapStyle==='offline'))await angolaApplyTerrain();}catch(_){}",
+              "try{if(state.mode==='flight'){await angolaApplyTerrain();await angolaApplyVfrOverlay();}else if(state.mode==='drive'&&(state.net==='offline'||state.currentMapStyle==='offline'))await angolaApplyTerrain();}catch(_){}",
+              "updateMapMode Angola hook"
+          )
+
+          index=replace_once(
+              index,
+              "if(state.mode==='drive'&&(state.net==='offline'||state.currentMapStyle==='offline'))angolaApplyTerrain().catch(()=>{});\n      else if(state.mode==='flight')angolaApplyVfrOverlay().catch(()=>{});",
+              "if(state.mode==='drive'&&(state.net==='offline'||state.currentMapStyle==='offline'))angolaApplyTerrain().catch(()=>{});\n      else if(state.mode==='flight'){angolaApplyTerrain().catch(()=>{});angolaApplyVfrOverlay().catch(()=>{});}",
+              "periodic Angola overlays"
+          )
+
+          # 2) Replace generic VFR renderer with an aviation-aware renderer.
+          pattern=r"  function angolaSafeLayerId\(s\)\{.*?\n  async function angolaFindRecord"
+          m=re.search(pattern,index,flags=re.S)
+          if not m:
+              raise SystemExit("Bloco VFR atual não encontrado.")
+          index=index[:m.start()]+"  function angolaSafeLayerId(s){return String(s||'layer').replace(/[^a-zA-Z0-9_-]+/g,'-').slice(0,80);}\n\n  function aeronavVfrCategory(sourceLayer=''){\n    const s=String(sourceLayer||'').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');\n    if(/runway|pista/.test(s))return 'runway';\n    if(/airport|aerodrome|aerodromo|heliport/.test(s))return 'airport';\n    if(/vor|ndb|dme|navaid|beacon|radio/.test(s))return 'navaid';\n    if(/fix|waypoint|reporting|intersection|wpt/.test(s))return 'fix';\n    if(/airway|route|awy|ats/.test(s))return 'airway';\n    if(/airspace|fir|uir|ctr|tma|cta|restricted|prohibited|danger|class/.test(s))return 'airspace';\n    if(/obstacle|tower|mast/.test(s))return 'obstacle';\n    return 'generic';\n  }\n\n  function aeronavVfrNameExpr(){\n    return ['to-string',['coalesce',\n      ['get','name:pt'],['get','name'],['get','ident'],['get','icao'],\n      ['get','ref'],['get','code'],['get','id'],''\n    ]];\n  }\n\n  function aeronavVfrFrequencyExpr(){\n    return ['to-string',['coalesce',\n      ['get','frequency'],['get','frequency_mhz'],['get','freq_mhz'],['get','freq'],''\n    ]];\n  }\n\n  function aeronavVfrLowerExpr(){\n    return ['to-string',['coalesce',\n      ['get','lower_limit'],['get','lower'],['get','floor'],['get','lowerLimit'],''\n    ]];\n  }\n\n  function aeronavVfrUpperExpr(){\n    return ['to-string',['coalesce',\n      ['get','upper_limit'],['get','upper'],['get','ceiling'],['get','upperLimit'],''\n    ]];\n  }\n\n  function aeronavVfrFeatureKindExpr(){\n    return ['downcase',['to-string',['coalesce',\n      ['get','aeroway'],['get','type'],['get','kind'],['get','category'],\n      ['get','feature_type'],['get','class'],''\n    ]]];\n  }\n\n  function aeronavVfrLabelExpr(category){\n    const name=aeronavVfrNameExpr(),freq=aeronavVfrFrequencyExpr();\n    const lower=aeronavVfrLowerExpr(),upper=aeronavVfrUpperExpr();\n    if(category==='airport'){\n      return ['concat','APT ',name,\n        ['case',['!=',freq,''],['concat','  ',freq], '']\n      ];\n    }\n    if(category==='navaid'){\n      return ['concat','NAV ',name,\n        ['case',['!=',freq,''],['concat','  ',freq], '']\n      ];\n    }\n    if(category==='fix')return ['concat','FIX ',name];\n    if(category==='airway')return name;\n    if(category==='airspace'){\n      return ['concat',name,\n        ['case',\n          ['any',['!=',lower,''],['!=',upper,'']],\n          ['concat','\\n',lower,\n            ['case',['all',['!=',lower,''],['!=',upper,'']],' – ',''],\n            upper\n          ],\n          ''\n        ]\n      ];\n    }\n    if(category==='runway')return ['concat','RWY ',name];\n    if(category==='obstacle')return ['concat','OBS ',name];\n    return name;\n  }\n\n  function aeronavVfrAddLayer(def){\n    try{\n      if(!state.map?.getLayer?.(def.id))state.map.addLayer(def);\n      return true;\n    }catch(e){\n      console.warn('AERONAV VFR layer',def.id,e);\n      return false;\n    }\n  }\n\n  function aeronavVfrStyleSourceLayer(sourceLayer,index){\n    const source=ANGOLA_VFR_SOURCE_ID;\n    const sid=String(sourceLayer);\n    const safe=angolaSafeLayerId(sid);\n    const base=`angola-vfr-${index}-${safe}`;\n    const cat=aeronavVfrCategory(sid);\n    const geomPoint=['==',['geometry-type'],'Point'];\n    const geomLine=['==',['geometry-type'],'LineString'];\n    const geomPoly=['==',['geometry-type'],'Polygon'];\n\n    if(cat==='airspace'){\n      aeronavVfrAddLayer({\n        id:base+'-fill',type:'fill',source,'source-layer':sid,\n        filter:geomPoly,\n        paint:{'fill-color':'#1677a8','fill-opacity':0.055}\n      });\n      aeronavVfrAddLayer({\n        id:base+'-line',type:'line',source,'source-layer':sid,\n        filter:['any',geomLine,geomPoly],\n        paint:{\n          'line-color':'#44c8ff',\n          'line-width':['interpolate',['linear'],['zoom'],5,1.1,10,1.8,16,2.8],\n          'line-dasharray':[4,2],\n          'line-opacity':0.95\n        }\n      });\n      aeronavVfrAddLayer({\n        id:base+'-label',type:'symbol',source,'source-layer':sid,\n        minzoom:6,\n        layout:{\n          'text-field':aeronavVfrLabelExpr(cat),\n          'text-font':['Noto Sans Regular'],\n          'text-size':['interpolate',['linear'],['zoom'],6,9,12,11,16,13],\n          'text-max-width':14,\n          'text-allow-overlap':false,\n          'text-padding':3\n        },\n        paint:{\n          'text-color':'#8bddff',\n          'text-halo-color':'#06131f',\n          'text-halo-width':2\n        }\n      });\n      return;\n    }\n\n    if(cat==='airway'){\n      aeronavVfrAddLayer({\n        id:base+'-line',type:'line',source,'source-layer':sid,\n        filter:geomLine,\n        paint:{\n          'line-color':'#6fd8ff',\n          'line-width':['interpolate',['linear'],['zoom'],5,0.8,10,1.4,16,2.1],\n          'line-opacity':0.82\n        }\n      });\n      aeronavVfrAddLayer({\n        id:base+'-label',type:'symbol',source,'source-layer':sid,\n        filter:geomLine,minzoom:7,\n        layout:{\n          'symbol-placement':'line',\n          'text-field':aeronavVfrLabelExpr(cat),\n          'text-font':['Noto Sans Regular'],\n          'text-size':10,\n          'symbol-spacing':300,\n          'text-allow-overlap':false\n        },\n        paint:{\n          'text-color':'#d7f6ff',\n          'text-halo-color':'#06131f',\n          'text-halo-width':2\n        }\n      });\n      return;\n    }\n\n    if(cat==='runway'){\n      aeronavVfrAddLayer({\n        id:base+'-line',type:'line',source,'source-layer':sid,\n        filter:geomLine,\n        paint:{\n          'line-color':'#f6f8fa',\n          'line-width':['interpolate',['linear'],['zoom'],8,2,14,5,18,10],\n          'line-opacity':0.95\n        }\n      });\n      aeronavVfrAddLayer({\n        id:base+'-label',type:'symbol',source,'source-layer':sid,\n        minzoom:10,\n        layout:{\n          'text-field':aeronavVfrLabelExpr(cat),\n          'text-font':['Noto Sans Regular'],\n          'text-size':10,\n          'text-offset':[0,1.2]\n        },\n        paint:{\n          'text-color':'#ffffff',\n          'text-halo-color':'#06131f',\n          'text-halo-width':2\n        }\n      });\n      return;\n    }\n\n    if(['airport','navaid','fix','obstacle'].includes(cat)){\n      const cfg={\n        airport:{color:'#46c9ff',radius:[4,6,16,9],stroke:'#e7fbff',prefix:'APT'},\n        navaid:{color:'#a96cff',radius:[5,5,16,7],stroke:'#efe3ff',prefix:'NAV'},\n        fix:{color:'#ffd166',radius:[6,3,16,5],stroke:'#fff2bd',prefix:'FIX'},\n        obstacle:{color:'#ff6b6b',radius:[8,3,16,6],stroke:'#ffe3e3',prefix:'OBS'}\n      }[cat];\n      aeronavVfrAddLayer({\n        id:base+'-point',type:'circle',source,'source-layer':sid,\n        filter:geomPoint,\n        paint:{\n          'circle-color':cfg.color,\n          'circle-radius':['interpolate',['linear'],['zoom'],cfg.radius[0],cfg.radius[1],cfg.radius[2],cfg.radius[3]],\n          'circle-stroke-color':cfg.stroke,\n          'circle-stroke-width':1.5,\n          'circle-opacity':0.98\n        }\n      });\n      aeronavVfrAddLayer({\n        id:base+'-label',type:'symbol',source,'source-layer':sid,\n        filter:geomPoint,minzoom:cat==='airport'?6:8,\n        layout:{\n          'text-field':aeronavVfrLabelExpr(cat),\n          'text-font':['Noto Sans Regular'],\n          'text-size':['interpolate',['linear'],['zoom'],7,9,13,11,17,13],\n          'text-offset':[0,1.35],\n          'text-anchor':'top',\n          'text-allow-overlap':false,\n          'text-padding':2\n        },\n        paint:{\n          'text-color':cfg.stroke,\n          'text-halo-color':'#06131f',\n          'text-halo-width':2\n        }\n      });\n      return;\n    }\n\n    // Generic source layer: preserve every geometry and add aviation-aware\n    // styling when the producer stores the feature type in properties.\n    const kind=aeronavVfrFeatureKindExpr();\n    const airportKinds=['airport','aerodrome','heliport'];\n    const navaidKinds=['vor','vor-dme','vordme','ndb','dme','navaid','beacon'];\n    const fixKinds=['fix','waypoint','reporting_point','reporting-point','intersection'];\n    const airwayKinds=['airway','route','ats-route','ats_route'];\n    const airspaceKinds=['airspace','fir','uir','ctr','tma','cta','restricted','prohibited','danger'];\n\n    aeronavVfrAddLayer({\n      id:base+'-generic-fill',type:'fill',source,'source-layer':sid,\n      filter:geomPoly,\n      paint:{'fill-color':'#147da5','fill-opacity':0.045}\n    });\n    aeronavVfrAddLayer({\n      id:base+'-generic-line',type:'line',source,'source-layer':sid,\n      filter:['any',geomLine,geomPoly],\n      paint:{\n        'line-color':'#57cffa',\n        'line-width':['interpolate',['linear'],['zoom'],5,0.7,12,1.4,17,2.2],\n        'line-opacity':0.72\n      }\n    });\n\n    aeronavVfrAddLayer({\n      id:base+'-generic-airspace',type:'line',source,'source-layer':sid,\n      filter:['all',['any',geomLine,geomPoly],['match',kind,airspaceKinds,true,false]],\n      paint:{'line-color':'#41c8ff','line-width':2,'line-dasharray':[4,2],'line-opacity':1}\n    });\n    aeronavVfrAddLayer({\n      id:base+'-generic-airway',type:'line',source,'source-layer':sid,\n      filter:['all',geomLine,['match',kind,airwayKinds,true,false]],\n      paint:{'line-color':'#7fe2ff','line-width':1.6,'line-opacity':0.9}\n    });\n\n    const pointKinds=[\n      {suffix:'airport',values:airportKinds,color:'#46c9ff',stroke:'#e7fbff',radius:7},\n      {suffix:'navaid',values:navaidKinds,color:'#a96cff',stroke:'#efe3ff',radius:6},\n      {suffix:'fix',values:fixKinds,color:'#ffd166',stroke:'#fff2bd',radius:4}\n    ];\n    pointKinds.forEach(p=>{\n      aeronavVfrAddLayer({\n        id:base+'-generic-'+p.suffix,type:'circle',source,'source-layer':sid,\n        filter:['all',geomPoint,['match',kind,p.values,true,false]],\n        paint:{\n          'circle-color':p.color,'circle-radius':p.radius,\n          'circle-stroke-color':p.stroke,'circle-stroke-width':1.5\n        }\n      });\n    });\n\n    aeronavVfrAddLayer({\n      id:base+'-generic-point',type:'circle',source,'source-layer':sid,\n      filter:geomPoint,\n      paint:{\n        'circle-color':'#f5b942',\n        'circle-radius':['interpolate',['linear'],['zoom'],5,2.2,13,4,18,5.5],\n        'circle-stroke-color':'#071725',\n        'circle-stroke-width':1\n      }\n    });\n    aeronavVfrAddLayer({\n      id:base+'-generic-label',type:'symbol',source,'source-layer':sid,\n      minzoom:7,\n      layout:{\n        'text-field':aeronavVfrNameExpr(),\n        'text-font':['Noto Sans Regular'],\n        'text-size':['interpolate',['linear'],['zoom'],7,9,14,11,18,13],\n        'text-offset':[0,1.2],\n        'text-anchor':'top',\n        'text-allow-overlap':false,\n        'text-padding':2\n      },\n      paint:{\n        'text-color':'#eefbff',\n        'text-halo-color':'#06131f',\n        'text-halo-width':2\n      }\n    });\n  }\n\n  async function angolaApplyVfrOverlay(){\n    if(state.mode!=='flight'||!state.map)return false;\n    initPmtilesProtocol();if(!state.pmtilesProtocol)return false;\n    const rec=await angolaFindRecord(ANGOLA_VFR_ID);if(!rec?.blob)return false;\n    await angolaWaitStyle(3000);if(!state.map)return false;\n    try{\n      if(state.map.getSource?.(ANGOLA_VFR_SOURCE_ID))return true;\n      const file=rec.blob instanceof File?rec.blob:new File(\n        [rec.blob],rec.key||rec.name,\n        {type:'application/octet-stream',lastModified:rec.savedAt||Date.now()}\n      );\n      const src=new pmtiles.PMTiles(new pmtiles.FileSource(file));\n      state.pmtilesProtocol.add(src);\n\n      let layers=Array.isArray(rec.vectorLayers)?rec.vectorLayers.filter(Boolean):[];\n      if(!layers.length){\n        try{\n          const meta=await src.getMetadata()||{};\n          let raw=meta.vector_layers;\n          if(typeof raw==='string'){try{raw=JSON.parse(raw)}catch(_){raw=[]}}\n          layers=(Array.isArray(raw)?raw:[]).map(v=>typeof v==='string'?v:v?.id).filter(Boolean);\n        }catch(_){}\n      }\n\n      state.map.addSource(ANGOLA_VFR_SOURCE_ID,{\n        type:'vector',\n        url:`pmtiles://${file.name}`,\n        attribution:'AERONAV Angola VFR'\n      });\n\n      layers.forEach((sourceLayer,i)=>aeronavVfrStyleSourceLayer(sourceLayer,i));\n\n      state._angolaVfrLayerCount=layers.length;\n      state._angolaVfrAppliedAt=Date.now();\n      return true;\n    }catch(e){\n      console.warn('AERONAV Angola VFR',e);\n      return false;\n    }\n  }\n\n  async function angolaFindRecord"+index[m.end():]
+
+          # 3) Higher-quality Protomaps basemap style.
+          pattern=r"  function protomapsPmtilesLayers\(\)\{.*?\n  function localPmtilesStyle"
+          m=re.search(pattern,index,flags=re.S)
+          if not m:
+              raise SystemExit("Função protomapsPmtilesLayers atual não encontrada.")
+          index=index[:m.start()]+"  function protomapsPmtilesLayers(metadata={}){\n    const ids=new Set(pmtilesVectorLayerIds(metadata));\n    const has=id=>!ids.size||ids.has(id);\n    const layers=[\n      {id:'pm-earth',type:'fill',source:'offline','source-layer':'earth',\n        paint:{'fill-color':'#19343a'}},\n      {id:'pm-landcover',type:'fill',source:'offline','source-layer':'landcover',\n        paint:{'fill-color':'#234638','fill-opacity':0.62}},\n      {id:'pm-landuse',type:'fill',source:'offline','source-layer':'landuse',\n        paint:{'fill-color':'#294447','fill-opacity':0.58}},\n      {id:'pm-water',type:'fill',source:'offline','source-layer':'water',\n        paint:{'fill-color':'#0b4054','fill-opacity':0.98}},\n      {id:'pm-boundaries',type:'line',source:'offline','source-layer':'boundaries',\n        paint:{\n          'line-color':'#7f9aa5',\n          'line-width':['interpolate',['linear'],['zoom'],2,0.5,8,1.1,14,1.8],\n          'line-dasharray':[3,2],\n          'line-opacity':0.62\n        }},\n      {id:'pm-buildings',type:'fill',source:'offline','source-layer':'buildings',minzoom:13,\n        paint:{'fill-color':'#526a73','fill-opacity':0.72}},\n      {id:'pm-road-casing',type:'line',source:'offline','source-layer':'roads',\n        layout:{'line-cap':'round','line-join':'round'},\n        paint:{\n          'line-color':'#15262d',\n          'line-width':['interpolate',['linear'],['zoom'],5,1.5,10,2.7,14,5.5,17,10],\n          'line-opacity':0.95\n        }},\n      {id:'pm-roads',type:'line',source:'offline','source-layer':'roads',\n        layout:{'line-cap':'round','line-join':'round'},\n        paint:{\n          'line-color':['match',['get','kind'],\n            ['highway','major_road'],'#c7d7dc',\n            ['medium_road'],'#9eb4bb',\n            ['minor_road'],'#708993',\n            '#607984'\n          ],\n          'line-width':['interpolate',['linear'],['zoom'],5,0.6,10,1.3,14,3.2,17,7.2],\n          'line-opacity':0.98\n        }},\n      {id:'pm-road-labels',type:'symbol',source:'offline','source-layer':'roads',minzoom:12,\n        filter:['has','name'],\n        layout:{\n          'symbol-placement':'line',\n          'text-field':['coalesce',['get','name:pt'],['get','name'],''],\n          'text-font':['Noto Sans Regular'],\n          'text-size':['interpolate',['linear'],['zoom'],12,9,16,11,19,13],\n          'symbol-spacing':350,\n          'text-allow-overlap':false\n        },\n        paint:{\n          'text-color':'#c9dbe0',\n          'text-halo-color':'#071a24',\n          'text-halo-width':2\n        }},\n      {id:'pm-water-labels',type:'symbol',source:'offline','source-layer':'water',minzoom:5,\n        filter:['has','name'],\n        layout:{\n          'text-field':['coalesce',['get','name:pt'],['get','name'],''],\n          'text-font':['Noto Sans Regular'],\n          'text-size':['interpolate',['linear'],['zoom'],5,9,14,12],\n          'text-allow-overlap':false\n        },\n        paint:{\n          'text-color':'#67c8e5',\n          'text-halo-color':'#071a24',\n          'text-halo-width':1.5\n        }},\n      {id:'pm-places',type:'symbol',source:'offline','source-layer':'places',\n        layout:{\n          'text-field':['coalesce',['get','name:pt'],['get','name'],''],\n          'text-font':['Noto Sans Regular'],\n          'text-size':['interpolate',['linear'],['zoom'],3,10,7,12,11,14,16,17],\n          'text-max-width':12,\n          'text-allow-overlap':false,\n          'text-padding':3\n        },\n        paint:{\n          'text-color':'#eef8fa',\n          'text-halo-color':'#071a24',\n          'text-halo-width':2\n        }},\n      {id:'pm-pois',type:'symbol',source:'offline','source-layer':'pois',minzoom:13,\n        filter:['has','name'],\n        layout:{\n          'text-field':['coalesce',['get','name:pt'],['get','name'],''],\n          'text-font':['Noto Sans Regular'],\n          'text-size':10,\n          'text-offset':[0,0.9],\n          'text-anchor':'top',\n          'text-allow-overlap':false\n        },\n        paint:{\n          'text-color':'#b9cbd1',\n          'text-halo-color':'#071a24',\n          'text-halo-width':1.5\n        }}\n    ];\n    return layers.filter(l=>has(l['source-layer']));\n  }\n\n  function localPmtilesStyle"+index[m.end():]
+
+          index=replace_once(
+              index,
+              "if(schema==='protomaps') dataLayers=protomapsPmtilesLayers();",
+              "if(schema==='protomaps') dataLayers=protomapsPmtilesLayers(metadata);",
+              "Protomaps metadata"
+          )
+
+          # 4) A selected Protomaps basemap must take priority over Angola VECTOR.
+          old="""  function offlineMapAvailable(maps,kind){
+              return maps.some(m=>m.blob&&(angolaAssetByName(m.name)?.id===ANGOLA_VECTOR_ID||((m.kind||'terrestrial')===kind&&angolaAssetByName(m.name)?.id!==ANGOLA_VFR_ID)));
+            }"""
+          new="""  function offlineMapAvailable(maps,kind){
+              return maps.some(m=>m.blob&&(
+                m.kind==='basemap'||
+                angolaAssetByName(m.name)?.id===ANGOLA_VECTOR_ID||
+                ((m.kind||'terrestrial')===kind&&angolaAssetByName(m.name)?.id!==ANGOLA_VFR_ID)
+              ));
+            }"""
+          index=replace_once(index,old,new,"offlineMapAvailable")
+
+          old="""  async function getOfflineMapRecord(kind,position=state.currentPosition){
+              const list=await dbAll('maps');
+              const angolaVector=list.find(m=>angolaAssetByName(m.name)?.id===ANGOLA_VECTOR_ID);"""
+          new="""  async function getOfflineMapRecord(kind,position=state.currentPosition){
+              const list=await dbAll('maps');
+              const selectedBaseId=localStorage.getItem('aeronav.offlineBase.selected')||'';
+              const selectedBase=list.find(m=>m.id===selectedBaseId&&m.blob&&m.kind==='basemap');
+              if(selectedBase&&(!position||!Array.isArray(selectedBase.bounds)||pointInsideBounds(position,selectedBase.bounds)))return selectedBase;
+              const angolaVector=list.find(m=>angolaAssetByName(m.name)?.id===ANGOLA_VECTOR_ID);"""
+          index=replace_once(index,old,new,"selected Protomaps base")
+
+          old="""    const offline=state.net==='offline'||!navigator.onLine;
+              const p=angolaPos(state.currentPosition);
+              if(!offline||(p&&!angolaInside(p,ANGOLA_MAP_BOUNDS)))return false;"""
+          new="""    const offline=state.net==='offline'||!navigator.onLine;
+              const p=angolaPos(state.currentPosition);
+              const selectedBase=state.offlineMapRecord?.kind==='basemap'&&state.preferOfflineMap;
+              if(selectedBase&&(!p||!Array.isArray(state.offlineMapRecord.bounds)||pointInsideBounds(p,state.offlineMapRecord.bounds)))return false;
+              if(!offline||(p&&!angolaInside(p,ANGOLA_MAP_BOUNDS)))return false;"""
+          index=replace_once(index,old,new,"Angola base priority")
+
+          old="const preferred=state.preferOfflineMap&&state.offlineMapRecord&&state.mode==='flight'&&state.positionSource==='device'&&(!Array.isArray(state.offlineMapRecord.bounds)||!state.currentPosition||pointInsideBounds(state.currentPosition,state.offlineMapRecord.bounds));"
+          new="const preferred=state.preferOfflineMap&&state.offlineMapRecord&&((state.offlineMapRecord.kind==='basemap')||(state.mode==='flight'&&state.positionSource==='device'))&&(!Array.isArray(state.offlineMapRecord.bounds)||!state.currentPosition||pointInsideBounds(state.currentPosition,state.offlineMapRecord.bounds));"
+          index=replace_once(index,old,new,"preferred offline base")
+
+          # 5) Friendly labels for basemap records.
+          old="toast(`Mapa ${f.name} guardado apenas neste dispositivo (${kind==='aviation'?'VOO':'CONDUÇÃO'}).`);"
+          new="toast(`Mapa ${f.name} guardado apenas neste dispositivo (${kind==='aviation'?'VOO':kind==='basemap'?'MAPA BASE':'CONDUÇÃO'}).`);"
+          index=replace_once(index,old,new,"storePmtilesFile toast")
+
+          # 6) Inject Protomaps manager UI before file import event bindings.
+          anchor="  // ---------- File import ----------"
+          if "AERONAV_PROTOMAPS_MANAGER_RC1236_BEGIN" not in index:
+              if index.count(anchor)!=1:
+                  raise SystemExit(f"Âncora File import: esperado 1, encontradas {index.count(anchor)}.")
+              index=index.replace(anchor,'  // AERONAV_PROTOMAPS_MANAGER_RC1236_BEGIN\n  const AERONAV_BASEMAP_SELECTED_KEY=\'aeronav.offlineBase.selected\';\n\n  function aeronavBaseKindLabel(kind){\n    if(kind===\'basemap\')return \'MAPA BASE\';\n    if(kind===\'aviation\')return \'VOO\';\n    if(kind===\'terrain\')return \'TERRENO\';\n    return \'CONDUÇÃO\';\n  }\n\n  async function aeronavUseProtomapsBase(id){\n    const maps=await dbAll(\'maps\');\n    const rec=maps.find(m=>m.id===id&&m.blob);\n    if(!rec)throw new Error(\'Mapa Protomaps não encontrado neste dispositivo.\');\n    if(rec.pmtilesSchema!==\'protomaps\')throw new Error(\'O ficheiro selecionado não foi identificado como Protomaps.\');\n\n    localStorage.setItem(AERONAV_BASEMAP_SELECTED_KEY,rec.id);\n    state.offlineMapRecord=rec;\n    state.preferOfflineMap=true;\n    state.net=\'offline\';\n    localStorage.setItem(\'aeronav.net\',\'offline\');\n    syncSegments();\n\n    if(state.activeTab!==\'map\')setTab(\'map\');\n    await ensureMapStack(true);\n    await useOfflinePmtiles(rec);\n\n    if(state.mode===\'flight\'){\n      try{await angolaApplyTerrain();}catch(_){}\n      try{await angolaApplyVfrOverlay();}catch(_){}\n    }\n    if(state.currentPosition&&state.followOwnship)setTimeout(()=>forceCenterOnPosition(state.currentPosition),120);\n    toast(\'Protomaps offline ativo como mapa-base.\');\n  }\n\n  async function aeronavClearProtomapsBase(){\n    localStorage.removeItem(AERONAV_BASEMAP_SELECTED_KEY);\n    state.preferOfflineMap=false;\n    state.offlineMapRecord=null;\n    toast(\'Mapa-base automático restaurado.\');\n    if(state.activeTab===\'map\')await updateMapMode();\n    if(state.activeTab===\'offline\')renderOfflineScreen();\n  }\n\n  async function aeronavInjectProtomapsCard(){\n    const cards=document.querySelector(\'#screen-offline .cards\');\n    if(!cards)return;\n    document.getElementById(\'aeronavProtomapsCard\')?.remove();\n\n    const maps=(await dbAll(\'maps\')).filter(m=>m?.blob&&m.pmtilesSchema===\'protomaps\');\n    const selected=localStorage.getItem(AERONAV_BASEMAP_SELECTED_KEY)||\'\';\n    const card=document.createElement(\'div\');\n    card.className=\'card\';\n    card.id=\'aeronavProtomapsCard\';\n\n    const rows=maps.length?maps.map(m=>`\n      <div class="list-item">\n        <div class="item-icon">🌍</div>\n        <div class="item-main">\n          <strong>${esc(m.name)}</strong>\n          <small>${(m.size/1024/1024/1024)>=1?(m.size/1024/1024/1024).toFixed(1)+\' GB\':(m.size/1024/1024).toFixed(1)+\' MB\'} · Protomaps · Z${m.minZoom??\'—\'}–${m.maxZoom??\'—\'}</small>\n        </div>\n        <span class="badge ${selected===m.id?\'ok\':\'info\'}">${selected===m.id?\'ATIVO\':\'PRONTO\'}</span>\n        <button class="icon-btn" data-use-protomaps="${m.id}">Usar</button>\n      </div>`).join(\'\'):\'<div class="empty">Nenhum mapa Protomaps importado.</div>\';\n\n    card.innerHTML=`\n      <div class="page-head">\n        <div>\n          <h3>🌍 Base Protomaps + PMTiles</h3>\n          <p>Mapa vetorial de alta qualidade para VOO, CARRO e A PÉ.</p>\n        </div>\n        <span class="badge ${maps.length?\'ok\':\'info\'}">${maps.length} MAPA${maps.length===1?\'\':\'S\'}</span>\n      </div>\n      <div class="sub">O Protomaps funciona como mapa-base. No modo VOO, o AERONAV coloca por cima VFR, navegação, rota, ADS-B e relevo quando disponíveis.</div>\n      <div class="btn-row" style="margin-top:12px">\n        <button class="primary-btn" id="importProtomapsBase">Importar Protomaps PMTiles</button>\n        ${selected?\'<button class="secondary-btn" id="clearProtomapsBase">Usar seleção automática</button>\':\'\'}\n      </div>\n      <div class="list" style="margin-top:12px">${rows}</div>\n      <div class="notice good" style="margin-top:10px">Recomendado: dividir o mundo por continente/região. O ficheiro permanece vetorial e mantém texto/linhas nítidos em qualquer resolução.</div>`;\n\n    cards.insertBefore(card,cards.firstChild);\n\n    card.querySelector(\'#importProtomapsBase\')?.addEventListener(\'click\',()=>{\n      state.pendingMapKind=\'basemap\';\n      $(\'#pmtilesFileInput\')?.click();\n    });\n    card.querySelector(\'#clearProtomapsBase\')?.addEventListener(\'click\',()=>aeronavClearProtomapsBase().catch(e=>toast(e.message||String(e))));\n    card.querySelectorAll(\'[data-use-protomaps]\').forEach(b=>b.addEventListener(\'click\',()=>{\n      aeronavUseProtomapsBase(b.dataset.useProtomaps).catch(e=>toast(e.message||String(e)));\n    }));\n  }\n\n  const aeronavRenderOfflineBeforeProtomaps=renderOfflineScreen;\n  renderOfflineScreen=async function(...args){\n    const out=await aeronavRenderOfflineBeforeProtomaps.apply(this,args);\n    setTimeout(()=>aeronavInjectProtomapsCard().catch(e=>console.warn(\'AERONAV Protomaps UI\',e)),0);\n    return out;\n  };\n  // AERONAV_PROTOMAPS_MANAGER_RC1236_END'+ "\n\n"+anchor,1)
+
+          # Diagnostics exported for the in-app health/debug screen and Safari console.
+          diag_anchor="  // ---------- events ----------"
+          diag=r"""
+            window.AERONAV_AVIATION_OFFLINE_DIAGNOSTICS=async()=>{
+              const maps=await dbAll('maps').catch(()=>[]);
+              const selected=localStorage.getItem('aeronav.offlineBase.selected')||'';
+              return {
+                release:'RC12.36',
+                selectedBase:selected,
+                base:maps.filter(m=>m.kind==='basemap').map(m=>({id:m.id,name:m.name,schema:m.pmtilesSchema,bounds:m.bounds,minZoom:m.minZoom,maxZoom:m.maxZoom})),
+                angola:{
+                  vector:!!(await angolaFindRecord(ANGOLA_VECTOR_ID).catch(()=>null)),
+                  vfr:!!(await angolaFindRecord(ANGOLA_VFR_ID).catch(()=>null)),
+                  terrainInstalled:maps.filter(m=>m.kind==='terrain'&&String(m.bundle||'').includes('angola')).length,
+                  vfrLayerCount:Number(state._angolaVfrLayerCount||0),
+                  vfrAppliedAt:Number(state._angolaVfrAppliedAt||0),
+                  terrainActiveId:state._angolaTerrainRecordId||''
+                },
+                mapStyle:state.currentMapStyle,
+                mode:state.mode,
+                net:state.net
+              };
+            };
+          """
+          if "AERONAV_AVIATION_OFFLINE_DIAGNOSTICS" not in index:
+              index=index.replace(diag_anchor,diag+"\n"+diag_anchor,1)
+
+          # Guards.
+          required=[
+              "AERONAV_PROTOMAPS_MANAGER_RC1236_BEGIN",
+              "AERONAV_AVIATION_OFFLINE_DIAGNOSTICS",
+              "aeronavVfrStyleSourceLayer",
+              "Protomaps offline ativo como mapa-base.",
+              "if(!['drive','flight'].includes(state.mode)||!state.map)return false;",
+              "protomapsPmtilesLayers(metadata)"
+          ]
+          for token in required:
+              if token not in index:
+                  raise SystemExit("Validação falhou: "+token)
+
+          index_path.write_text(index,encoding="utf-8")
+          sw_path.write_text(sw,encoding="utf-8")
+          print("RC12.36 Aviation + Protomaps aplicado com sucesso.")
+
+          PY
+          python3 /tmp/install_rc12_36.py
+
+      - name: Validate HTML JavaScript markers
+        shell: bash
+        run: |
+          grep -q "aeronavVfrStyleSourceLayer" index.html
+          grep -q "AERONAV_PROTOMAPS_MANAGER_RC1236_BEGIN" index.html
+          grep -q "AERONAV_AVIATION_OFFLINE_DIAGNOSTICS" index.html
+          grep -q "RC12.36" index.html
+          grep -q "RC12_36" sw.js
+
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html sw.js
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "RC12.36 aviation VFR styling and Protomaps basemap"
+            git push
+          fi
