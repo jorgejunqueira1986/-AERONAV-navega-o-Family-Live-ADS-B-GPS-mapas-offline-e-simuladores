@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.35</title>
+  <title>AERONAV — RC12.36</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -2396,7 +2396,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
   async function angolaApplyTerrain(){
-    if(state.mode!=='drive'||!state.map)return false;
+    if(!['drive','flight'].includes(state.mode)||!state.map)return false;
     const rec=await angolaTerrainRecord(state.currentPosition).catch(()=>null);
     if(!rec?.blob)return false;
     await angolaWaitStyle(2500);
@@ -2416,30 +2416,356 @@ body{min-height:var(--app-vh);margin:0}
   }
 
   function angolaSafeLayerId(s){return String(s||'layer').replace(/[^a-zA-Z0-9_-]+/g,'-').slice(0,80);}
+
+  function aeronavVfrCategory(sourceLayer=''){
+    const s=String(sourceLayer||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if(/runway|pista/.test(s))return 'runway';
+    if(/airport|aerodrome|aerodromo|heliport/.test(s))return 'airport';
+    if(/vor|ndb|dme|navaid|beacon|radio/.test(s))return 'navaid';
+    if(/fix|waypoint|reporting|intersection|wpt/.test(s))return 'fix';
+    if(/airway|route|awy|ats/.test(s))return 'airway';
+    if(/airspace|fir|uir|ctr|tma|cta|restricted|prohibited|danger|class/.test(s))return 'airspace';
+    if(/obstacle|tower|mast/.test(s))return 'obstacle';
+    return 'generic';
+  }
+
+  function aeronavVfrNameExpr(){
+    return ['to-string',['coalesce',
+      ['get','name:pt'],['get','name'],['get','ident'],['get','icao'],
+      ['get','ref'],['get','code'],['get','id'],''
+    ]];
+  }
+
+  function aeronavVfrFrequencyExpr(){
+    return ['to-string',['coalesce',
+      ['get','frequency'],['get','frequency_mhz'],['get','freq_mhz'],['get','freq'],''
+    ]];
+  }
+
+  function aeronavVfrLowerExpr(){
+    return ['to-string',['coalesce',
+      ['get','lower_limit'],['get','lower'],['get','floor'],['get','lowerLimit'],''
+    ]];
+  }
+
+  function aeronavVfrUpperExpr(){
+    return ['to-string',['coalesce',
+      ['get','upper_limit'],['get','upper'],['get','ceiling'],['get','upperLimit'],''
+    ]];
+  }
+
+  function aeronavVfrFeatureKindExpr(){
+    return ['downcase',['to-string',['coalesce',
+      ['get','aeroway'],['get','type'],['get','kind'],['get','category'],
+      ['get','feature_type'],['get','class'],''
+    ]]];
+  }
+
+  function aeronavVfrLabelExpr(category){
+    const name=aeronavVfrNameExpr(),freq=aeronavVfrFrequencyExpr();
+    const lower=aeronavVfrLowerExpr(),upper=aeronavVfrUpperExpr();
+    if(category==='airport'){
+      return ['concat','APT ',name,
+        ['case',['!=',freq,''],['concat','  ',freq], '']
+      ];
+    }
+    if(category==='navaid'){
+      return ['concat','NAV ',name,
+        ['case',['!=',freq,''],['concat','  ',freq], '']
+      ];
+    }
+    if(category==='fix')return ['concat','FIX ',name];
+    if(category==='airway')return name;
+    if(category==='airspace'){
+      return ['concat',name,
+        ['case',
+          ['any',['!=',lower,''],['!=',upper,'']],
+          ['concat','\n',lower,
+            ['case',['all',['!=',lower,''],['!=',upper,'']],' – ',''],
+            upper
+          ],
+          ''
+        ]
+      ];
+    }
+    if(category==='runway')return ['concat','RWY ',name];
+    if(category==='obstacle')return ['concat','OBS ',name];
+    return name;
+  }
+
+  function aeronavVfrAddLayer(def){
+    try{
+      if(!state.map?.getLayer?.(def.id))state.map.addLayer(def);
+      return true;
+    }catch(e){
+      console.warn('AERONAV VFR layer',def.id,e);
+      return false;
+    }
+  }
+
+  function aeronavVfrStyleSourceLayer(sourceLayer,index){
+    const source=ANGOLA_VFR_SOURCE_ID;
+    const sid=String(sourceLayer);
+    const safe=angolaSafeLayerId(sid);
+    const base=`angola-vfr-${index}-${safe}`;
+    const cat=aeronavVfrCategory(sid);
+    const geomPoint=['==',['geometry-type'],'Point'];
+    const geomLine=['==',['geometry-type'],'LineString'];
+    const geomPoly=['==',['geometry-type'],'Polygon'];
+
+    if(cat==='airspace'){
+      aeronavVfrAddLayer({
+        id:base+'-fill',type:'fill',source,'source-layer':sid,
+        filter:geomPoly,
+        paint:{'fill-color':'#1677a8','fill-opacity':0.055}
+      });
+      aeronavVfrAddLayer({
+        id:base+'-line',type:'line',source,'source-layer':sid,
+        filter:['any',geomLine,geomPoly],
+        paint:{
+          'line-color':'#44c8ff',
+          'line-width':['interpolate',['linear'],['zoom'],5,1.1,10,1.8,16,2.8],
+          'line-dasharray':[4,2],
+          'line-opacity':0.95
+        }
+      });
+      aeronavVfrAddLayer({
+        id:base+'-label',type:'symbol',source,'source-layer':sid,
+        minzoom:6,
+        layout:{
+          'text-field':aeronavVfrLabelExpr(cat),
+          'text-font':['Noto Sans Regular'],
+          'text-size':['interpolate',['linear'],['zoom'],6,9,12,11,16,13],
+          'text-max-width':14,
+          'text-allow-overlap':false,
+          'text-padding':3
+        },
+        paint:{
+          'text-color':'#8bddff',
+          'text-halo-color':'#06131f',
+          'text-halo-width':2
+        }
+      });
+      return;
+    }
+
+    if(cat==='airway'){
+      aeronavVfrAddLayer({
+        id:base+'-line',type:'line',source,'source-layer':sid,
+        filter:geomLine,
+        paint:{
+          'line-color':'#6fd8ff',
+          'line-width':['interpolate',['linear'],['zoom'],5,0.8,10,1.4,16,2.1],
+          'line-opacity':0.82
+        }
+      });
+      aeronavVfrAddLayer({
+        id:base+'-label',type:'symbol',source,'source-layer':sid,
+        filter:geomLine,minzoom:7,
+        layout:{
+          'symbol-placement':'line',
+          'text-field':aeronavVfrLabelExpr(cat),
+          'text-font':['Noto Sans Regular'],
+          'text-size':10,
+          'symbol-spacing':300,
+          'text-allow-overlap':false
+        },
+        paint:{
+          'text-color':'#d7f6ff',
+          'text-halo-color':'#06131f',
+          'text-halo-width':2
+        }
+      });
+      return;
+    }
+
+    if(cat==='runway'){
+      aeronavVfrAddLayer({
+        id:base+'-line',type:'line',source,'source-layer':sid,
+        filter:geomLine,
+        paint:{
+          'line-color':'#f6f8fa',
+          'line-width':['interpolate',['linear'],['zoom'],8,2,14,5,18,10],
+          'line-opacity':0.95
+        }
+      });
+      aeronavVfrAddLayer({
+        id:base+'-label',type:'symbol',source,'source-layer':sid,
+        minzoom:10,
+        layout:{
+          'text-field':aeronavVfrLabelExpr(cat),
+          'text-font':['Noto Sans Regular'],
+          'text-size':10,
+          'text-offset':[0,1.2]
+        },
+        paint:{
+          'text-color':'#ffffff',
+          'text-halo-color':'#06131f',
+          'text-halo-width':2
+        }
+      });
+      return;
+    }
+
+    if(['airport','navaid','fix','obstacle'].includes(cat)){
+      const cfg={
+        airport:{color:'#46c9ff',radius:[4,6,16,9],stroke:'#e7fbff',prefix:'APT'},
+        navaid:{color:'#a96cff',radius:[5,5,16,7],stroke:'#efe3ff',prefix:'NAV'},
+        fix:{color:'#ffd166',radius:[6,3,16,5],stroke:'#fff2bd',prefix:'FIX'},
+        obstacle:{color:'#ff6b6b',radius:[8,3,16,6],stroke:'#ffe3e3',prefix:'OBS'}
+      }[cat];
+      aeronavVfrAddLayer({
+        id:base+'-point',type:'circle',source,'source-layer':sid,
+        filter:geomPoint,
+        paint:{
+          'circle-color':cfg.color,
+          'circle-radius':['interpolate',['linear'],['zoom'],cfg.radius[0],cfg.radius[1],cfg.radius[2],cfg.radius[3]],
+          'circle-stroke-color':cfg.stroke,
+          'circle-stroke-width':1.5,
+          'circle-opacity':0.98
+        }
+      });
+      aeronavVfrAddLayer({
+        id:base+'-label',type:'symbol',source,'source-layer':sid,
+        filter:geomPoint,minzoom:cat==='airport'?6:8,
+        layout:{
+          'text-field':aeronavVfrLabelExpr(cat),
+          'text-font':['Noto Sans Regular'],
+          'text-size':['interpolate',['linear'],['zoom'],7,9,13,11,17,13],
+          'text-offset':[0,1.35],
+          'text-anchor':'top',
+          'text-allow-overlap':false,
+          'text-padding':2
+        },
+        paint:{
+          'text-color':cfg.stroke,
+          'text-halo-color':'#06131f',
+          'text-halo-width':2
+        }
+      });
+      return;
+    }
+
+    // Generic source layer: preserve every geometry and add aviation-aware
+    // styling when the producer stores the feature type in properties.
+    const kind=aeronavVfrFeatureKindExpr();
+    const airportKinds=['airport','aerodrome','heliport'];
+    const navaidKinds=['vor','vor-dme','vordme','ndb','dme','navaid','beacon'];
+    const fixKinds=['fix','waypoint','reporting_point','reporting-point','intersection'];
+    const airwayKinds=['airway','route','ats-route','ats_route'];
+    const airspaceKinds=['airspace','fir','uir','ctr','tma','cta','restricted','prohibited','danger'];
+
+    aeronavVfrAddLayer({
+      id:base+'-generic-fill',type:'fill',source,'source-layer':sid,
+      filter:geomPoly,
+      paint:{'fill-color':'#147da5','fill-opacity':0.045}
+    });
+    aeronavVfrAddLayer({
+      id:base+'-generic-line',type:'line',source,'source-layer':sid,
+      filter:['any',geomLine,geomPoly],
+      paint:{
+        'line-color':'#57cffa',
+        'line-width':['interpolate',['linear'],['zoom'],5,0.7,12,1.4,17,2.2],
+        'line-opacity':0.72
+      }
+    });
+
+    aeronavVfrAddLayer({
+      id:base+'-generic-airspace',type:'line',source,'source-layer':sid,
+      filter:['all',['any',geomLine,geomPoly],['match',kind,airspaceKinds,true,false]],
+      paint:{'line-color':'#41c8ff','line-width':2,'line-dasharray':[4,2],'line-opacity':1}
+    });
+    aeronavVfrAddLayer({
+      id:base+'-generic-airway',type:'line',source,'source-layer':sid,
+      filter:['all',geomLine,['match',kind,airwayKinds,true,false]],
+      paint:{'line-color':'#7fe2ff','line-width':1.6,'line-opacity':0.9}
+    });
+
+    const pointKinds=[
+      {suffix:'airport',values:airportKinds,color:'#46c9ff',stroke:'#e7fbff',radius:7},
+      {suffix:'navaid',values:navaidKinds,color:'#a96cff',stroke:'#efe3ff',radius:6},
+      {suffix:'fix',values:fixKinds,color:'#ffd166',stroke:'#fff2bd',radius:4}
+    ];
+    pointKinds.forEach(p=>{
+      aeronavVfrAddLayer({
+        id:base+'-generic-'+p.suffix,type:'circle',source,'source-layer':sid,
+        filter:['all',geomPoint,['match',kind,p.values,true,false]],
+        paint:{
+          'circle-color':p.color,'circle-radius':p.radius,
+          'circle-stroke-color':p.stroke,'circle-stroke-width':1.5
+        }
+      });
+    });
+
+    aeronavVfrAddLayer({
+      id:base+'-generic-point',type:'circle',source,'source-layer':sid,
+      filter:geomPoint,
+      paint:{
+        'circle-color':'#f5b942',
+        'circle-radius':['interpolate',['linear'],['zoom'],5,2.2,13,4,18,5.5],
+        'circle-stroke-color':'#071725',
+        'circle-stroke-width':1
+      }
+    });
+    aeronavVfrAddLayer({
+      id:base+'-generic-label',type:'symbol',source,'source-layer':sid,
+      minzoom:7,
+      layout:{
+        'text-field':aeronavVfrNameExpr(),
+        'text-font':['Noto Sans Regular'],
+        'text-size':['interpolate',['linear'],['zoom'],7,9,14,11,18,13],
+        'text-offset':[0,1.2],
+        'text-anchor':'top',
+        'text-allow-overlap':false,
+        'text-padding':2
+      },
+      paint:{
+        'text-color':'#eefbff',
+        'text-halo-color':'#06131f',
+        'text-halo-width':2
+      }
+    });
+  }
+
   async function angolaApplyVfrOverlay(){
     if(state.mode!=='flight'||!state.map)return false;
     initPmtilesProtocol();if(!state.pmtilesProtocol)return false;
     const rec=await angolaFindRecord(ANGOLA_VFR_ID);if(!rec?.blob)return false;
-    await angolaWaitStyle(2500);if(!state.map)return false;
+    await angolaWaitStyle(3000);if(!state.map)return false;
     try{
       if(state.map.getSource?.(ANGOLA_VFR_SOURCE_ID))return true;
-      const file=rec.blob instanceof File?rec.blob:new File([rec.blob],rec.key||rec.name,{type:'application/octet-stream',lastModified:rec.savedAt||Date.now()});
+      const file=rec.blob instanceof File?rec.blob:new File(
+        [rec.blob],rec.key||rec.name,
+        {type:'application/octet-stream',lastModified:rec.savedAt||Date.now()}
+      );
       const src=new pmtiles.PMTiles(new pmtiles.FileSource(file));
       state.pmtilesProtocol.add(src);
+
       let layers=Array.isArray(rec.vectorLayers)?rec.vectorLayers.filter(Boolean):[];
-      if(!layers.length){try{const meta=await src.getMetadata()||{};layers=(meta.vector_layers||[]).map(v=>v?.id).filter(Boolean);}catch(_){}}
-      state.map.addSource(ANGOLA_VFR_SOURCE_ID,{type:'vector',url:`pmtiles://${file.name}`,attribution:'AERONAV Angola VFR'});
-      layers.forEach((sourceLayer,i)=>{
-        const base=`angola-vfr-${i}-${angolaSafeLayerId(sourceLayer)}`;
-        const defs=[
-          {id:base+'-fill',type:'fill',filter:['==',['geometry-type'],'Polygon'],paint:{'fill-color':'#1f88c9','fill-opacity':0.08}},
-          {id:base+'-line',type:'line',filter:['==',['geometry-type'],'LineString'],paint:{'line-color':'#46b3e6','line-width':['interpolate',['linear'],['zoom'],4,0.8,10,1.5,16,2.4],'line-opacity':0.9}},
-          {id:base+'-point',type:'circle',filter:['==',['geometry-type'],'Point'],paint:{'circle-color':'#f5b942','circle-radius':['interpolate',['linear'],['zoom'],4,2.5,12,4.5,18,6],'circle-stroke-color':'#071725','circle-stroke-width':1}}
-        ];
-        defs.forEach(d=>{try{if(!state.map.getLayer?.(d.id))state.map.addLayer({...d,source:ANGOLA_VFR_SOURCE_ID,'source-layer':sourceLayer});}catch(_){}});
+      if(!layers.length){
+        try{
+          const meta=await src.getMetadata()||{};
+          let raw=meta.vector_layers;
+          if(typeof raw==='string'){try{raw=JSON.parse(raw)}catch(_){raw=[]}}
+          layers=(Array.isArray(raw)?raw:[]).map(v=>typeof v==='string'?v:v?.id).filter(Boolean);
+        }catch(_){}
+      }
+
+      state.map.addSource(ANGOLA_VFR_SOURCE_ID,{
+        type:'vector',
+        url:`pmtiles://${file.name}`,
+        attribution:'AERONAV Angola VFR'
       });
+
+      layers.forEach((sourceLayer,i)=>aeronavVfrStyleSourceLayer(sourceLayer,i));
+
+      state._angolaVfrLayerCount=layers.length;
+      state._angolaVfrAppliedAt=Date.now();
       return true;
-    }catch(e){console.warn('AERONAV Angola VFR',e);return false;}
+    }catch(e){
+      console.warn('AERONAV Angola VFR',e);
+      return false;
+    }
   }
 
   async function angolaFindRecord(id){
@@ -2454,6 +2780,8 @@ body{min-height:var(--app-vh);margin:0}
   async function angolaUseOfflineBase(){
     const offline=state.net==='offline'||!navigator.onLine;
     const p=angolaPos(state.currentPosition);
+    const selectedBase=state.offlineMapRecord?.kind==='basemap'&&state.preferOfflineMap;
+    if(selectedBase&&(!p||!Array.isArray(state.offlineMapRecord.bounds)||pointInsideBounds(p,state.offlineMapRecord.bounds)))return false;
     if(!offline||(p&&!angolaInside(p,ANGOLA_MAP_BOUNDS)))return false;
     const vector=await angolaFindRecord(ANGOLA_VECTOR_ID);
     if(!vector?.blob)return false;
@@ -2463,7 +2791,7 @@ body{min-height:var(--app-vh);margin:0}
       if(!await useOfflinePmtiles(vector))return false;
       await angolaWaitStyle(3500);
     }
-    if(state.mode==='flight')await angolaApplyVfrOverlay();
+    if(state.mode==='flight'){await angolaApplyTerrain();await angolaApplyVfrOverlay();}
     else if(state.mode==='drive')await angolaApplyTerrain();
     return true;
   }
@@ -2487,7 +2815,7 @@ body{min-height:var(--app-vh);margin:0}
     if(revision!==angolaCardRevision||!cards.isConnected)return;
     document.getElementById('angolaOfflineCard')?.remove();
     const card=document.createElement('div');card.className='card';card.id='angolaOfflineCard';
-    card.innerHTML=`<div class="page-head"><div><h3>🇦🇴 Angola Offline</h3><p>RC12.35 · Mapas guardados neste dispositivo.</p></div><span class="badge ${ready===8?'ok':'info'}">${ready}/8</span></div>
+    card.innerHTML=`<div class="page-head"><div><h3>🇦🇴 Angola Offline</h3><p>RC12.36 · Mapas guardados neste dispositivo.</p></div><span class="badge ${ready===8?'ok':'info'}">${ready}/8</span></div>
       <div class="sub">VECTOR para mapa base, VFR para VOO e 6 blocos de terreno para relevo offline. Os ficheiros grandes ficam no dispositivo, não dentro do GitHub Pages.</div>
       <div class="list" style="margin-top:10px">${status.map(a=>`<div class="list-item"><div class="item-icon">${a.kind==='aviation'?'✈':a.kind==='terrain'?'⛰':'🗺️'}</div><div class="item-main"><strong>${a.role}</strong><small>${a.name} · ${angolaMb(a.size)} · <a href="${a.url}" target="_blank" rel="noopener">Descarregar</a></small></div><span class="badge ${a.installed?'ok':'info'}">${a.installed?'GUARDADO':'FALTA'}</span></div>`).join('')}</div>
       <div id="angolaImportProgress" role="status" aria-live="polite" style="margin-top:10px;overflow-wrap:anywhere"></div>
@@ -2524,7 +2852,7 @@ body{min-height:var(--app-vh);margin:0}
       updateMapMode=async function(...args){
         try{if(await angolaUseOfflineBaseIfNeeded())return true;}catch(e){console.warn('AERONAV Angola offline base',e);}
         const out=await originalUpdateMapMode.apply(this,args);
-        try{if(state.mode==='flight')await angolaApplyVfrOverlay();else if(state.mode==='drive'&&(state.net==='offline'||state.currentMapStyle==='offline'))await angolaApplyTerrain();}catch(_){}
+        try{if(state.mode==='flight'){await angolaApplyTerrain();await angolaApplyVfrOverlay();}else if(state.mode==='drive'&&(state.net==='offline'||state.currentMapStyle==='offline'))await angolaApplyTerrain();}catch(_){}
         return out;
       };
     }catch(e){console.warn('AERONAV Angola map hook',e);}
@@ -2532,12 +2860,12 @@ body{min-height:var(--app-vh);margin:0}
     setInterval(()=>{
       if(document.visibilityState!=='visible')return;
       if(state.mode==='drive'&&(state.net==='offline'||state.currentMapStyle==='offline'))angolaApplyTerrain().catch(()=>{});
-      else if(state.mode==='flight')angolaApplyVfrOverlay().catch(()=>{});
+      else if(state.mode==='flight'){angolaApplyTerrain().catch(()=>{});angolaApplyVfrOverlay().catch(()=>{});}
     },8000);
   });
 
   // AERONAV_ANGOLA_INLINE_RC1235_END
-  // ---------- PMTiles offline basemap RC12.35 ----------
+  // ---------- PMTiles offline basemap RC12.36 ----------
   function initPmtilesProtocol(){
     if(state.pmtilesProtocol || typeof pmtiles==='undefined' || typeof maplibregl==='undefined') return;
     try{
@@ -2624,18 +2952,107 @@ body{min-height:var(--app-vh);margin:0}
       {id:'omt-roads-rail',type:'line',source:'offline','source-layer':'transportation',filter:['==',['get','class'],'rail'],paint:{'line-color':'#7d8990','line-width':1,'line-dasharray':[2,2]}}
     ];
   }
-  function protomapsPmtilesLayers(){
-    return [
-      {id:'pm-earth',type:'fill',source:'offline','source-layer':'earth',paint:{'fill-color':'#19343a'}},
-      {id:'pm-landcover',type:'fill',source:'offline','source-layer':'landcover',paint:{'fill-color':'#234638','fill-opacity':0.6}},
-      {id:'pm-landuse',type:'fill',source:'offline','source-layer':'landuse',paint:{'fill-color':'#2a4345','fill-opacity':0.6}},
-      {id:'pm-water',type:'fill',source:'offline','source-layer':'water',paint:{'fill-color':'#0b4054'}},
-      {id:'pm-boundaries',type:'line',source:'offline','source-layer':'boundaries',paint:{'line-color':'#91abb5','line-width':1,'line-dasharray':[3,2]}},
-      {id:'pm-buildings',type:'fill',source:'offline','source-layer':'buildings',minzoom:13,paint:{'fill-color':'#49616a','fill-opacity':0.8}},
-      {id:'pm-roads',type:'line',source:'offline','source-layer':'roads',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#b5c8ce','line-width':['interpolate',['linear'],['zoom'],5,0.5,12,1.8,16,5]}},
-      {id:'pm-places',type:'symbol',source:'offline','source-layer':'places',layout:{'text-field':['coalesce',['get','name:pt'],['get','name'],''],'text-font':['Noto Sans Regular'],'text-size':['interpolate',['linear'],['zoom'],4,11,14,16]},paint:{'text-color':'#e8f4f7','text-halo-color':'#071a24','text-halo-width':1.5}}
+  function protomapsPmtilesLayers(metadata={}){
+    const ids=new Set(pmtilesVectorLayerIds(metadata));
+    const has=id=>!ids.size||ids.has(id);
+    const layers=[
+      {id:'pm-earth',type:'fill',source:'offline','source-layer':'earth',
+        paint:{'fill-color':'#19343a'}},
+      {id:'pm-landcover',type:'fill',source:'offline','source-layer':'landcover',
+        paint:{'fill-color':'#234638','fill-opacity':0.62}},
+      {id:'pm-landuse',type:'fill',source:'offline','source-layer':'landuse',
+        paint:{'fill-color':'#294447','fill-opacity':0.58}},
+      {id:'pm-water',type:'fill',source:'offline','source-layer':'water',
+        paint:{'fill-color':'#0b4054','fill-opacity':0.98}},
+      {id:'pm-boundaries',type:'line',source:'offline','source-layer':'boundaries',
+        paint:{
+          'line-color':'#7f9aa5',
+          'line-width':['interpolate',['linear'],['zoom'],2,0.5,8,1.1,14,1.8],
+          'line-dasharray':[3,2],
+          'line-opacity':0.62
+        }},
+      {id:'pm-buildings',type:'fill',source:'offline','source-layer':'buildings',minzoom:13,
+        paint:{'fill-color':'#526a73','fill-opacity':0.72}},
+      {id:'pm-road-casing',type:'line',source:'offline','source-layer':'roads',
+        layout:{'line-cap':'round','line-join':'round'},
+        paint:{
+          'line-color':'#15262d',
+          'line-width':['interpolate',['linear'],['zoom'],5,1.5,10,2.7,14,5.5,17,10],
+          'line-opacity':0.95
+        }},
+      {id:'pm-roads',type:'line',source:'offline','source-layer':'roads',
+        layout:{'line-cap':'round','line-join':'round'},
+        paint:{
+          'line-color':['match',['get','kind'],
+            ['highway','major_road'],'#c7d7dc',
+            ['medium_road'],'#9eb4bb',
+            ['minor_road'],'#708993',
+            '#607984'
+          ],
+          'line-width':['interpolate',['linear'],['zoom'],5,0.6,10,1.3,14,3.2,17,7.2],
+          'line-opacity':0.98
+        }},
+      {id:'pm-road-labels',type:'symbol',source:'offline','source-layer':'roads',minzoom:12,
+        filter:['has','name'],
+        layout:{
+          'symbol-placement':'line',
+          'text-field':['coalesce',['get','name:pt'],['get','name'],''],
+          'text-font':['Noto Sans Regular'],
+          'text-size':['interpolate',['linear'],['zoom'],12,9,16,11,19,13],
+          'symbol-spacing':350,
+          'text-allow-overlap':false
+        },
+        paint:{
+          'text-color':'#c9dbe0',
+          'text-halo-color':'#071a24',
+          'text-halo-width':2
+        }},
+      {id:'pm-water-labels',type:'symbol',source:'offline','source-layer':'water',minzoom:5,
+        filter:['has','name'],
+        layout:{
+          'text-field':['coalesce',['get','name:pt'],['get','name'],''],
+          'text-font':['Noto Sans Regular'],
+          'text-size':['interpolate',['linear'],['zoom'],5,9,14,12],
+          'text-allow-overlap':false
+        },
+        paint:{
+          'text-color':'#67c8e5',
+          'text-halo-color':'#071a24',
+          'text-halo-width':1.5
+        }},
+      {id:'pm-places',type:'symbol',source:'offline','source-layer':'places',
+        layout:{
+          'text-field':['coalesce',['get','name:pt'],['get','name'],''],
+          'text-font':['Noto Sans Regular'],
+          'text-size':['interpolate',['linear'],['zoom'],3,10,7,12,11,14,16,17],
+          'text-max-width':12,
+          'text-allow-overlap':false,
+          'text-padding':3
+        },
+        paint:{
+          'text-color':'#eef8fa',
+          'text-halo-color':'#071a24',
+          'text-halo-width':2
+        }},
+      {id:'pm-pois',type:'symbol',source:'offline','source-layer':'pois',minzoom:13,
+        filter:['has','name'],
+        layout:{
+          'text-field':['coalesce',['get','name:pt'],['get','name'],''],
+          'text-font':['Noto Sans Regular'],
+          'text-size':10,
+          'text-offset':[0,0.9],
+          'text-anchor':'top',
+          'text-allow-overlap':false
+        },
+        paint:{
+          'text-color':'#b9cbd1',
+          'text-halo-color':'#071a24',
+          'text-halo-width':1.5
+        }}
     ];
+    return layers.filter(l=>has(l['source-layer']));
   }
+
   function localPmtilesStyle(key,tileType,metadata={}){
     const sourceType = tileType===1 ? 'vector' : 'raster';
     const attribution=metadata?.attribution||'© OpenStreetMap contributors';
@@ -2643,7 +3060,7 @@ body{min-height:var(--app-vh);margin:0}
     if(sourceType==='raster') return applyMapQualityProfile({version:8,sources:{offline:source},layers:[{id:'offline-raster',type:'raster',source:'offline',paint:{'raster-opacity':1,'raster-resampling':state.mapQuality==='eco'?'nearest':'linear'}}]});
     const schema=detectPmtilesSchema(metadata);
     let dataLayers;
-    if(schema==='protomaps') dataLayers=protomapsPmtilesLayers();
+    if(schema==='protomaps') dataLayers=protomapsPmtilesLayers(metadata);
     else if(schema==='shortbread') dataLayers=shortbreadPmtilesLayers();
     else if(schema==='openmaptiles') dataLayers=openmaptilesPmtilesLayers();
     else {
@@ -2654,10 +3071,17 @@ body{min-height:var(--app-vh);margin:0}
     return applyMapQualityProfile({version:8,glyphs:new URL('./vendor/fonts/{fontstack}/{range}.pbf',location.href).href.replace(/%7B/g,'{').replace(/%7D/g,'}'),sources:{offline:source},layers:[{id:'background',type:'background',paint:{'background-color':'#071a24'}},...dataLayers],metadata:{'aeronav:pmtiles-schema':schema,'aeronav:quality':state.mapQuality}});
   }
   function offlineMapAvailable(maps,kind){
-    return maps.some(m=>m.blob&&(angolaAssetByName(m.name)?.id===ANGOLA_VECTOR_ID||((m.kind||'terrestrial')===kind&&angolaAssetByName(m.name)?.id!==ANGOLA_VFR_ID)));
+    return maps.some(m=>m.blob&&(
+      m.kind==='basemap'||
+      angolaAssetByName(m.name)?.id===ANGOLA_VECTOR_ID||
+      ((m.kind||'terrestrial')===kind&&angolaAssetByName(m.name)?.id!==ANGOLA_VFR_ID)
+    ));
   }
   async function getOfflineMapRecord(kind,position=state.currentPosition){
     const list=await dbAll('maps');
+    const selectedBaseId=localStorage.getItem('aeronav.offlineBase.selected')||'';
+    const selectedBase=list.find(m=>m.id===selectedBaseId&&m.blob&&m.kind==='basemap');
+    if(selectedBase&&(!position||!Array.isArray(selectedBase.bounds)||pointInsideBounds(position,selectedBase.bounds)))return selectedBase;
     const angolaVector=list.find(m=>angolaAssetByName(m.name)?.id===ANGOLA_VECTOR_ID);
     if(angolaVector&&(!position||angolaInside(position,ANGOLA_MAP_BOUNDS)))return angolaVector;
     const wanted=kind || (state.mode==='flight'?'aviation':'terrestrial');
@@ -2884,7 +3308,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
   async function updateMapMode(){
-    const preferred=state.preferOfflineMap&&state.offlineMapRecord&&state.mode==='flight'&&state.positionSource==='device'&&(!Array.isArray(state.offlineMapRecord.bounds)||!state.currentPosition||pointInsideBounds(state.currentPosition,state.offlineMapRecord.bounds));
+    const preferred=state.preferOfflineMap&&state.offlineMapRecord&&((state.offlineMapRecord.kind==='basemap')||(state.mode==='flight'&&state.positionSource==='device'))&&(!Array.isArray(state.offlineMapRecord.bounds)||!state.currentPosition||pointInsideBounds(state.currentPosition,state.offlineMapRecord.bounds));
     const online=state.net==='online'&&!preferred;
     if(preferred){
       await ensureMapStack(true);
@@ -6735,7 +7159,7 @@ body{min-height:var(--app-vh);margin:0}
     const vectorLayers=pmtilesVectorLayerIds(meta); const schema=h.tileType===1?detectPmtilesSchema(meta):'raster';
     const rec={id:`${kind}-${Date.now()}`,kind,name:f.name,key:`aeronav-${kind}-${Date.now()}.pmtiles`,size:f.size,savedAt:Date.now(),tileType:h.tileType,tileFormat:pmtilesTileFormat(h.tileType),bounds:[h.minLon,h.minLat,h.maxLon,h.maxLat],minZoom:h.minZoom,maxZoom:h.maxZoom,pmtilesSchema:schema,vectorLayers,qualityProfile:state.mapQuality,deviceLocal:true,blob:f};
     await dbPut('maps',rec); state.offlineMapRecord=rec;
-    toast(`Mapa ${f.name} guardado apenas neste dispositivo (${kind==='aviation'?'VOO':'CONDUÇÃO'}).`);
+    toast(`Mapa ${f.name} guardado apenas neste dispositivo (${kind==='aviation'?'VOO':kind==='basemap'?'MAPA BASE':'CONDUÇÃO'}).`);
     if(state.activeTab==='offline') renderOfflineScreen();
     return rec;
   }
@@ -6751,6 +7175,108 @@ body{min-height:var(--app-vh);margin:0}
       await storePmtilesFile(f,kind);
     }catch(e){toast(`Mapa offline: ${e.message||e}`);}
   }
+
+  // AERONAV_PROTOMAPS_MANAGER_RC1236_BEGIN
+  const AERONAV_BASEMAP_SELECTED_KEY='aeronav.offlineBase.selected';
+
+  function aeronavBaseKindLabel(kind){
+    if(kind==='basemap')return 'MAPA BASE';
+    if(kind==='aviation')return 'VOO';
+    if(kind==='terrain')return 'TERRENO';
+    return 'CONDUÇÃO';
+  }
+
+  async function aeronavUseProtomapsBase(id){
+    const maps=await dbAll('maps');
+    const rec=maps.find(m=>m.id===id&&m.blob);
+    if(!rec)throw new Error('Mapa Protomaps não encontrado neste dispositivo.');
+    if(rec.pmtilesSchema!=='protomaps')throw new Error('O ficheiro selecionado não foi identificado como Protomaps.');
+
+    localStorage.setItem(AERONAV_BASEMAP_SELECTED_KEY,rec.id);
+    state.offlineMapRecord=rec;
+    state.preferOfflineMap=true;
+    state.net='offline';
+    localStorage.setItem('aeronav.net','offline');
+    syncSegments();
+
+    if(state.activeTab!=='map')setTab('map');
+    await ensureMapStack(true);
+    await useOfflinePmtiles(rec);
+
+    if(state.mode==='flight'){
+      try{await angolaApplyTerrain();}catch(_){}
+      try{await angolaApplyVfrOverlay();}catch(_){}
+    }
+    if(state.currentPosition&&state.followOwnship)setTimeout(()=>forceCenterOnPosition(state.currentPosition),120);
+    toast('Protomaps offline ativo como mapa-base.');
+  }
+
+  async function aeronavClearProtomapsBase(){
+    localStorage.removeItem(AERONAV_BASEMAP_SELECTED_KEY);
+    state.preferOfflineMap=false;
+    state.offlineMapRecord=null;
+    toast('Mapa-base automático restaurado.');
+    if(state.activeTab==='map')await updateMapMode();
+    if(state.activeTab==='offline')renderOfflineScreen();
+  }
+
+  async function aeronavInjectProtomapsCard(){
+    const cards=document.querySelector('#screen-offline .cards');
+    if(!cards)return;
+    document.getElementById('aeronavProtomapsCard')?.remove();
+
+    const maps=(await dbAll('maps')).filter(m=>m?.blob&&m.pmtilesSchema==='protomaps');
+    const selected=localStorage.getItem(AERONAV_BASEMAP_SELECTED_KEY)||'';
+    const card=document.createElement('div');
+    card.className='card';
+    card.id='aeronavProtomapsCard';
+
+    const rows=maps.length?maps.map(m=>`
+      <div class="list-item">
+        <div class="item-icon">🌍</div>
+        <div class="item-main">
+          <strong>${esc(m.name)}</strong>
+          <small>${(m.size/1024/1024/1024)>=1?(m.size/1024/1024/1024).toFixed(1)+' GB':(m.size/1024/1024).toFixed(1)+' MB'} · Protomaps · Z${m.minZoom??'—'}–${m.maxZoom??'—'}</small>
+        </div>
+        <span class="badge ${selected===m.id?'ok':'info'}">${selected===m.id?'ATIVO':'PRONTO'}</span>
+        <button class="icon-btn" data-use-protomaps="${m.id}">Usar</button>
+      </div>`).join(''):'<div class="empty">Nenhum mapa Protomaps importado.</div>';
+
+    card.innerHTML=`
+      <div class="page-head">
+        <div>
+          <h3>🌍 Base Protomaps + PMTiles</h3>
+          <p>Mapa vetorial de alta qualidade para VOO, CARRO e A PÉ.</p>
+        </div>
+        <span class="badge ${maps.length?'ok':'info'}">${maps.length} MAPA${maps.length===1?'':'S'}</span>
+      </div>
+      <div class="sub">O Protomaps funciona como mapa-base. No modo VOO, o AERONAV coloca por cima VFR, navegação, rota, ADS-B e relevo quando disponíveis.</div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="primary-btn" id="importProtomapsBase">Importar Protomaps PMTiles</button>
+        ${selected?'<button class="secondary-btn" id="clearProtomapsBase">Usar seleção automática</button>':''}
+      </div>
+      <div class="list" style="margin-top:12px">${rows}</div>
+      <div class="notice good" style="margin-top:10px">Recomendado: dividir o mundo por continente/região. O ficheiro permanece vetorial e mantém texto/linhas nítidos em qualquer resolução.</div>`;
+
+    cards.insertBefore(card,cards.firstChild);
+
+    card.querySelector('#importProtomapsBase')?.addEventListener('click',()=>{
+      state.pendingMapKind='basemap';
+      $('#pmtilesFileInput')?.click();
+    });
+    card.querySelector('#clearProtomapsBase')?.addEventListener('click',()=>aeronavClearProtomapsBase().catch(e=>toast(e.message||String(e))));
+    card.querySelectorAll('[data-use-protomaps]').forEach(b=>b.addEventListener('click',()=>{
+      aeronavUseProtomapsBase(b.dataset.useProtomaps).catch(e=>toast(e.message||String(e)));
+    }));
+  }
+
+  const aeronavRenderOfflineBeforeProtomaps=renderOfflineScreen;
+  renderOfflineScreen=async function(...args){
+    const out=await aeronavRenderOfflineBeforeProtomaps.apply(this,args);
+    setTimeout(()=>aeronavInjectProtomapsCard().catch(e=>console.warn('AERONAV Protomaps UI',e)),0);
+    return out;
+  };
+  // AERONAV_PROTOMAPS_MANAGER_RC1236_END
 
   // ---------- File import ----------
   $('#chartFileInput').addEventListener('change',async e=>{
@@ -6783,6 +7309,28 @@ body{min-height:var(--app-vh);margin:0}
   $('#navObstacleInput').addEventListener('change',async e=>{const f=e.target.files?.[0];e.target.value='';if(!f)return;try{const j=JSON.parse(await f.text()),fs=j.type==='FeatureCollection'?j.features:(Array.isArray(j)?j:[]);state.navAssist.obstacles=fs.map((x,i)=>{const c=x.geometry?.coordinates||[];return {id:x.id||i,lon:+c[0],lat:+c[1],elevFt:+(x.properties?.elevation_ft||x.properties?.height_ft||x.properties?.elev_ft||0),name:x.properties?.name||x.properties?.ident||'Obstáculo'}}).filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lon));await dbPut('aerodata',{id:'nav-obstacles',items:state.navAssist.obstacles,updatedAt:Date.now(),source:f.name});toast(`${state.navAssist.obstacles.length} obstáculos importados.`);if(state.activeTab==='navassist')renderNavAssistScreen();}catch(err){toast('Obstáculos: '+(err.message||err));}});
 
   $('#aircraftLogoInput').addEventListener('change',e=>{const f=e.target.files?.[0];e.target.value='';if(!f)return;const img=new Image(),r=new FileReader();r.onload=()=>{img.onload=()=>{const c=document.createElement('canvas'),maxW=320,maxH=160,k=Math.min(1,maxW/img.width,maxH/img.height);c.width=Math.max(1,Math.round(img.width*k));c.height=Math.max(1,Math.round(img.height*k));c.getContext('2d').drawImage(img,0,0,c.width,c.height);state.aircraftLogo=c.toDataURL('image/jpeg',.82);localStorage.setItem('aeronav.aircraftLogo',state.aircraftLogo);renderAddonsScreen();};img.src=r.result;};r.readAsDataURL(f);});
+
+
+  window.AERONAV_AVIATION_OFFLINE_DIAGNOSTICS=async()=>{
+    const maps=await dbAll('maps').catch(()=>[]);
+    const selected=localStorage.getItem('aeronav.offlineBase.selected')||'';
+    return {
+      release:'RC12.36',
+      selectedBase:selected,
+      base:maps.filter(m=>m.kind==='basemap').map(m=>({id:m.id,name:m.name,schema:m.pmtilesSchema,bounds:m.bounds,minZoom:m.minZoom,maxZoom:m.maxZoom})),
+      angola:{
+        vector:!!(await angolaFindRecord(ANGOLA_VECTOR_ID).catch(()=>null)),
+        vfr:!!(await angolaFindRecord(ANGOLA_VFR_ID).catch(()=>null)),
+        terrainInstalled:maps.filter(m=>m.kind==='terrain'&&String(m.bundle||'').includes('angola')).length,
+        vfrLayerCount:Number(state._angolaVfrLayerCount||0),
+        vfrAppliedAt:Number(state._angolaVfrAppliedAt||0),
+        terrainActiveId:state._angolaTerrainRecordId||''
+      },
+      mapStyle:state.currentMapStyle,
+      mode:state.mode,
+      net:state.net
+    };
+  };
 
   // ---------- events ----------
   $('#modeFlight').onclick=()=>setMode('flight'); $('#modeDrive').onclick=()=>setMode('drive'); $('#modeWalk').onclick=setWalkMode;
@@ -6866,13 +7414,13 @@ body{min-height:var(--app-vh);margin:0}
 })();
 </script>
 
-<script src="./work-status-fragment.js?v=RC12.35"></script>
-<script src="./flight-ops-fragment.js?v=RC12.35"></script>
-<script src="./gps-view-modes.js?v=RC12.35"></script>
-<script src="./meteo-visual-voo.js?v=RC12.35"></script>
-<script src="./meteo-route-phase2.js?v=RC12.35"></script>
-<script src="./meteo-altitude-phase3.js?v=RC12.35"></script>
-<script src="./diagnostic-recovery.js?v=RC12.35"></script>
+<script src="./work-status-fragment.js?v=RC12.36"></script>
+<script src="./flight-ops-fragment.js?v=RC12.36"></script>
+<script src="./gps-view-modes.js?v=RC12.36"></script>
+<script src="./meteo-visual-voo.js?v=RC12.36"></script>
+<script src="./meteo-route-phase2.js?v=RC12.36"></script>
+<script src="./meteo-altitude-phase3.js?v=RC12.36"></script>
+<script src="./diagnostic-recovery.js?v=RC12.36"></script>
 <script src="./cockpit-lite.js?v=RC12.32"></script>
 </body>
 </html>
