@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.36.2</title>
+  <title>AERONAV — RC12.36.3</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -824,7 +824,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = 'RC12.36.2 · Rotas para endereços';
+  const APP_VERSION = 'RC12.36.3 · Rotas para endereços';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -4295,8 +4295,8 @@ body{min-height:var(--app-vh);margin:0}
   function isFamilyCallRow(m){ return /__CALL$/.test(String(m?.member_id||'')) || /^CALL_/.test(String(m?.transport||'')); }
   function isFamilySystemRow(m){ return isFamilySosRow(m)||isFamilyCallRow(m)||isFamilyJourneyRow(m)||isFamilyBatteryRow(m)||isFamilyRouteSyncRow(m)||isFamilyAdminVerifyRow(m)||isFamilyVisibilityRow(m); }
   function parseFamilyCall(m){const x=/^CALL_(RINGING|ACCEPTED|DECLINED|ENDED):([A-Za-z0-9_-]{10,80})$/.exec(String(m?.transport||''));return x?{status:x[1],id:x[2]}:null;}
-  function activeJourneyRoute(){
-    const r=state.currentRoute,coords=r?.geometry?.coordinates;if(!coords?.length)return null;
+  function activeJourneyRoute(r=state.currentRoute){
+    const coords=r?.geometry?.coordinates;if(!coords?.length)return null;
     const from=r.from?.name||r.from?.icao||r.name?.split('→')?.[0]?.trim()||'Origem',
       to=r.to?.name||r.to?.icao||r.name?.split('→')?.slice(-1)[0]?.trim()||'Destino',
       dur=Number(r.duration)||0,dist=Number(r.distance)||0,
@@ -4306,7 +4306,7 @@ body{min-height:var(--app-vh);margin:0}
       eta=r.plannedArrivalAt||(start&&dur?new Date(new Date(start).getTime()+dur*1000).toISOString():(dur?new Date(Date.now()+dur*1000).toISOString():null)),
       trackingCallsign=r.kind==='flight'?routeTrackingCallsign(r):'';
     return {
-      id:String(r.id||r.name||'route'),mode:r.kind==='flight'?'flight':'drive',
+      id:String(r.id||r.name||'route'),mode:r.kind==='flight'?'flight':r.mode==='walk'?'walk':'drive',
       from:String(from).slice(0,80),to:String(to).slice(0,100),
       durationMin:dur?Math.round(dur/60):null,distanceKm:dist?Math.round(dist/100)/10:null,
       plannedStartAt:r.plannedStartAt||null,actualStartAt:r.actualStartAt||null,eta,plannedArrivalAt:eta,
@@ -4318,8 +4318,8 @@ body{min-height:var(--app-vh);margin:0}
   function familyJourneyLabel(p){return({ROUTE:'Rota planeada',STARTED:'Viagem iniciada',LEFT_ORIGIN:'Saiu da zona de origem',COUNTRY:'Fronteira cruzada',TAKEOFF:'Descolou',LANDED:'Aterrou',EN_ROUTE_HOTEL:'A caminho do hotel',ARRIVED_HOTEL:'Chegou ao hotel',ARRIVED:'Chegou ao destino',CANCELLED:'Rota cancelada por Jorge',PROVINCE:'Fronteira de província/região',MUNICIPALITY:'Fronteira de município',CITY_3KM:'Percorreu mais 3 km na cidade',DESCENT:'Iniciou descida para aterragem',LEFT_AIRPORT:'Deixou o aeroporto'})[p?.event]||p?.event||'Atualização da viagem'}
   const LOCAL_JOURNEY_KEY='aeronav.journey.localEvents';
   function localJourneyEvents(){try{return JSON.parse(localStorage.getItem(LOCAL_JOURNEY_KEY)||'[]')}catch(_){return []}}
-  function logLocalJourneyEvent(event,extra={}){
-    const now=Date.now(),label=familyJourneyLabel({event}),r=activeJourneyRoute(),arr=localJourneyEvents();
+  function logLocalJourneyEvent(event,extra={},sourceRoute=state.currentRoute){
+    const now=Date.now(),label=familyJourneyLabel({event}),r=activeJourneyRoute(sourceRoute),arr=localJourneyEvents();
     const sig=event+'|'+(extra.country||extra.province||extra.municipality||extra.city||extra.place||r?.to||'');
     if(arr[0]&&arr[0].sig===sig&&now-Number(arr[0].ts||0)<90000)return;
     arr.unshift({event,label,ts:now,sig,transport:state.manualWalk?'walk':state.mode,route:r,detail:extra.country||extra.province||extra.municipality||extra.city||extra.place||extra.origin||'',extra});
@@ -4331,12 +4331,13 @@ body{min-height:var(--app-vh);margin:0}
     const task=journeySendQueue.catch(()=>{}).then(()=>sendFamilyJourney(event,extra,options));journeySendQueue=task;return task;
   }
   async function sendFamilyJourney(event,extra={},options={}){
-    if(event!=='CANCELLED'&&state.currentRoute?.id===localStorage.getItem('aeronav.family.cancelledRouteId'))return false;
-    logLocalJourneyEvent(event,extra);
+    const sourceRoute=options.route||state.currentRoute;
+    if(event!=='CANCELLED'&&sourceRoute?.id===localStorage.getItem('aeronav.family.cancelledRouteId'))return false;
+    logLocalJourneyEvent(event,extra,sourceRoute);
     const f=state.family,mandatoryFlightEvent=event==='TAKEOFF'||event==='LANDED'||event==='CANCELLED';
     if((!f.journeyEnabled&&!mandatoryFlightEvent)||!familyConfigured()||!navigator.onLine)return false;
     await ensureFamilyHash();
-    const p=state.currentPosition,r=activeJourneyRoute();
+    const p=state.currentPosition,r=activeJourneyRoute(sourceRoute);
     let audiences=[];
     if(options?.audience)audiences=[normalizeRouteAudience(options.audience)];
     else{
@@ -7080,8 +7081,30 @@ body{min-height:var(--app-vh);margin:0}
         route=flightRoute(from,to,aircraft);route.routeString=`${from.name} DCT ${to.name}`;
       }else if(mode==='walk')route=await addressWalkingRoute(from,to);
       else route=await roadRoute(from,to,{preference:state.drive.routePreference,avoidTraffic:state.drive.avoidTraffic,avoidHighways:state.drive.avoidHighways,avoidFerries:state.drive.avoidFerries,avoidTolls:state.drive.avoidTolls});
-      route.mode=mode;route.name=`${from.name} → ${to.name}`;route.status='planned';route.navigationActive=false;
+      route.mode=mode;route.name=`${from.name} → ${to.name}`;route.status='planned';route.navigationActive=false;route.familyShareTargets={mathia:false,wendler:false};
       return route;
+    },
+    async save(route){
+      if(!route?.geometry?.coordinates?.length)throw new Error('Calcule a rota primeiro.');
+      await dbPut('routes',{...route,savedAt:Date.now()});
+      return true;
+    },
+    async share(route,recipients){
+      if(!route?.geometry?.coordinates?.length)throw new Error('Calcule a rota primeiro.');
+      const selected=[...new Set(recipients||[])].filter(x=>x==='mathia'||x==='wendler');
+      if(!selected.length)throw new Error('Selecione Mathia, Wendler ou ambos.');
+      if(!navigator.onLine||state.net!=='online'||!familyConfigured())throw new Error('A partilha requer Internet e ligação Family ativa. Pode guardar a rota e tentar depois.');
+      state.family.journeyEnabled=true;localStorage.setItem('aeronav.family.journeyEnabled','1');
+      const results=[];
+      for(const audience of selected){
+        let ok=false;
+        try{ok=await upsertFamilyJourney('ROUTE',{scheduled:true},{audience,allowLegacyMathia:false,route});}catch(_){}
+        if(ok)setRouteShareTarget(route,audience,true);
+        results.push({audience,ok:!!ok});
+      }
+      // Store exactly this preview, without replacing another active route.
+      try{await dbPut('routes',{...route,savedAt:Date.now()});}catch(_){results.saveFailed=true;}
+      return results;
     },
     async start(route){
       if(!route?.geometry?.coordinates?.length)throw new Error('Calcule a rota primeiro.');
@@ -7386,7 +7409,7 @@ body{min-height:var(--app-vh);margin:0}
 })();
 </script>
 
-<script src="./work-status-fragment.js?v=RC12.36.2"></script>
+<script src="./work-status-fragment.js?v=RC12.36.3"></script>
 <script src="./flight-ops-fragment.js?v=RC12.36"></script>
 <script src="./gps-view-modes.js?v=RC12.36"></script>
 <script src="./meteo-visual-voo.js?v=RC12.36"></script>

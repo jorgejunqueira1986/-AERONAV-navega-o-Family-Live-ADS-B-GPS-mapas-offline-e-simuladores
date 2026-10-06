@@ -1115,14 +1115,16 @@
       <div data-search hidden class="address-picker"><label for="addressRouteSearch">Pesquisar origem e selecionar uma sugestão</label><input id="addressRouteSearch" autocomplete="off" placeholder="Rua, bairro, cidade…"><div id="addressRouteSearchResults" class="airport-search-results address-search-results"></div><div id="addressRouteSearchStatus" role="status"></div></div>
       <label for="addressRouteMode">Modo de viagem</label><select id="addressRouteMode"><option value="drive">CARRO</option><option value="walk">A PÉ</option>${role==='jorge'?'<option value="flight">VOO — direto</option>':''}</select></div>
       <div class="aeronavAddrActions"><button class="aeronavAddrBtn aeronavAddrPrimary" data-calculate>Calcular rota</button><button class="aeronavAddrBtn" data-start hidden>Iniciar rota</button></div>
+      <div data-route-actions hidden><div class="aeronavAddrActions"><button class="aeronavAddrBtn" data-save>💾 Guardar rota</button></div><p>Partilhar esta rota com:</p><div class="aeronavAddrShare"><label><input type="checkbox" data-mathia> Mathia</label><label><input type="checkbox" data-wendler> Wendler</label></div><div class="aeronavAddrActions"><button class="aeronavAddrBtn" data-both>Selecionar ambos</button><button class="aeronavAddrBtn aeronavAddrPrimary" data-share>Partilhar selecionados</button></div></div><p data-operation role="status" aria-live="polite"></p>
       <p data-result role="status" aria-live="polite"></p><small data-attribution hidden>© OpenStreetMap contributors · FOSSGIS · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Corrigir o mapa</a></small>`;
     panel.querySelector('[data-destination]').textContent='Destino: '+(a.name||'Ponto guardado');
     const origins=loadAddresses().filter(x=>x.id!==a.id),select=panel.querySelector('#addressRouteOrigin'),mode=panel.querySelector('#addressRouteMode');
     origins.forEach((x,i)=>{const option=document.createElement('option');option.value='saved:'+i;option.textContent=x.name||'Endereço guardado';select.appendChild(option);});
     mode.value=api.mode();if(!mode.value)mode.value='drive';
     const calc=panel.querySelector('[data-calculate]'),start=panel.querySelector('[data-start]'),result=panel.querySelector('[data-result]');
+    const actions=panel.querySelector('[data-route-actions]'),operation=panel.querySelector('[data-operation]');
     let preview=null,revision=0;
-    const invalidate=()=>{revision++;preview=null;start.hidden=true;result.textContent='';};
+    const invalidate=()=>{revision++;preview=null;start.hidden=true;actions.hidden=true;result.textContent='';operation.textContent='';};
     select.onchange=()=>{invalidate();panel.querySelector('[data-search]').hidden=select.value!=='search';};
     mode.onchange=invalidate;panel.querySelector('#addressRouteSearch').addEventListener('input',e=>{delete e.target.dataset.addrLat;delete e.target.dataset.addrLon;delete e.target.dataset.addrName;invalidate();});panel.querySelector('#addressRouteSearch').addEventListener('change',invalidate);
     panel.querySelector('[data-close]').onclick=()=>{revision++;closeAddressPanel();};
@@ -1137,9 +1139,19 @@
         if(token!==revision||!overlay.isConnected)return;
         preview=route;const minutes=Math.max(1,Math.round(route.duration/60));
         result.textContent=`${(route.distance/1000).toFixed(1)} km · ${minutes} min · Chegada estimada ${new Date(Date.now()+route.duration*1000).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}${route.mode==='flight'?' · Percurso aéreo direto. Confirmar o plano de voo e as restrições.':''}`;
-        panel.querySelector('[data-attribution]').hidden=route.mode!=='walk';start.hidden=false;
+        panel.querySelector('[data-attribution]').hidden=route.mode!=='walk';start.hidden=false;actions.hidden=false;
       }catch(e){if(token===revision&&overlay.isConnected)result.textContent=e.name==='AbortError'?'O serviço demorou demasiado. Tente novamente.':e.message||String(e);}
       finally{calc.disabled=false;}
+    };
+    const save=panel.querySelector('[data-save]'),share=panel.querySelector('[data-share]');
+    panel.querySelector('[data-both]').onclick=()=>{panel.querySelector('[data-mathia]').checked=true;panel.querySelector('[data-wendler]').checked=true;};
+    save.onclick=async()=>{if(!preview)return;const token=revision;save.disabled=true;operation.textContent='A guardar…';try{await api.save(preview);if(token===revision)operation.textContent='Rota guardada. Pode encontrá-la nas rotas guardadas.';}catch(e){if(token===revision)operation.textContent='Não foi possível guardar: '+(e.message||e);}finally{save.disabled=false;}};
+    share.onclick=async()=>{
+      if(!preview)return;const selected=['mathia','wendler'].filter(x=>panel.querySelector('[data-'+x+']').checked),token=revision;
+      share.disabled=true;operation.textContent='A partilhar…';
+      try{const results=await api.share(preview,selected);if(token!==revision)return;
+        operation.textContent=results.map(x=>(x.audience==='mathia'?'Mathia':'Wendler')+': '+(x.ok?'rota enviada.':'envio falhou; tente novamente.')).join(' ')+(results.saveFailed?' Não foi possível guardar a cópia local.':' Rota guardada.');
+      }catch(e){if(token===revision)operation.textContent=e.message||String(e);}finally{share.disabled=false;}
     };
     start.onclick=async()=>{if(!preview)return;start.disabled=true;try{if(await api.start(preview))closeAddressPanel();}catch(e){result.textContent=e.message||String(e);}finally{start.disabled=false;}};
     overlay.appendChild(panel);document.body.appendChild(overlay);api.wireSearch('addressRouteSearch');select.focus();
