@@ -1041,7 +1041,8 @@
 
     el.addEventListener('click',ev=>{
       ev.stopPropagation();
-      mapFlyToAddress(a);
+      const current=loadAddresses().find(x=>x.id===a.id);
+      if(current){if(window.AERONAVAddressRoutes)openAddressRoute(current);else mapFlyToAddress(current);}
     });
     return el;
   }
@@ -1102,6 +1103,50 @@
     closeAddressPanel();
   }
 
+  function openAddressRoute(a){
+    const api=window.AERONAVAddressRoutes;
+    if(!api){alert('O planeador de endereços ainda não está disponível nesta versão. Atualize a aplicação.');return;}
+    ensureAddressStyles();closeAddressPanel();
+    const overlay=document.createElement('div');overlay.id='aeronavAddressOverlay';
+    const panel=document.createElement('section');panel.id='aeronavAddressPanel';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');
+    panel.innerHTML=`<div class="aeronavAddrTop"><h2>Ir até este ponto</h2><button class="aeronavAddrBtn" data-close aria-label="Fechar">✕</button></div>
+      <p data-destination></p><div id="aeronavAddressEditor">
+      <label for="addressRouteOrigin">Origem</label><select id="addressRouteOrigin"><option value="gps">Minha posição GPS</option><option value="search">Pesquisar outro local</option></select>
+      <div data-search hidden class="address-picker"><label for="addressRouteSearch">Pesquisar origem e selecionar uma sugestão</label><input id="addressRouteSearch" autocomplete="off" placeholder="Rua, bairro, cidade…"><div id="addressRouteSearchResults" class="airport-search-results address-search-results"></div><div id="addressRouteSearchStatus" role="status"></div></div>
+      <label for="addressRouteMode">Modo de viagem</label><select id="addressRouteMode"><option value="drive">CARRO</option><option value="walk">A PÉ</option>${role==='jorge'?'<option value="flight">VOO — direto</option>':''}</select></div>
+      <div class="aeronavAddrActions"><button class="aeronavAddrBtn aeronavAddrPrimary" data-calculate>Calcular rota</button><button class="aeronavAddrBtn" data-start hidden>Iniciar rota</button></div>
+      <p data-result role="status" aria-live="polite"></p><small data-attribution hidden>© OpenStreetMap contributors · FOSSGIS · <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Corrigir o mapa</a></small>`;
+    panel.querySelector('[data-destination]').textContent='Destino: '+(a.name||'Ponto guardado');
+    const origins=loadAddresses().filter(x=>x.id!==a.id),select=panel.querySelector('#addressRouteOrigin'),mode=panel.querySelector('#addressRouteMode');
+    origins.forEach((x,i)=>{const option=document.createElement('option');option.value='saved:'+i;option.textContent=x.name||'Endereço guardado';select.appendChild(option);});
+    mode.value=api.mode();if(!mode.value)mode.value='drive';
+    const calc=panel.querySelector('[data-calculate]'),start=panel.querySelector('[data-start]'),result=panel.querySelector('[data-result]');
+    let preview=null,revision=0;
+    const invalidate=()=>{revision++;preview=null;start.hidden=true;result.textContent='';};
+    select.onchange=()=>{invalidate();panel.querySelector('[data-search]').hidden=select.value!=='search';};
+    mode.onchange=invalidate;panel.querySelector('#addressRouteSearch').addEventListener('input',e=>{delete e.target.dataset.addrLat;delete e.target.dataset.addrLon;delete e.target.dataset.addrName;invalidate();});panel.querySelector('#addressRouteSearch').addEventListener('change',invalidate);
+    panel.querySelector('[data-close]').onclick=()=>{revision++;closeAddressPanel();};
+    calc.onclick=async()=>{
+      invalidate();const token=revision;calc.disabled=true;result.textContent=select.value==='gps'?'A obter a posição GPS e calcular…':'A calcular…';
+      try{
+        let origin={type:'gps'};
+        if(select.value==='search'){
+          const point=api.selected('addressRouteSearch');if(!point)throw new Error('Selecione uma sugestão de origem.');origin={type:'point',point};
+        }else if(select.value.startsWith('saved:'))origin={type:'point',point:origins[Number(select.value.slice(6))]};
+        const route=await api.preview({destination:a,origin,mode:mode.value});
+        if(token!==revision||!overlay.isConnected)return;
+        preview=route;const minutes=Math.max(1,Math.round(route.duration/60));
+        result.textContent=`${(route.distance/1000).toFixed(1)} km · ${minutes} min · Chegada estimada ${new Date(Date.now()+route.duration*1000).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'})}${route.mode==='flight'?' · Percurso aéreo direto. Confirmar o plano de voo e as restrições.':''}`;
+        panel.querySelector('[data-attribution]').hidden=route.mode!=='walk';start.hidden=false;
+      }catch(e){if(token===revision&&overlay.isConnected)result.textContent=e.name==='AbortError'?'O serviço demorou demasiado. Tente novamente.':e.message||String(e);}
+      finally{calc.disabled=false;}
+    };
+    start.onclick=async()=>{if(!preview)return;start.disabled=true;try{if(await api.start(preview))closeAddressPanel();}catch(e){result.textContent=e.message||String(e);}finally{start.disabled=false;}};
+    overlay.appendChild(panel);document.body.appendChild(overlay);api.wireSearch('addressRouteSearch');select.focus();
+  }
+
+  window.AERONAVOpenAddressRoute=openAddressRoute;
+
   function openAddressPanel(){
     ensureAddressStyles();
     closeAddressPanel();
@@ -1135,12 +1180,14 @@
           ?' · Partilhado: '+shares.map(x=>x==='mathia'?'Mathia':'Wendler').join(', ')
           :(a.shared?' · Partilhado por Jorge':'');
         item.innerHTML=`
-          <div class="aeronavAddrName">${categoryIcon(a.category)} ${safeName}</div>
+          <button class="aeronavAddrBtn aeronavAddrName" data-name>${categoryIcon(a.category)} ${safeName}</button>
           <div class="aeronavAddrMeta">${normCategory(a.category)} · ${Number(a.lat).toFixed(6)}, ${Number(a.lng).toFixed(6)}${shareText}</div>
           <div class="aeronavAddrActions">
-            <button class="aeronavAddrBtn" data-go>Ver no mapa</button>
+            ${window.AERONAVAddressRoutes?'<button class="aeronavAddrBtn aeronavAddrPrimary" data-route>Ir até este ponto</button>':''}<button class="aeronavAddrBtn" data-go>Ver no mapa</button>
             ${role==='jorge'&&!a.readOnly?'<button class="aeronavAddrBtn" data-move>Reposicionar</button><button class="aeronavAddrBtn" data-edit>Editar</button><button class="aeronavAddrBtn aeronavAddrDanger" data-del>Apagar</button>':''}
           </div>`;
+        item.querySelector('[data-name]').onclick=()=>window.AERONAVAddressRoutes?openAddressRoute(a):mapFlyToAddress(a);
+        item.querySelector('[data-route]')?.addEventListener('click',()=>openAddressRoute(a));
         item.querySelector('[data-go]').onclick=()=>mapFlyToAddress(a);
 
         const move=item.querySelector('[data-move]');
@@ -1686,3 +1733,4 @@
     start();
   }
 })();
+

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.36</title>
+  <title>AERONAV — RC12.36.2</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -824,7 +824,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = '7.57 RC11.57 · Family Structure Clean';
+  const APP_VERSION = 'RC12.36.2 · Rotas para endereços';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -1588,7 +1588,7 @@ body{min-height:var(--app-vh);margin:0}
   function resetAutoRerouteWatch(){state.drive.offRouteSince=0;state.drive.lastDeviationM=0;}
   async function maybeAutoReroute(p=state.currentPosition){
     const r=state.currentRoute;
-    if(!state.drive.autoReroute||state.mode!=='drive'||!p||r?.kind!=='road'){resetAutoRerouteWatch();return;}
+    if(!state.drive.autoReroute||state.mode!=='drive'||r?.mode==='walk'||!p||r?.kind!=='road'){resetAutoRerouteWatch();return;}
     if(Date.now()<Number(state.drive.gpsReacquireGraceUntil||0)){resetAutoRerouteWatch();return;}
     if(state.drive.rerouteInFlight)return;
     const acc=Number(p.accuracy); if(Number.isFinite(acc)&&acc>75){resetAutoRerouteWatch();return;}
@@ -3175,7 +3175,7 @@ body{min-height:var(--app-vh);margin:0}
       state.mapReady=true; if(state.currentMapStyle!=='offline')addTerrainOverlay(); if(state.mode==='flight'){addAviationLayers(); addDeceaLayers().catch(()=>{}); addWorldNavLayers(); hydrateWorldNavCache().then(()=>refreshWorldNavMap());} renderCustomWaypoints(); drawRouteOnMap(); updatePositionMarker(); updateFamilyMarkers(); setDriveBasePerformance(state.mode==='drive');if(state.currentPosition){state.followOwnship=true;setTimeout(()=>forceCenterOnPosition(state.currentPosition),60);}
     });
     state.map.on('click',e=>{const f=state.map.queryRenderedFeatures(e.point,{layers:['airport-dot','world-nav-dot','world-holds-dot','decea-airspace-fill','decea-navaid','custom-waypoints-dot','saved-places-dot'].filter(id=>state.map.getLayer(id))});if(!f.length)createWaypointAt(e.lngLat);});
-    state.map.on('click','saved-places-dot',e=>{const f=e.features?.[0];if(!f)return;const p=f.properties||{},id=p.id,place=(state.savedPlaces||[]).find(x=>x.id===id);if(!place)return;const html=`<div class="airport-popup"><strong>${esc(place.name)}</strong><br><small>${esc(place.category||'Outro')} · raio ${Number(place.radiusKm||5).toFixed(1)} km${place.automation?' · chegada ativa':''}</small><br><button id="aeronavPlaceRoute" style="margin-top:8px;padding:7px 9px;border:0;border-radius:8px;font-weight:700">Definir como destino</button> <button id="aeronavPlaceAutomation" style="margin-top:8px;padding:7px 9px;border:0;border-radius:8px;font-weight:700">Automação</button> <button id="aeronavPlaceDelete" style="margin-top:8px;padding:7px 9px;border:0;border-radius:8px;font-weight:700">Apagar</button></div>`;const pop=new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(state.map);setTimeout(()=>{document.getElementById('aeronavPlaceRoute')?.addEventListener('click',()=>{state.routePlannerMode='drive';localStorage.setItem('aeronav.routePlannerMode','drive');pop.remove();setTab('route');setTimeout(()=>{const input=$('#roadTo');if(input){input.value=place.name;input.dataset.addrLat=String(place.lat);input.dataset.addrLon=String(place.lon);input.dataset.addrName=place.name;const st=$('#roadToStatus');if(st)st.textContent=`Local guardado · ${place.name}`;}},50);});document.getElementById('aeronavPlaceAutomation')?.addEventListener('click',()=>configureArrivalWebhook());document.getElementById('aeronavPlaceDelete')?.addEventListener('click',()=>{if(confirm(`Apagar ${place.name}?`)){state.savedPlaces=state.savedPlaces.filter(x=>x.id!==place.id);localStorage.setItem('aeronav.savedPlaces',JSON.stringify(state.savedPlaces));renderSavedPlaces(); setTimeout(()=>syncSavedPlacesForNative(),800);syncSavedPlacesForNative();pop.remove();toast('Local apagado.');}});},0);});
+    state.map.on('click','saved-places-dot',e=>{const f=e.features?.[0];if(!f)return;const p=f.properties||{},id=p.id,place=(state.savedPlaces||[]).find(x=>x.id===id);if(!place)return;const html=`<div class="airport-popup"><strong>${esc(place.name)}</strong><br><small>${esc(place.category||'Outro')} · raio ${Number(place.radiusKm||5).toFixed(1)} km${place.automation?' · chegada ativa':''}</small><br><button id="aeronavPlaceRoute" style="margin-top:8px;padding:7px 9px;border:0;border-radius:8px;font-weight:700">Ir até este ponto</button> <button id="aeronavPlaceAutomation" style="margin-top:8px;padding:7px 9px;border:0;border-radius:8px;font-weight:700">Automação</button> <button id="aeronavPlaceDelete" style="margin-top:8px;padding:7px 9px;border:0;border-radius:8px;font-weight:700">Apagar</button></div>`;const pop=new maplibregl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(state.map);setTimeout(()=>{document.getElementById('aeronavPlaceRoute')?.addEventListener('click',()=>{pop.remove();window.AERONAVOpenAddressRoute?.(place);});document.getElementById('aeronavPlaceAutomation')?.addEventListener('click',()=>configureArrivalWebhook());document.getElementById('aeronavPlaceDelete')?.addEventListener('click',()=>{if(confirm(`Apagar ${place.name}?`)){state.savedPlaces=state.savedPlaces.filter(x=>x.id!==place.id);localStorage.setItem('aeronav.savedPlaces',JSON.stringify(state.savedPlaces));renderSavedPlaces(); setTimeout(()=>syncSavedPlacesForNative(),800);syncSavedPlacesForNative();pop.remove();toast('Local apagado.');}});},0);});
     state.map.on('dragstart',e=>{if(e?.originalEvent)state.followOwnship=false;}); state.map.on('rotatestart',e=>{if(e?.originalEvent)state.followOwnship=false;}); state.map.on('pitchstart',e=>{if(e?.originalEvent)state.followOwnship=false;});
     state.map.on('error',e=>{if(state.net==='online'&&state.currentMapStyle==='online'&&!state._mobileFallbackTried){const msg=String(e?.error?.message||'');if(/style|source|tile|glyph|sprite|network|fetch/i.test(msg)){state._mobileFallbackTried=true;setTimeout(()=>restoreOnlineStyle(true),250);}}});
   }
@@ -3385,9 +3385,9 @@ body{min-height:var(--app-vh);margin:0}
     if(k==='flight'){
       route.kind='flight';state.mode='flight';state.manualWalk=false;state.layer='aviation';state.routePlannerMode='flight';
     }else if(k==='road'){
-      route.kind='road';state.mode='drive';state.manualWalk=false;state.layer='street';state.routePlannerMode='drive';
+      route.kind='road';state.mode='drive';state.manualWalk=route.mode==='walk';state.layer='street';state.routePlannerMode='drive';
     }
-    localStorage.setItem('aeronav.mode',state.mode);localStorage.setItem('aeronav.manualWalk','0');localStorage.setItem('aeronav.layer',state.layer);localStorage.setItem('aeronav.routePlannerMode',state.routePlannerMode);
+    localStorage.setItem('aeronav.mode',state.mode);localStorage.setItem('aeronav.manualWalk',state.manualWalk?'1':'0');localStorage.setItem('aeronav.layer',state.layer);localStorage.setItem('aeronav.routePlannerMode',state.routePlannerMode);
     if(offlineWhenDisconnected&&!navigator.onLine){state.net='offline';localStorage.setItem('aeronav.net','offline');}
     syncSegments();return k;
   }
@@ -7039,6 +7039,58 @@ body{min-height:var(--app-vh);margin:0}
     $('#msScreenCert')?.addEventListener('click',()=>{const u=msfsBootstrapUrl();if(u)window.open(u,'_blank');}); $('#msScreenTest')?.addEventListener('click',()=>{const u=msfsSecureUrl();if(u)window.open(u,'_blank');});
   }
 
+  // Saved-address routing: calculate a preview without replacing the active route.
+  function addressRoutePoint(value){
+    const rawLat=value?.lat,rawLon=value?.lon??value?.lng;
+    if(rawLat==null||rawLon==null||rawLat===''||rawLon==='')throw new Error('Este ponto não tem coordenadas.');
+    const lat=Number(rawLat),lon=Number(rawLon);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)throw new Error('Coordenadas inválidas.');
+    return {lat,lon,name:String(value.name||'Ponto')};
+  }
+  let lastAddressFootRequest=0;
+  async function addressWalkingRoute(from,to){
+    if(state.net!=='online'||!navigator.onLine)throw new Error('Ative a Internet para calcular uma nova rota a pé.');
+    if(Date.now()-lastAddressFootRequest<1100)throw new Error('Aguarde um instante antes de recalcular.');
+    lastAddressFootRequest=Date.now();
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+    try{
+      const response=await fetch(`https://routing.openstreetmap.de/routed-foot/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson&steps=true&alternatives=false`,{signal:controller.signal});
+      if(!response.ok)throw new Error('Serviço de percursos a pé indisponível.');
+      const data=await response.json(),raw=data.routes?.[0];
+      if(data.code!=='Ok'||!raw?.geometry?.coordinates?.length)throw new Error('Não foi encontrado um percurso a pé.');
+      const route=buildRoadRouteCandidate(raw,from,to);route.mode='walk';route.provider='FOSSGIS / OpenStreetMap';route.alternatives=[];return route;
+    }finally{clearTimeout(timer);}
+  }
+  window.AERONAVAddressRoutes={
+    mode(){return state.mode==='flight'?'flight':state.manualWalk?'walk':'drive';},
+    wireSearch(id){wireAddressAutocomplete(id);},
+    selected(id){return selectedAddressFromInput(id);},
+    async preview({destination,origin,mode}){
+      if(!['drive','walk','flight'].includes(mode))throw new Error('Escolha o modo de viagem.');
+      const to=addressRoutePoint(destination);let from;
+      if(origin?.type==='gps'){
+        if(!navigator.geolocation)throw new Error('GPS indisponível neste dispositivo.');
+        const position=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,()=>reject(new Error('Não foi possível obter a posição GPS. Autorize a localização ou escolha outra origem.')),{enableHighAccuracy:true,maximumAge:15000,timeout:15000}));
+        from=addressRoutePoint({lat:position.coords.latitude,lon:position.coords.longitude,name:'Minha posição'});
+      }else from=addressRoutePoint(origin?.point);
+      if(haversine(from,to)<1)throw new Error('A origem e o destino são o mesmo ponto.');
+      let route;
+      if(mode==='flight'){
+        const aircraft=AIRCRAFT.find(a=>a.id===state.aircraftPref)||AIRCRAFT[0];
+        route=flightRoute(from,to,aircraft);route.routeString=`${from.name} DCT ${to.name}`;
+      }else if(mode==='walk')route=await addressWalkingRoute(from,to);
+      else route=await roadRoute(from,to,{preference:state.drive.routePreference,avoidTraffic:state.drive.avoidTraffic,avoidHighways:state.drive.avoidHighways,avoidFerries:state.drive.avoidFerries,avoidTolls:state.drive.avoidTolls});
+      route.mode=mode;route.name=`${from.name} → ${to.name}`;route.status='planned';route.navigationActive=false;
+      return route;
+    },
+    async start(route){
+      if(!route?.geometry?.coordinates?.length)throw new Error('Calcule a rota primeiro.');
+      if(state.currentRoute?.navigationActive&&!confirm('Substituir a rota ativa por este percurso?'))return false;
+      state.currentRoute=route;route._mapOpened=true;activateRouteContext(route,{offlineWhenDisconnected:false});
+      await persistActiveRoute('address-route',true);openCurrentRouteOnMap();return true;
+    }
+  };
+
   // Compact cockpit reads existing state; never starts GPS or fetches data.
   window.AERONAVCockpit={
     snapshot(){
@@ -7334,7 +7386,7 @@ body{min-height:var(--app-vh);margin:0}
 })();
 </script>
 
-<script src="./work-status-fragment.js?v=RC12.36"></script>
+<script src="./work-status-fragment.js?v=RC12.36.2"></script>
 <script src="./flight-ops-fragment.js?v=RC12.36"></script>
 <script src="./gps-view-modes.js?v=RC12.36"></script>
 <script src="./meteo-visual-voo.js?v=RC12.36"></script>
@@ -7344,3 +7396,4 @@ body{min-height:var(--app-vh);margin:0}
 <script src="./cockpit-lite.js?v=RC12.32"></script>
 </body>
 </html>
+
