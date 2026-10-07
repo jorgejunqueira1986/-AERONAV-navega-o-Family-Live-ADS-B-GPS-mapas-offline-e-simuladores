@@ -1,4 +1,4 @@
-/* AERONAV RC12.37 — Drive 3D visual update + versioned offline shell */
+/* AERONAV RC12.37.1 — Service Worker Recovery + Drive 2D/3D functional hotfix */
 /* AERONAV RC12.32 — bounded UI work + versioned offline shell */
 /* AERONAV RC12.31.2 — Performance Recovery */
 /* AERONAV RC12.31 — Diagnostic + Recovery */
@@ -13,7 +13,7 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_37_0-drive3d-20261007';
+const CACHE='aeronav-jorge-RC12_37_1-drive2d3d-hotfix-20261007';
 const LOCAL=["./cockpit-lite.js", "./assets/people/mathia-avatar-rc12313.png", "./assets/people/jorge-avatar-rc12313.png", "./index.html", "./manifest.json", "./sw.js", "./family-viewer.html", "./wendler.html", "./family-viewer-preview.html", "./cockpit-audio.js", "./family-call.js", "./angola-offline-fragment.js", "./vendor/pmtiles-3.2.1.js", "./work-status-fragment.js", "./meteo-visual-voo.js", "./meteo-route-phase2.js", "./meteo-altitude-phase3.js", "./diagnostic-recovery.js", "./gps-view-modes.js", "./flight-ops-fragment.js", "./", "./vendor/maplibre-gl-5.24.0.js", "./vendor/maplibre-gl-5.24.0.css", "./vendor/fonts/Noto Sans Regular/0-255.pbf", "./vendor/fonts/Noto Sans Regular/256-511.pbf"];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
@@ -142,7 +142,7 @@ function hud(){var h=ensureHud();if(!h)return;document.body.classList.toggle('ae
 function styleRoute(m){try{if(m.getLayer('active-route-halo')){m.setPaintProperty('active-route-halo','line-width',18);m.setPaintProperty('active-route-halo','line-color','#03121b');m.setPaintProperty('active-route-halo','line-opacity',.9)}if(m.getLayer('active-route')){m.setPaintProperty('active-route','line-width',11);m.setPaintProperty('active-route','line-color','#169cff');m.setPaintProperty('active-route','line-opacity',1)}}catch(_){}}
 function showBuildings(m){try{var ls=(m.getStyle&&m.getStyle().layers)||[];ls.forEach(function(l){if(l.type==='fill-extrusion'){try{m.setLayoutProperty(l.id,'visibility','visible')}catch(_){}}})}catch(_){}}
 function patch(m){if(!m||m.__aeronavDrive37)return;m.__aeronavDrive37=true;try{if(m.setMaxPitch)m.setMaxPitch(75)}catch(_){};var oe=m.easeTo&&m.easeTo.bind(m);if(oe)m.easeTo=function(o,e){var x=Object.assign({},o||{});if(active()&&!is2d()){x.pitch=67;if(!Number.isFinite(Number(x.zoom))||Number(x.zoom)<15.7)x.zoom=Math.max(16.2,Number(m.getZoom?m.getZoom():16.2)||16.2)}return oe(x,e)};}
-function tune(){var m=map();if(m){patch(m);if(active()){showBuildings(m);styleRoute(m);if(!is2d()){try{var p=Number(m.getPitch?m.getPitch():0);if(p<61&&m.easeTo)m.easeTo({pitch:67,zoom:Math.max(16.2,Number(m.getZoom?m.getZoom():16.2)||16.2),duration:260})}catch(_){}}}}hud();if(document.title.indexOf('RC12.37')<0)document.title='AERONAV — RC12.37.0'}
+function tune(){var m=map();if(m){patch(m);if(active()){showBuildings(m);styleRoute(m);if(!is2d()){try{var p=Number(m.getPitch?m.getPitch():0);if(p<61&&m.easeTo)m.easeTo({pitch:67,zoom:Math.max(16.2,Number(m.getZoom?m.getZoom():16.2)||16.2),duration:260})}catch(_){}}}}hud();if(document.title.indexOf('RC12.37')<0)document.title='AERONAV — RC12.37.1'}
 window.addEventListener('aeronav:map-ready',function(e){setTimeout(function(){patch((e&&e.detail&&e.detail.map)||map());tune()},80)});window.addEventListener('aeronav:screen-change',function(){setTimeout(tune,80)});window.addEventListener('aeronav:cockpit-change',function(){setTimeout(tune,80)});document.addEventListener('visibilitychange',function(){if(!document.hidden)setTimeout(tune,80)});setInterval(tune,650);setTimeout(tune,250);
 })();<\/script>`;
 
@@ -185,6 +185,97 @@ async function injectAngolaMapsIntoMainNavigation(response,request){
     if(!body.includes('meteo-altitude-phase3.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-altitude-phase3.js?v=RC12.32"></script></body>');
     if(!body.includes('diagnostic-recovery.js'))body=body.replace(/<\/body>/i,'<script src="./diagnostic-recovery.js?v=RC12.36"></script></body>');
     if(!body.includes('data-aeronav-drive3d-rc1237'))body=body.replace(/<\/body>/i,DRIVE3D_INJECT+'</body>');
+    const drive23dBridge = `<script data-aeronav-drive23d-rc12371>(function(){
+try{
+  if(window.__AERONAV_DRIVE23D_RC12371__)return;
+  window.__AERONAV_DRIVE23D_RC12371__=true;
+  var MODE_KEY='aeronav.drive.view.rc12371';
+  var lastMap=null,lastMode='';
+  function q(sel){return document.querySelector(sel)}
+  function map(){return window.__AERONAV_MAP__||window.aeronavMap||window.mainMap||null}
+  function isDrive(){return localStorage.getItem('aeronav.mode')==='drive'||q('#modeDrive')?.classList.contains('active')}
+  function isMapScreen(){return q('#screen-map')?.classList.contains('active')}
+  function heading(){
+    var m=map(); if(!m)return 0;
+    var mk=document.querySelector('.position-marker.drive,.position-marker.car');
+    var t=mk&&mk.style?mk.style.transform:'';
+    var r=t&&t.match(/rotate(?:Z)?\\(([-\\d.]+)deg\\)/i);
+    if(r&&isFinite(+r[1]))return +r[1];
+    try{return m.getBearing()||0}catch(_){return 0}
+  }
+  function showExtrusions(on){
+    var m=map();if(!m||!m.getStyle)return;
+    try{(m.getStyle()?.layers||[]).forEach(function(l){if(l.type==='fill-extrusion'){try{m.setLayoutProperty(l.id,'visibility',on?'visible':'none')}catch(_){}}});}catch(_){ }
+  }
+  function setCamera(kind,instant){
+    var m=map();if(!m||!isDrive())return;
+    var is3=kind==='3d';
+    try{m.setMaxPitch?.(75)}catch(_){ }
+    if(is3){
+      localStorage.setItem('aeronav.drive.view','perspective');
+      localStorage.setItem('aeronav.drive.mapStyle','modern3d');
+      showExtrusions(true);
+      var z=16.4;try{z=Math.max(16.2,Math.min(17.1,m.getZoom()))}catch(_){ }
+      try{m.easeTo({pitch:67,bearing:heading(),zoom:z,duration:instant?0:650,padding:{top:70,bottom:190,left:20,right:20}})}catch(_){ }
+    }else{
+      localStorage.setItem('aeronav.drive.view','2d');
+      localStorage.setItem('aeronav.drive.mapStyle','classic');
+      showExtrusions(false);
+      try{m.easeTo({pitch:0,bearing:0,zoom:Math.max(14.5,m.getZoom()),duration:instant?0:500,padding:{top:20,bottom:110,left:20,right:20}})}catch(_){ }
+    }
+    localStorage.setItem(MODE_KEY,kind);
+    lastMode=kind;
+    syncButtons();
+  }
+  function ensureControls(){
+    var wrap=q('#screen-map .map-wrap');if(!wrap)return null;
+    var box=q('#aeronavDrive23d');
+    if(box&&box.parentElement!==wrap){try{box.remove()}catch(_){box=null}}
+    if(!box){
+      box=document.createElement('div');box.id='aeronavDrive23d';box.setAttribute('aria-label','Vista do mapa de condução');
+      box.innerHTML='<button type="button" data-drive23d="2d">2D</button><button type="button" data-drive23d="3d">3D</button>';
+      wrap.appendChild(box);
+      box.querySelectorAll('button').forEach(function(b){b.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();setCamera(b.dataset.drive23d,false)})});
+    }
+    return box;
+  }
+  function syncButtons(){
+    var box=q('#aeronavDrive23d');if(!box)return;
+    var mode=localStorage.getItem(MODE_KEY)||'3d';
+    box.querySelectorAll('button').forEach(function(b){b.classList.toggle('active',b.dataset.drive23d===mode)});
+    box.style.display=(isDrive()&&isMapScreen())?'flex':'none';
+  }
+  function style(){
+    if(q('#aeronavDrive23dStyle'))return;
+    var st=document.createElement('style');st.id='aeronavDrive23dStyle';st.textContent='\
+#aeronavDrive23d{position:absolute;z-index:45;left:14px;bottom:92px;display:none;gap:4px;padding:4px;background:#031522e6;border:1px solid #32708f;border-radius:15px;box-shadow:0 10px 30px #0008;backdrop-filter:blur(12px)}\
+#aeronavDrive23d button{appearance:none;border:0;min-width:54px;height:40px;border-radius:11px;background:#0b2a40;color:#b9d8e9;font:900 13px system-ui,-apple-system,sans-serif;letter-spacing:.04em}\
+#aeronavDrive23d button.active{background:#0e9fe8;color:white;box-shadow:0 0 0 1px #69d9ff inset,0 6px 18px #008fd955}\
+body:has(#modeDrive.active) #screen-map .map-wrap{perspective:1200px}\
+@media(max-width:650px){#aeronavDrive23d{left:10px;bottom:78px}#aeronavDrive23d button{min-width:48px;height:36px;font-size:12px}}';
+    document.head.appendChild(st);
+  }
+  function tick(){
+    style();var box=ensureControls();syncButtons();
+    var m=map();
+    if(!m||!isDrive()||!isMapScreen())return;
+    var mode=localStorage.getItem(MODE_KEY)||'3d';
+    if(lastMap!==m){lastMap=m;lastMode='';}
+    if(lastMode!==mode){setTimeout(function(){setCamera(mode,true)},80)}
+  }
+  function reapply3d(){
+    if(!isDrive()||!isMapScreen())return;
+    var mode=localStorage.getItem(MODE_KEY)||'3d';
+    if(mode==='3d')setTimeout(function(){showExtrusions(true)},120);
+  }
+  ['aeronav:map-ready','aeronav:screen-change','pageshow'].forEach(function(ev){window.addEventListener(ev,function(){setTimeout(tick,100);setTimeout(reapply3d,450)})});
+  document.addEventListener('click',function(e){if(e.target?.closest?.('#modeDrive,#myPositionBtn,[data-bottom="map"]'))setTimeout(function(){tick();var md=localStorage.getItem(MODE_KEY)||'3d';setCamera(md,false)},180)},true);
+  if(!localStorage.getItem(MODE_KEY))localStorage.setItem(MODE_KEY,'3d');
+  setInterval(function(){tick();reapply3d()},1200);
+  setTimeout(function(){tick();setCamera(localStorage.getItem(MODE_KEY)||'3d',true)},350);
+}catch(e){console.warn('AERONAV 2D/3D hotfix',e)}
+})();<\/script>`;
+    if(!body.includes('data-aeronav-drive23d-rc12371'))body=body.replace(/<\/body>/i,drive23dBridge+'</body>');
     const headers=new Headers(response.headers);
     headers.delete('content-length');
     headers.delete('content-encoding');
@@ -234,7 +325,7 @@ self.addEventListener('message',event=>{
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
         cacheVersion:CACHE,
-        release:'RC12.37.0'
+        release:'RC12.37.1'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){
