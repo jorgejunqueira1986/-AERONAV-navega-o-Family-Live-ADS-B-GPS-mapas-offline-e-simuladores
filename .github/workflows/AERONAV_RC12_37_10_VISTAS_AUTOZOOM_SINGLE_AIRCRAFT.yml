@@ -1,0 +1,101 @@
+name: AERONAV RC12.37.10 Vistas Auto Zoom Single Aircraft
+'on':
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  map_view_controls:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout main
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+    - name: Apply RC12.37.10
+      shell: bash
+      run: "set -euo pipefail\n\ntest -f index.html\ntest -f sw.js\ntest -f flight-camera-director.js\ntest -f gps-view-modes.js\n\
+        test -f cockpit-lite.js\n\npython3 - <<'PY'\nfrom pathlib import Path\nimport base64\n\ndef dec(x):\n    return base64.b64decode(x).decode(\"\
+        utf-8\")\n\nh = Path(\"index.html\").read_text(encoding=\"utf-8\")\nold_title = \"<title>AERONAV — RC12.37.9</title>\"\
+        \nold_app = \"const APP_VERSION = 'RC12.37.9 · Camera Menu Fix';\"\nanchor = '<script src=\"./flight-camera-ui-fix.js?v=RC12.37.9\"\
+        ></script>'\ntag = '<script src=\"./camera-map-behavior.js?v=RC12.37.10\"></script>'\n\nif old_title not in h:\n \
+        \   raise SystemExit(\"Expected RC12.37.9 title not found\")\nif old_app not in h:\n    raise SystemExit(\"Expected\
+        \ RC12.37.9 APP_VERSION not found\")\nif anchor not in h:\n    raise SystemExit(\"RC12.37.9 UI fix anchor not found\"\
+        )\n\nh = h.replace(old_title, \"<title>AERONAV — RC12.37.10</title>\", 1)\nh = h.replace(\n    old_app,\n    \"const\
+        \ APP_VERSION = 'RC12.37.10 · Vistas + Auto Zoom + Single Aircraft';\",\n    1\n)\nif tag not in h:\n    h = h.replace(anchor,\
+        \ anchor + \"\\n\" + tag, 1)\nPath(\"index.html\").write_text(h, encoding=\"utf-8\")\n\nPath(\"camera-map-behavior.js\"\
+        ).write_text(dec(\"LyogQUVST05BViBSQzEyLjM3LjEwIOKAlCBWaXN0YXMgaW50ZWdyYXRpb24sIEF1dG8gWm9vbSBzd2l0Y2ggYW5kIHNpbmdsZS1haXJjcmFmdCBkaXNwbGF5LiAqLwooKCkgPT4gewogICd1c2Ugc3RyaWN0JzsKICBpZiAod2luZG93Ll9fQUVST05BVl9DQU1FUkFfTUFQX0JFSEFWSU9SXzM3MTBfXykgcmV0dXJuOwogIHdpbmRvdy5fX0FFUk9OQVZfQ0FNRVJBX01BUF9CRUhBVklPUl8zNzEwX18gPSB0cnVlOwoKICBjb25zdCBBVVRPX1pPT01fS0VZID0gJ2Flcm9uYXYubWFwLmF1dG96b29tJzsKICBjb25zdCAkID0gcyA9PiBkb2N1bWVudC5xdWVyeVNlbGVjdG9yKHMpOwoKICBmdW5jdGlvbiBhdXRvWm9vbU9uKCkgewogICAgcmV0dXJuIGxvY2FsU3RvcmFnZS5nZXRJdGVtKEFVVE9fWk9PTV9LRVkpICE9PSAnMCc7CiAgfQoKICBmdW5jdGlvbiBzZXRBdXRvWm9vbShvbikgewogICAgbG9jYWxTdG9yYWdlLnNldEl0ZW0oQVVUT19aT09NX0tFWSwgb24gPyAnMScgOiAnMCcpOwogICAgc3luY0F1dG9ab29tQnV0dG9uKCk7CiAgICB3aW5kb3cuZGlzcGF0Y2hFdmVudChuZXcgQ3VzdG9tRXZlbnQoJ2Flcm9uYXY6YXV0b3pvb20tY2hhbmdlJywgewogICAgICBkZXRhaWw6IHsgZW5hYmxlZDogISFvbiwgcmVsZWFzZTogJ1JDMTIuMzcuMTAnIH0KICAgIH0pKTsKICAgIGlmIChvbikgewogICAgICB0cnkgeyB3aW5kb3cuQUVST05BVkZsaWdodENhbWVyYT8uYXBwbHk/LigpOyB9IGNhdGNoIChfKSB7fQogICAgfQogICAgcmV0dXJuICEhb247CiAgfQoKICBmdW5jdGlvbiBlbnN1cmVTdHlsZXMoKSB7CiAgICBpZiAoJCgnI2Flcm9uYXZDYW1lcmFNYXBCZWhhdmlvcjM3MTBTdHlsZScpKSByZXR1cm47CiAgICBjb25zdCBzdCA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ3N0eWxlJyk7CiAgICBzdC5pZCA9ICdhZXJvbmF2Q2FtZXJhTWFwQmVoYXZpb3IzNzEwU3R5bGUnOwogICAgc3QudGV4dENvbnRlbnQgPSBgCiAgICAgICNmbGlnaHRDYW1lcmFCdG4sI21vYmlsZUZsaWdodENhbWVyYUJ0bntkaXNwbGF5Om5vbmUhaW1wb3J0YW50fQogICAgICBib2R5LmFlcm9uYXYtZmxpZ2h0LWNhbWVyYS1leHRlcm5hbCAucG9zaXRpb24tbWFya2VyLmZsaWdodHtkaXNwbGF5Om5vbmUhaW1wb3J0YW50fQogICAgICBib2R5LmFlcm9uYXYtZmxpZ2h0LWNhbWVyYS1leHRlcm5hbCAjYWVyb25hdlJlYXJBaXJjcmFmdHtkaXNwbGF5Om5vbmUhaW1wb3J0YW50fQoKICAgICAgI2F1dG9ab29tTWFwQnRuewogICAgICAgIHBvc2l0aW9uOmFic29sdXRlO3otaW5kZXg6MzU7bGVmdDoxMnB4O3RvcDoxMnB4OwogICAgICAgIGJvcmRlcjoxcHggc29saWQgIzMxNTY2ZTtib3JkZXItcmFkaXVzOjk5OXB4OwogICAgICAgIHBhZGRpbmc6N3B4IDEwcHg7YmFja2dyb3VuZDojMDcxMzFkZTg7Y29sb3I6I2RmZjZmZjsKICAgICAgICBmb250OjkwMCA5cHgvMSAtYXBwbGUtc3lzdGVtLEJsaW5rTWFjU3lzdGVtRm9udCwiU2Vnb2UgVUkiLHNhbnMtc2VyaWY7CiAgICAgICAgbGV0dGVyLXNwYWNpbmc6LjA0ZW07Ym94LXNoYWRvdzowIDdweCAyMHB4ICMwMDA3OwogICAgICAgIGJhY2tkcm9wLWZpbHRlcjpibHVyKDEwcHgpCiAgICAgIH0KICAgICAgI2F1dG9ab29tTWFwQnRuLm9ue2JhY2tncm91bmQ6IzBkNmY1Mztib3JkZXItY29sb3I6IzRiZDdhMDtjb2xvcjojZmZmfQogICAgICAjYXV0b1pvb21NYXBCdG4ub2Zme2JhY2tncm91bmQ6IzUxMjUyYjtib3JkZXItY29sb3I6I2E4NWE2NTtjb2xvcjojZmZmfQogICAgICAjY2xGbGlnaHRBbmdsZXN7bWluLWhlaWdodDo1OHB4fQogICAgICAjY2xGbGlnaHRBbmdsZXMgYntmb250LXNpemU6MThweH0KICAgIGA7CiAgICBkb2N1bWVudC5oZWFkLmFwcGVuZENoaWxkKHN0KTsKICB9CgogIGZ1bmN0aW9uIGVuc3VyZUF1dG9ab29tQnV0dG9uKCkgewogICAgY29uc3Qgd3JhcCA9ICQoJyNzY3JlZW4tbWFwIC5tYXAtd3JhcCcpOwogICAgaWYgKCF3cmFwIHx8ICQoJyNhdXRvWm9vbU1hcEJ0bicpKSByZXR1cm47CgogICAgY29uc3QgYiA9IGRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2J1dHRvbicpOwogICAgYi50eXBlID0gJ2J1dHRvbic7CiAgICBiLmlkID0gJ2F1dG9ab29tTWFwQnRuJzsKICAgIGIuYWRkRXZlbnRMaXN0ZW5lcignY2xpY2snLCBlID0+IHsKICAgICAgZS5zdG9wUHJvcGFnYXRpb24oKTsKICAgICAgc2V0QXV0b1pvb20oIWF1dG9ab29tT24oKSk7CiAgICB9KTsKCiAgICB3cmFwLmFwcGVuZENoaWxkKGIpOwogICAgc3luY0F1dG9ab29tQnV0dG9uKCk7CiAgfQoKICBmdW5jdGlvbiBzeW5jQXV0b1pvb21CdXR0b24oKSB7CiAgICBjb25zdCBiID0gJCgnI2F1dG9ab29tTWFwQnRuJyk7CiAgICBpZiAoIWIpIHJldHVybjsKICAgIGNvbnN0IG9uID0gYXV0b1pvb21PbigpOwogICAgYi5jbGFzc0xpc3QudG9nZ2xlKCdvbicsIG9uKTsKICAgIGIuY2xhc3NMaXN0LnRvZ2dsZSgnb2ZmJywgIW9uKTsKICAgIGIudGV4dENvbnRlbnQgPSBvbiA/ICfwn5SOIFpPT00gQVVUTyDCtyBPTicgOiAn8J+UjiBaT09NIEFVVE8gwrcgT0ZGJzsKICAgIGIuc2V0QXR0cmlidXRlKCdhcmlhLXByZXNzZWQnLCBTdHJpbmcob24pKTsKICAgIGIuc2V0QXR0cmlidXRlKCd0aXRsZScsIG9uID8gJ0Rlc2xpZ2FyIHpvb20gYXV0b23DoXRpY28nIDogJ0xpZ2FyIHpvb20gYXV0b23DoXRpY28nKTsKICB9CgogIGZ1bmN0aW9uIGNsb3NlVmlzdGFzTWVudSgpIHsKICAgIGNvbnN0IG1lbnUgPSAkKCcjY2xWaWV3TWVudScpOwogICAgY29uc3QgYnRuID0gJCgnI2NsVmlld3MnKTsKICAgIGlmIChtZW51KSBtZW51LmhpZGRlbiA9IHRydWU7CiAgICBpZiAoYnRuKSBidG4uc2V0QXR0cmlidXRlKCdhcmlhLWV4cGFuZGVkJywgJ2ZhbHNlJyk7CiAgfQoKICBmdW5jdGlvbiBlbnN1cmVBbmdsZXNJbnNpZGVWaXN0YXMoKSB7CiAgICBjb25zdCBncmlkID0gJCgnI2NsVmlld01lbnUgLmNsLXZpZXdzJyk7CiAgICBpZiAoIWdyaWQgfHwgJCgnI2NsRmxpZ2h0QW5nbGVzJykpIHJldHVybjsKCiAgICBjb25zdCBiID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnYnV0dG9uJyk7CiAgICBiLnR5cGUgPSAnYnV0dG9uJzsKICAgIGIuaWQgPSAnY2xGbGlnaHRBbmdsZXMnOwogICAgYi5pbm5lckhUTUwgPSAnPGI+8J+OpTwvYj7Dgm5ndWxvcyBkZSB2b28nOwogICAgYi5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsIGUgPT4gewogICAgICBlLnN0b3BQcm9wYWdhdGlvbigpOwogICAgICBjbG9zZVZpc3Rhc01lbnUoKTsKCiAgICAgIGNvbnN0IG1hcE1lbnUgPSAkKCcjbW9iaWxlTWFwTWVudScpOwogICAgICBjb25zdCBtYXBNZW51QnRuID0gJCgnI21vYmlsZU1hcE1lbnVCdG4nKTsKICAgICAgaWYgKG1hcE1lbnUpIHsKICAgICAgICBtYXBNZW51LmNsYXNzTGlzdC5yZW1vdmUoJ3Nob3cnKTsKICAgICAgICBtYXBNZW51LnNldEF0dHJpYnV0ZSgnYXJpYS1oaWRkZW4nLCAndHJ1ZScpOwogICAgICB9CiAgICAgIGlmIChtYXBNZW51QnRuKSBtYXBNZW51QnRuLnNldEF0dHJpYnV0ZSgnYXJpYS1leHBhbmRlZCcsICdmYWxzZScpOwoKICAgICAgc2V0VGltZW91dCgoKSA9PiB7CiAgICAgICAgdHJ5IHsgd2luZG93LkFFUk9OQVZGbGlnaHRDYW1lcmE/Lm9wZW4/LigpOyB9IGNhdGNoIChfKSB7fQogICAgICB9LCAzMCk7CiAgICB9KTsKCiAgICBncmlkLmFwcGVuZENoaWxkKGIpOwogIH0KCiAgZnVuY3Rpb24gc3luY1NpbmdsZUFpcmNyYWZ0KCkgewogICAgY29uc3QgZXh0ZXJuYWwgPSBkb2N1bWVudC5ib2R5LmNsYXNzTGlzdC5jb250YWlucygnYWVyb25hdi1mbGlnaHQtY2FtZXJhLWV4dGVybmFsJyk7CiAgICBjb25zdCBtYXJrZXIgPSAkKCcucG9zaXRpb24tbWFya2VyLmZsaWdodCcpOwogICAgaWYgKG1hcmtlcikgbWFya2VyLnNldEF0dHJpYnV0ZSgnYXJpYS1oaWRkZW4nLCBleHRlcm5hbCA/ICd0cnVlJyA6ICdmYWxzZScpOwogIH0KCiAgZnVuY3Rpb24gc3luYygpIHsKICAgIGVuc3VyZVN0eWxlcygpOwogICAgZW5zdXJlQXV0b1pvb21CdXR0b24oKTsKICAgIGVuc3VyZUFuZ2xlc0luc2lkZVZpc3RhcygpOwogICAgc3luY0F1dG9ab29tQnV0dG9uKCk7CiAgICBzeW5jU2luZ2xlQWlyY3JhZnQoKTsKICB9CgogIFsnYWVyb25hdjpjYW1lcmEtY2hhbmdlJywnYWVyb25hdjpzY3JlZW4tY2hhbmdlJywnYWVyb25hdjptYXAtcmVhZHknLCdwYWdlc2hvdycsJ2Flcm9uYXY6YXV0b3pvb20tY2hhbmdlJ10KICAgIC5mb3JFYWNoKGV2ID0+IHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKGV2LCAoKSA9PiBzZXRUaW1lb3V0KHN5bmMsIDQwKSkpOwoKICBkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCd2aXNpYmlsaXR5Y2hhbmdlJywgKCkgPT4gewogICAgaWYgKCFkb2N1bWVudC5oaWRkZW4pIHNldFRpbWVvdXQoc3luYywgNTApOwogIH0pOwoKICBzZXRJbnRlcnZhbChzeW5jLCA1MDApOwogIHNldFRpbWVvdXQoc3luYywgMzUwKTsKCiAgd2luZG93LkFFUk9OQVZNYXBWaWV3Q29udHJvbHMgPSB7CiAgICByZWxlYXNlOidSQzEyLjM3LjEwJywKICAgIGF1dG9ab29tOnNldEF1dG9ab29tLAogICAgc3RhdHVzOigpID0+ICh7CiAgICAgIHJlbGVhc2U6J1JDMTIuMzcuMTAnLAogICAgICBhdXRvWm9vbTphdXRvWm9vbU9uKCksCiAgICAgIGFuZ2xlc0luVmlzdGFzOiEhJCgnI2NsRmxpZ2h0QW5nbGVzJyksCiAgICAgIGR1cGxpY2F0ZUFpcmNyYWZ0U3VwcHJlc3NlZDpkb2N1bWVudC5ib2R5LmNsYXNzTGlzdC5jb250YWlucygnYWVyb25hdi1mbGlnaHQtY2FtZXJhLWV4dGVybmFsJykKICAgIH0pCiAgfTsKfSkoKTsK\"\
+        ), encoding=\"utf-8\")\n\np = Path(\"flight-camera-director.js\")\nc = p.read_text(encoding=\"utf-8\")\nold = dec(\"\
+        ICAgIHJldHVybiB7CiAgICAgIGNlbnRlcjogY2VudGVyIHx8IHVuZGVmaW5lZCwKICAgICAgem9vbTogTWF0aC5tYXgoY3VycmVudFpvb20sIHAuem9vbSksCiAgICAgIHBpdGNoOiBwLnBpdGNoLAogICAgICBiZWFyaW5nLAogICAgICBkdXJhdGlvbjogaW5zdGFudCA/IDAgOiAocHJlc2V0SWQgPT09ICdvcmJpdCcgPyAyNjAgOiA3MDApLAogICAgICBwYWRkaW5nOiBwLmV4dGVybmFsCiAgICAgICAgPyB7IHRvcDo3MCwgYm90dG9tOjE3NSwgbGVmdDoxNCwgcmlnaHQ6MTQgfQogICAgICAgIDogeyB0b3A6NTUsIGJvdHRvbTo3NSwgbGVmdDoxMiwgcmlnaHQ6MTIgfQogICAgfTsK\"\
+        )\nnew = dec(\"ICAgIGNvbnN0IHRhcmdldCA9IHsKICAgICAgY2VudGVyOiBjZW50ZXIgfHwgdW5kZWZpbmVkLAogICAgICBwaXRjaDogcC5waXRjaCwKICAgICAgYmVhcmluZywKICAgICAgZHVyYXRpb246IGluc3RhbnQgPyAwIDogKHByZXNldElkID09PSAnb3JiaXQnID8gMjYwIDogNzAwKSwKICAgICAgcGFkZGluZzogcC5leHRlcm5hbAogICAgICAgID8geyB0b3A6NzAsIGJvdHRvbToxNzUsIGxlZnQ6MTQsIHJpZ2h0OjE0IH0KICAgICAgICA6IHsgdG9wOjU1LCBib3R0b206NzUsIGxlZnQ6MTIsIHJpZ2h0OjEyIH0KICAgIH07CiAgICBpZiAobG9jYWxTdG9yYWdlLmdldEl0ZW0oJ2Flcm9uYXYubWFwLmF1dG96b29tJykgIT09ICcwJykgewogICAgICB0YXJnZXQuem9vbSA9IE1hdGgubWF4KGN1cnJlbnRab29tLCBwLnpvb20pOwogICAgfQogICAgcmV0dXJuIHRhcmdldDsK\"\
+        )\nif old not in c:\n    raise SystemExit(\"Flight Camera targetFor baseline not found\")\nc = c.replace(old, new,\
+        \ 1)\np.write_text(c, encoding=\"utf-8\")\n\np = Path(\"gps-view-modes.js\")\ng = p.read_text(encoding=\"utf-8\")\n\
+        old = dec(\"ICAgIGlmKG1vZGU9PT0nZmxpZ2h0JyYmTnVtYmVyLmlzRmluaXRlKHdpbmRvdy5fX0FFUk9OQVZfQ09DS1BJVF9QSVRDSF9fKSl7dGFyZ2V0LnBpdGNoPXdpbmRvdy5fX0FFUk9OQVZfQ09DS1BJVF9QSVRDSF9fO3RhcmdldC5wYWRkaW5nPXt0b3A6NTUsYm90dG9tOjcwLGxlZnQ6MTAscmlnaHQ6MTB9O30KICAgIHRyeXttLmVhc2VUbyh0YXJnZXQpO31jYXRjaChfKXt9Cg==\"\
+        )\nnew = dec(\"ICAgIGlmKG1vZGU9PT0nZmxpZ2h0JyYmTnVtYmVyLmlzRmluaXRlKHdpbmRvdy5fX0FFUk9OQVZfQ09DS1BJVF9QSVRDSF9fKSl7dGFyZ2V0LnBpdGNoPXdpbmRvdy5fX0FFUk9OQVZfQ09DS1BJVF9QSVRDSF9fO3RhcmdldC5wYWRkaW5nPXt0b3A6NTUsYm90dG9tOjcwLGxlZnQ6MTAscmlnaHQ6MTB9O30KICAgIGlmKGxvY2FsU3RvcmFnZS5nZXRJdGVtKCdhZXJvbmF2Lm1hcC5hdXRvem9vbScpPT09JzAnKWRlbGV0ZSB0YXJnZXQuem9vbTsKICAgIHRyeXttLmVhc2VUbyh0YXJnZXQpO31jYXRjaChfKXt9Cg==\"\
+        )\nif old not in g:\n    raise SystemExit(\"GPS cameraForMode baseline not found\")\ng = g.replace(old, new, 1)\n\
+        p.write_text(g, encoding=\"utf-8\")\n\ns = Path(\"sw.js\").read_text(encoding=\"utf-8\")\nold_header = \"/* AERONAV\
+        \ RC12.37.9 — Camera Menu Fix + versioned offline shell */\"\nold_cache = \"const CACHE='aeronav-jorge-RC12_37_9-camera-menu-fix-20261008';\"\
+        \nold_release = \"release:'RC12.37.9'\"\n\nif old_header not in s:\n    raise SystemExit(\"Expected RC12.37.9 SW header\
+        \ not found\")\nif old_cache not in s:\n    raise SystemExit(\"Expected RC12.37.9 cache not found\")\nif old_release\
+        \ not in s:\n    raise SystemExit(\"Expected RC12.37.9 SW release not found\")\n\ns = s.replace(\n    old_header,\n\
+        \    \"/* AERONAV RC12.37.10 — Vistas + Auto Zoom + Single Aircraft + versioned offline shell */\",\n    1\n)\ns =\
+        \ s.replace(\n    old_cache,\n    \"const CACHE='aeronav-jorge-RC12_37_10-map-view-controls-20261008';\",\n    1\n\
+        )\ns = s.replace(old_release, \"release:'RC12.37.10'\", 1)\n\nif '\"./camera-map-behavior.js\"' not in s:\n    s =\
+        \ s.replace('const LOCAL=[', 'const LOCAL=[\"./camera-map-behavior.js\",', 1)\n\nPath(\"sw.js\").write_text(s, encoding=\"\
+        utf-8\")\nPY\n"
+    - name: Validate RC12.37.10
+      shell: bash
+      run: 'set -euo pipefail
+
+
+        node --check camera-map-behavior.js
+
+        node --check flight-camera-director.js
+
+        node --check gps-view-modes.js
+
+        node --check sw.js
+
+
+        grep -Fq "<title>AERONAV — RC12.37.10</title>" index.html
+
+        grep -Fq "RC12.37.10 · Vistas + Auto Zoom + Single Aircraft" index.html
+
+        grep -Fq ''camera-map-behavior.js?v=RC12.37.10'' index.html
+
+
+        grep -Fq "clFlightAngles" camera-map-behavior.js
+
+        grep -Fq "Ângulos de voo" camera-map-behavior.js
+
+        grep -Fq "autoZoomMapBtn" camera-map-behavior.js
+
+        grep -Fq "ZOOM AUTO · ON" camera-map-behavior.js
+
+        grep -Fq "ZOOM AUTO · OFF" camera-map-behavior.js
+
+        grep -Fq "position-marker.flight" camera-map-behavior.js
+
+        grep -Fq "#flightCameraBtn,#mobileFlightCameraBtn" camera-map-behavior.js
+
+        grep -Fq "AERONAVMapViewControls" camera-map-behavior.js
+
+
+        grep -Fq "aeronav.map.autozoom" flight-camera-director.js
+
+        grep -Fq "aeronav.map.autozoom" gps-view-modes.js
+
+
+        grep -Fq "aeronav-jorge-RC12_37_10-map-view-controls-20261008" sw.js
+
+        grep -Fq "release:''RC12.37.10''" sw.js
+
+        grep -Fq ''"./camera-map-behavior.js"'' sw.js
+
+        '
+    - name: Commit RC12.37.10
+      shell: bash
+      run: "set -euo pipefail\n\ngit config user.name \"AERONAV Update\"\ngit config user.email \"actions@users.noreply.github.com\"\
+        \n\ngit add index.html sw.js flight-camera-director.js gps-view-modes.js camera-map-behavior.js\n\nif git diff --cached\
+        \ --quiet; then\n  echo \"No changes required.\"\n  exit 0\nfi\n\ngit commit -m \"RC12.37.10 move angles to Vistas,\
+        \ add auto zoom, suppress duplicate aircraft\"\ngit push origin HEAD:main\n"
