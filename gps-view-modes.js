@@ -229,6 +229,7 @@
   }
 
   function cameraForMode(force=false){
+    if(mode==='flight'&&window.__AERONAV_FLIGHT_CAMERA_DIRECTOR_ACTIVE__)return;
     const m=findMap();if(!m)return;
     hookMapInteractions(m);
 

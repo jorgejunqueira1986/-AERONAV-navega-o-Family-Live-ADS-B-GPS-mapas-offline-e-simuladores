@@ -1,4 +1,4 @@
-/* AERONAV RC12.37.4 — Photorealistic 3D Renderer + versioned offline shell */
+/* AERONAV RC12.37.5 — Manual Flight Camera Director + versioned offline shell */
 /* AERONAV RC12.32 — bounded UI work + versioned offline shell */
 /* AERONAV RC12.31.2 — Performance Recovery */
 /* AERONAV RC12.31 — Diagnostic + Recovery */
@@ -13,8 +13,8 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_37_4-photo3d-renderer-20261008';
-const LOCAL=["./photo3d-renderer.js", "./terrain-photo3d-runtime.js", "./photo3d-proxy.js", "./drive-core.js", "./cockpit-lite.js", "./assets/people/mathia-avatar-rc12313.png", "./assets/people/jorge-avatar-rc12313.png", "./index.html", "./manifest.json", "./sw.js", "./family-viewer.html", "./wendler.html", "./family-viewer-preview.html", "./cockpit-audio.js", "./family-call.js", "./angola-offline-fragment.js", "./vendor/pmtiles-3.2.1.js", "./work-status-fragment.js", "./meteo-visual-voo.js", "./meteo-route-phase2.js", "./meteo-altitude-phase3.js", "./diagnostic-recovery.js", "./gps-view-modes.js", "./flight-ops-fragment.js", "./", "./vendor/maplibre-gl-5.24.0.js", "./vendor/maplibre-gl-5.24.0.css", "./vendor/fonts/Noto Sans Regular/0-255.pbf", "./vendor/fonts/Noto Sans Regular/256-511.pbf"];
+const CACHE='aeronav-jorge-RC12_37_5-flight-cameras-20261008';
+const LOCAL=["./flight-camera-director.js", "./photo3d-renderer.js", "./terrain-photo3d-runtime.js", "./photo3d-proxy.js", "./drive-core.js", "./cockpit-lite.js", "./assets/people/mathia-avatar-rc12313.png", "./assets/people/jorge-avatar-rc12313.png", "./index.html", "./manifest.json", "./sw.js", "./family-viewer.html", "./wendler.html", "./family-viewer-preview.html", "./cockpit-audio.js", "./family-call.js", "./angola-offline-fragment.js", "./vendor/pmtiles-3.2.1.js", "./work-status-fragment.js", "./meteo-visual-voo.js", "./meteo-route-phase2.js", "./meteo-altitude-phase3.js", "./diagnostic-recovery.js", "./gps-view-modes.js", "./flight-ops-fragment.js", "./", "./vendor/maplibre-gl-5.24.0.js", "./vendor/maplibre-gl-5.24.0.css", "./vendor/fonts/Noto Sans Regular/0-255.pbf", "./vendor/fonts/Noto Sans Regular/256-511.pbf"];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js',
@@ -203,7 +203,7 @@ self.addEventListener('message',event=>{
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
         cacheVersion:CACHE,
-        release:'RC12.37.4'
+        release:'RC12.37.5'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){
