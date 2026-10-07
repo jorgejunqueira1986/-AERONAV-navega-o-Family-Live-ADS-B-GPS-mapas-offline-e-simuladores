@@ -151,6 +151,7 @@
   }
 
   function syncCamera(force = false) {
+    if (window.__AERONAV_3D_AIRCRAFT_CAMERA_OVERRIDE__) return;
     if (!runtime.enabled || !runtime.viewer || !runtime.ready || !mapScreenActive()) return;
     const now = performance.now();
     if (!force && now - runtime.lastSyncAt < 120) return;
@@ -292,7 +293,7 @@
 
   function status() {
     return {
-      release: 'RC12.37.4',
+      release: 'RC12.37.8',
       enabled: runtime.enabled,
       loading: runtime.loading,
       ready: runtime.ready,
@@ -303,7 +304,7 @@
     };
   }
 
-  window.AERONAVPhoto3DRenderer = { enable, disable, toggle, status, sync: () => syncCamera(true) };
+  window.AERONAVPhoto3DRenderer = { enable, disable, toggle, status, sync: () => syncCamera(true), viewer: () => runtime.viewer };
 
   ensureUi();
 
