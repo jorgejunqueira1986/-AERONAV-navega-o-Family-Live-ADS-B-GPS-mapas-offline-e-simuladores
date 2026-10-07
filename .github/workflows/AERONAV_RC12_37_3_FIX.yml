@@ -1,0 +1,148 @@
+name: AERONAV RC12.37.3 Terrain Photo3D Fix
+
+'on':
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  apply_fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply RC12.37.3
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f index.html
+          test -f sw.js
+          test -f drive-core.js
+          test -f photo3d-proxy.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+
+          h = Path("index.html").read_text(encoding="utf-8")
+
+          expected_title = "<title>AERONAV — RC12.37.2</title>"
+          expected_app = "const APP_VERSION = 'RC12.37.2 · Drive 2D/3D Core Fix';"
+          anchor = "\n\n  function angolaSafeLayerId(s)"
+
+          if expected_title not in h:
+              raise SystemExit("Expected RC12.37.2 title not found")
+          if expected_app not in h:
+              raise SystemExit("Expected RC12.37.2 APP_VERSION not found")
+          if "async function angolaApplyTerrain()" not in h:
+              raise SystemExit("angolaApplyTerrain not found")
+          if anchor not in h:
+              raise SystemExit("Terrain bridge anchor not found")
+
+          bridge = base64.b64decode("CiAgLy8gUkMxMi4zNy4zIOKAlCBicmlkZ2UgZm9yIFRlcnJhaW4gM0QgY29udHJvbGxlci4KICB3aW5kb3cuQUVST05BVlRlcnJhaW5CcmlkZ2U9ewogICAgYXBwbHk6KCk9PmFuZ29sYUFwcGx5VGVycmFpbigpLAogICAgY2xlYXI6YXN5bmMoKT0+ewogICAgICB0cnl7c3RhdGUubWFwPy5zZXRUZXJyYWluPy4obnVsbCk7fWNhdGNoKF8pe30KICAgICAgc3RhdGUuX2FuZ29sYVRlcnJhaW5SZWNvcmRJZD0nJzsKICAgICAgcmV0dXJuIHRydWU7CiAgICB9LAogICAgc3RhdHVzOmFzeW5jKCk9PnsKICAgICAgY29uc3QgcmVjPWF3YWl0IGFuZ29sYVRlcnJhaW5SZWNvcmQoc3RhdGUuY3VycmVudFBvc2l0aW9uKS5jYXRjaCgoKT0+bnVsbCk7CiAgICAgIGxldCBhY3RpdmU9ZmFsc2U7CiAgICAgIHRyeXthY3RpdmU9ISFzdGF0ZS5tYXA/LmdldFRlcnJhaW4/LigpO31jYXRjaChfKXt9CiAgICAgIHJldHVybiB7CiAgICAgICAgb2s6dHJ1ZSwKICAgICAgICBhdmFpbGFibGU6ISFyZWM/LmJsb2IsCiAgICAgICAgYWN0aXZlLAogICAgICAgIHJlY29yZElkOnJlYz8uaWR8fCcnLAogICAgICAgIG1vZGU6c3RhdGUubW9kZSwKICAgICAgICBtYXBTdHlsZTpzdGF0ZS5jdXJyZW50TWFwU3R5bGV8fCcnLAogICAgICAgIHBvc2l0aW9uU291cmNlOnN0YXRlLnBvc2l0aW9uU291cmNlfHwnJwogICAgICB9OwogICAgfQogIH07Cg==").decode("utf-8")
+          if "window.AERONAVTerrainBridge=" not in h:
+              h = h.replace(anchor, "\n" + bridge + anchor, 1)
+
+          h = h.replace(expected_title, "<title>AERONAV — RC12.37.3</title>", 1)
+          h = h.replace(
+              expected_app,
+              "const APP_VERSION = 'RC12.37.3 · Terrain 3D + Photo3D Bridge';",
+              1
+          )
+
+          drive = '<script src="./drive-core.js?v=RC12.37.2"></script>'
+          photo = '<script src="./photo3d-proxy.js?v=RC12.37.3"></script>'
+          runtime = '<script src="./terrain-photo3d-runtime.js?v=RC12.37.3"></script>'
+
+          if drive not in h:
+              raise SystemExit("drive-core script tag not found")
+
+          if photo not in h:
+              h = h.replace(drive, photo + "\n" + runtime + "\n" + drive, 1)
+          elif runtime not in h:
+              h = h.replace(photo, photo + "\n" + runtime, 1)
+
+          Path("index.html").write_text(h, encoding="utf-8")
+
+          runtime_js = base64.b64decode("LyogQUVST05BViBSQzEyLjM3LjMg4oCUIFRlcnJhaW4gKyBQaG90bzNEIHJ1bnRpbWUgYnJpZGdlICovCigoKSA9PiB7CiAgJ3VzZSBzdHJpY3QnOwogIGlmICh3aW5kb3cuX19BRVJPTkFWXzNEX1JVTlRJTUVfUkMxMjM3M19fKSByZXR1cm47CiAgd2luZG93Ll9fQUVST05BVl8zRF9SVU5USU1FX1JDMTIzNzNfXyA9IHRydWU7CgogIGNvbnN0ICQgPSBzID0+IGRvY3VtZW50LnF1ZXJ5U2VsZWN0b3Iocyk7CgogIGZ1bmN0aW9uIG1vZGUoKSB7CiAgICBpZiAoJCgnI21vZGVGbGlnaHQnKT8uY2xhc3NMaXN0LmNvbnRhaW5zKCdhY3RpdmUnKSkgcmV0dXJuICdmbGlnaHQnOwogICAgaWYgKCQoJyNtb2RlRHJpdmUnKT8uY2xhc3NMaXN0LmNvbnRhaW5zKCdhY3RpdmUnKSkgcmV0dXJuICdkcml2ZSc7CiAgICByZXR1cm4gbG9jYWxTdG9yYWdlLmdldEl0ZW0oJ2Flcm9uYXYubW9kZScpIHx8ICdmbGlnaHQnOwogIH0KCiAgZnVuY3Rpb24gZHJpdmVWaWV3KCkgewogICAgY29uc3QgdiA9IGxvY2FsU3RvcmFnZS5nZXRJdGVtKCdhZXJvbmF2LmRyaXZlLnZpZXcnKSB8fCAnM2QnOwogICAgcmV0dXJuIFsnMmQnLCczZCcsJ3BlcnNwZWN0aXZlJ10uaW5jbHVkZXModikgPyB2IDogJzNkJzsKICB9CgogIGZ1bmN0aW9uIHdhbnRzVGVycmFpbigpIHsKICAgIGlmIChtb2RlKCkgPT09ICdmbGlnaHQnKSByZXR1cm4gdHJ1ZTsKICAgIHJldHVybiBtb2RlKCkgPT09ICdkcml2ZScgJiYgZHJpdmVWaWV3KCkgIT09ICcyZCc7CiAgfQoKICBhc3luYyBmdW5jdGlvbiBzeW5jVGVycmFpbigpIHsKICAgIGNvbnN0IGJyaWRnZSA9IHdpbmRvdy5BRVJPTkFWVGVycmFpbkJyaWRnZTsKICAgIGlmICghYnJpZGdlPy5hcHBseSkgcmV0dXJuIGZhbHNlOwogICAgaWYgKCEkKCcjc2NyZWVuLW1hcCcpPy5jbGFzc0xpc3QuY29udGFpbnMoJ2FjdGl2ZScpKSByZXR1cm4gZmFsc2U7CgogICAgdHJ5IHsKICAgICAgaWYgKCF3YW50c1RlcnJhaW4oKSkgewogICAgICAgIGF3YWl0IGJyaWRnZS5jbGVhcj8uKCk7CiAgICAgICAgZG9jdW1lbnQuYm9keS5jbGFzc0xpc3QucmVtb3ZlKCdhZXJvbmF2LXRlcnJhaW4zZC1hY3RpdmUnKTsKICAgICAgICByZXR1cm4gZmFsc2U7CiAgICAgIH0KICAgICAgY29uc3Qgb2sgPSAhIShhd2FpdCBicmlkZ2UuYXBwbHkoKSk7CiAgICAgIGRvY3VtZW50LmJvZHkuY2xhc3NMaXN0LnRvZ2dsZSgnYWVyb25hdi10ZXJyYWluM2QtYWN0aXZlJywgb2spOwogICAgICByZXR1cm4gb2s7CiAgICB9IGNhdGNoIChfKSB7CiAgICAgIGRvY3VtZW50LmJvZHkuY2xhc3NMaXN0LnJlbW92ZSgnYWVyb25hdi10ZXJyYWluM2QtYWN0aXZlJyk7CiAgICAgIHJldHVybiBmYWxzZTsKICAgIH0KICB9CgogIGFzeW5jIGZ1bmN0aW9uIHN0YXR1cygpIHsKICAgIGxldCB0ZXJyYWluID0geyBvazpmYWxzZSwgYXZhaWxhYmxlOmZhbHNlLCBhY3RpdmU6ZmFsc2UgfTsKICAgIGxldCBwaG90bzNkID0geyBvazpmYWxzZSwgY29uZmlndXJlZDpmYWxzZSwgcHJveHlMb2FkZWQ6ZmFsc2UgfTsKCiAgICB0cnkgewogICAgICB0ZXJyYWluID0gYXdhaXQgd2luZG93LkFFUk9OQVZUZXJyYWluQnJpZGdlPy5zdGF0dXM/LigpIHx8IHRlcnJhaW47CiAgICB9IGNhdGNoIChfKSB7fQoKICAgIHRyeSB7CiAgICAgIGNvbnN0IHAgPSB3aW5kb3cuQUVST05BVl9QSE9UTzNEX1BST1hZOwogICAgICBpZiAocD8uZW5hYmxlZCAmJiBwPy5zdGF0dXMpIHsKICAgICAgICBwaG90bzNkID0geyAuLi4oYXdhaXQgcC5zdGF0dXMoKSksIHByb3h5TG9hZGVkOnRydWUsIGJhY2tlbmQ6cC5iYWNrZW5kIH07CiAgICAgIH0KICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgcGhvdG8zZCA9IHsgb2s6ZmFsc2UsIGNvbmZpZ3VyZWQ6ZmFsc2UsIHByb3h5TG9hZGVkOnRydWUsIGVycm9yOlN0cmluZyhlPy5tZXNzYWdlIHx8IGUpIH07CiAgICB9CgogICAgcmV0dXJuIHsKICAgICAgcmVsZWFzZTonUkMxMi4zNy4zJywKICAgICAgbW9kZTptb2RlKCksCiAgICAgIGRyaXZlVmlldzpkcml2ZVZpZXcoKSwKICAgICAgd2FudHNUZXJyYWluOndhbnRzVGVycmFpbigpLAogICAgICB0ZXJyYWluLAogICAgICBwaG90bzNkCiAgICB9OwogIH0KCiAgd2luZG93LkFFUk9OQVYzRCA9IHsgcmVsZWFzZTonUkMxMi4zNy4zJywgc3luYzpzeW5jVGVycmFpbiwgc3RhdHVzIH07CgogIFsnYWVyb25hdjptYXAtcmVhZHknLCdhZXJvbmF2OnNjcmVlbi1jaGFuZ2UnLCdhZXJvbmF2OmRyaXZlLWNvcmUtdmlldycsJ3BhZ2VzaG93J10uZm9yRWFjaChldiA9PiB7CiAgICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcihldiwgKCkgPT4gc2V0VGltZW91dChzeW5jVGVycmFpbiwgMTUwKSk7CiAgfSk7CgogIGRvY3VtZW50LmFkZEV2ZW50TGlzdGVuZXIoJ2NsaWNrJywgZSA9PiB7CiAgICBpZiAoZS50YXJnZXQ/LmNsb3Nlc3Q/LignI21vZGVGbGlnaHQsI21vZGVEcml2ZSxbZGF0YS1kcml2ZS12aWV3XSxbZGF0YS1kcml2ZS1wcm94eV0sI215UG9zaXRpb25CdG4sW2RhdGEtYm90dG9tPSJtYXAiXScpKSB7CiAgICAgIHNldFRpbWVvdXQoc3luY1RlcnJhaW4sIDE4MCk7CiAgICB9CiAgfSwgdHJ1ZSk7CgogIGRvY3VtZW50LmFkZEV2ZW50TGlzdGVuZXIoJ3Zpc2liaWxpdHljaGFuZ2UnLCAoKSA9PiB7CiAgICBpZiAoIWRvY3VtZW50LmhpZGRlbikgc2V0VGltZW91dChzeW5jVGVycmFpbiwgMTgwKTsKICB9KTsKCiAgc2V0SW50ZXJ2YWwoKCkgPT4gewogICAgaWYgKGRvY3VtZW50LnZpc2liaWxpdHlTdGF0ZSA9PT0gJ3Zpc2libGUnKSBzeW5jVGVycmFpbigpOwogIH0sIDcwMDApOwoKICBzZXRUaW1lb3V0KHN5bmNUZXJyYWluLCA2MDApOwp9KSgpOwo=").decode("utf-8")
+          Path("terrain-photo3d-runtime.js").write_text(runtime_js, encoding="utf-8")
+
+          s = Path("sw.js").read_text(encoding="utf-8")
+
+          old_header = "/* AERONAV RC12.37.2 — Drive 2D/3D Core Fix + versioned offline shell */"
+          old_cache = "const CACHE='aeronav-jorge-RC12_37_2-drive-core-20261008';"
+          old_release = "release:'RC12.37.2'"
+
+          if old_header not in s:
+              raise SystemExit("Expected RC12.37.2 SW header not found")
+          if old_cache not in s:
+              raise SystemExit("Expected RC12.37.2 cache not found")
+          if old_release not in s:
+              raise SystemExit("Expected RC12.37.2 SW release not found")
+
+          s = s.replace(
+              old_header,
+              "/* AERONAV RC12.37.3 — Terrain 3D + Photo3D Bridge + versioned offline shell */",
+              1
+          )
+          s = s.replace(
+              old_cache,
+              "const CACHE='aeronav-jorge-RC12_37_3-terrain-photo3d-20261008';",
+              1
+          )
+          s = s.replace(old_release, "release:'RC12.37.3'", 1)
+
+          local_anchor = 'const LOCAL=["./drive-core.js",'
+          if local_anchor not in s:
+              raise SystemExit("SW LOCAL anchor not found")
+          if '"./terrain-photo3d-runtime.js"' not in s:
+              s = s.replace(
+                  local_anchor,
+                  'const LOCAL=["./terrain-photo3d-runtime.js", "./photo3d-proxy.js", "./drive-core.js",',
+                  1
+              )
+
+          Path("sw.js").write_text(s, encoding="utf-8")
+          PY
+
+      - name: Validate files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check sw.js
+          node --check photo3d-proxy.js
+          node --check terrain-photo3d-runtime.js
+
+          grep -q "<title>AERONAV — RC12.37.3</title>" index.html
+          grep -q "const APP_VERSION = 'RC12.37.3 · Terrain 3D + Photo3D Bridge';" index.html
+          grep -q "window.AERONAVTerrainBridge=" index.html
+          grep -q 'photo3d-proxy.js?v=RC12.37.3' index.html
+          grep -q 'terrain-photo3d-runtime.js?v=RC12.37.3' index.html
+
+          grep -q "aeronav-jorge-RC12_37_3-terrain-photo3d-20261008" sw.js
+          grep -q "release:'RC12.37.3'" sw.js
+          grep -q '"./photo3d-proxy.js"' sw.js
+          grep -q '"./terrain-photo3d-runtime.js"' sw.js
+
+      - name: Commit RC12.37.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "AERONAV Update"
+          git config user.email "actions@users.noreply.github.com"
+
+          git add index.html sw.js terrain-photo3d-runtime.js
+
+          if git diff --cached --quiet; then
+            echo "No changes required."
+            exit 0
+          fi
+
+          git commit -m "RC12.37.3 Terrain 3D and Photo3D bridge"
+          git push origin HEAD:main
