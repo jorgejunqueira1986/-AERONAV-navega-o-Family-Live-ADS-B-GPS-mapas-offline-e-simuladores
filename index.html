@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.37.2</title>
+  <title>AERONAV — RC12.37.3</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -824,7 +824,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = 'RC12.37.2 · Drive 2D/3D Core Fix';
+  const APP_VERSION = 'RC12.37.3 · Terrain 3D + Photo3D Bridge';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -2414,6 +2414,31 @@ body{min-height:var(--app-vh);margin:0}
       return true;
     }catch(e){console.warn('AERONAV Angola terrain',e);return false;}
   }
+
+  // RC12.37.3 — bridge for Terrain 3D controller.
+  window.AERONAVTerrainBridge={
+    apply:()=>angolaApplyTerrain(),
+    clear:async()=>{
+      try{state.map?.setTerrain?.(null);}catch(_){}
+      state._angolaTerrainRecordId='';
+      return true;
+    },
+    status:async()=>{
+      const rec=await angolaTerrainRecord(state.currentPosition).catch(()=>null);
+      let active=false;
+      try{active=!!state.map?.getTerrain?.();}catch(_){}
+      return {
+        ok:true,
+        available:!!rec?.blob,
+        active,
+        recordId:rec?.id||'',
+        mode:state.mode,
+        mapStyle:state.currentMapStyle||'',
+        positionSource:state.positionSource||''
+      };
+    }
+  };
+
 
   function angolaSafeLayerId(s){return String(s||'layer').replace(/[^a-zA-Z0-9_-]+/g,'-').slice(0,80);}
 
@@ -7417,6 +7442,8 @@ body{min-height:var(--app-vh);margin:0}
 <script src="./meteo-altitude-phase3.js?v=RC12.36"></script>
 <script src="./diagnostic-recovery.js?v=RC12.36.1"></script>
 <script src="./cockpit-lite.js?v=RC12.32"></script>
+<script src="./photo3d-proxy.js?v=RC12.37.3"></script>
+<script src="./terrain-photo3d-runtime.js?v=RC12.37.3"></script>
 <script src="./drive-core.js?v=RC12.37.2"></script>
 </body>
 </html>
