@@ -1,0 +1,253 @@
+name: AERONAV RC12.37.2 Drive Core Fix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f index.html
+          test -f sw.js
+          grep -Fq "AERONAV — RC12.37.1" index.html
+          grep -Fq "aeronav-jorge-RC12_37_1-drive2d3d-hotfix-20261007" sw.js
+          grep -Fq "data-aeronav-drive3d-rc1237" sw.js
+          grep -Fq "data-aeronav-drive23d-rc12371" sw.js
+
+      - name: Build RC12.37.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+
+          DRIVE_CORE_B64 = '''
+          LyogQUVST05BViBSQzEyLjM3LjIg4oCUIERyaXZlIDJELzNEIGNvcmUgY29udHJvbGxlciAqLwooKCkgPT4gewogICd1c2Ug
+          c3RyaWN0JzsKICBpZiAod2luZG93Ll9fQUVST05BVl9EUklWRV9DT1JFX1JDMTIzNzJfXykgcmV0dXJuOwogIHdpbmRvdy5f
+          X0FFUk9OQVZfRFJJVkVfQ09SRV9SQzEyMzcyX18gPSB0cnVlOwogIGlmICgvXC8oPzptYXRoaWF8d2VuZGxlcnxmYW1pbHkp
+          KD86XC98XC5odG1sfCQpL2kudGVzdChsb2NhdGlvbi5wYXRobmFtZSB8fCAnJykpIHJldHVybjsKCiAgY29uc3QgJCA9IHMg
+          PT4gZG9jdW1lbnQucXVlcnlTZWxlY3RvcihzKTsKICBjb25zdCBzdGF0ZSA9IHsgbWFwOiBudWxsLCBvcmlnaW5hbEVhc2VU
+          bzogbnVsbCwgc2F2ZWRFeHRydXNpb25zOiBuZXcgTWFwKCksIGxhc3RWaWV3OiAnJyB9OwoKICBjb25zdCBpc0RyaXZlID0g
+          KCkgPT4KICAgIGxvY2FsU3RvcmFnZS5nZXRJdGVtKCdhZXJvbmF2Lm1vZGUnKSA9PT0gJ2RyaXZlJyB8fAogICAgISEkKCcj
+          bW9kZURyaXZlJyk/LmNsYXNzTGlzdC5jb250YWlucygnYWN0aXZlJyk7CgogIGNvbnN0IGlzTWFwU2NyZWVuID0gKCkgPT4g
+          ISEkKCcjc2NyZWVuLW1hcCcpPy5jbGFzc0xpc3QuY29udGFpbnMoJ2FjdGl2ZScpOwoKICBjb25zdCBzZWxlY3RlZFZpZXcg
+          PSAoKSA9PiB7CiAgICBjb25zdCB2ID0gbG9jYWxTdG9yYWdlLmdldEl0ZW0oJ2Flcm9uYXYuZHJpdmUudmlldycpIHx8ICcz
+          ZCc7CiAgICByZXR1cm4gWycyZCcsICczZCcsICdwZXJzcGVjdGl2ZSddLmluY2x1ZGVzKHYpID8gdiA6ICczZCc7CiAgfTsK
+          CiAgY29uc3QgbWFwT2JqZWN0ID0gKCkgPT4gewogICAgY29uc3QgY2FuZGlkYXRlcyA9IFt3aW5kb3cuX19BRVJPTkFWX01B
+          UF9fLCB3aW5kb3cuYWVyb25hdk1hcCwgd2luZG93Lm1haW5NYXAsIHdpbmRvdy5tYXBdOwogICAgcmV0dXJuIGNhbmRpZGF0
+          ZXMuZmluZChtID0+IG0gJiYgdHlwZW9mIG0uZWFzZVRvID09PSAnZnVuY3Rpb24nICYmIHR5cGVvZiBtLmdldFN0eWxlID09
+          PSAnZnVuY3Rpb24nKSB8fCBudWxsOwogIH07CgogIGZ1bmN0aW9uIGhlYWRpbmdGcm9tTWFwKG0pIHsKICAgIHRyeSB7IHJl
+          dHVybiBOdW1iZXIobS5nZXRCZWFyaW5nPy4oKSB8fCAwKTsgfSBjYXRjaCAoXykgeyByZXR1cm4gMDsgfQogIH0KCiAgZnVu
+          Y3Rpb24gY2FtZXJhRm9yKHZpZXcsIG0sIGlucHV0ID0ge30pIHsKICAgIGNvbnN0IGJhc2UgPSB7IC4uLihpbnB1dCB8fCB7
+          fSkgfTsKICAgIGlmICh2aWV3ID09PSAnMmQnKSB7CiAgICAgIGJhc2UucGl0Y2ggPSAwOwogICAgICBiYXNlLmJlYXJpbmcg
+          PSAwOwogICAgICBpZiAoIU51bWJlci5pc0Zpbml0ZShOdW1iZXIoYmFzZS56b29tKSkgfHwgTnVtYmVyKGJhc2Uuem9vbSkg
+          PCAxNC41KSB7CiAgICAgICAgYmFzZS56b29tID0gTWF0aC5tYXgoMTQuNSwgTnVtYmVyKG0uZ2V0Wm9vbT8uKCkgfHwgMTQu
+          NSkpOwogICAgICB9CiAgICAgIGJhc2UucGFkZGluZyA9IGJhc2UucGFkZGluZyB8fCB7IHRvcDogMjAsIGJvdHRvbTogMTEw
+          LCBsZWZ0OiAxOCwgcmlnaHQ6IDE4IH07CiAgICB9IGVsc2UgaWYgKHZpZXcgPT09ICdwZXJzcGVjdGl2ZScpIHsKICAgICAg
+          YmFzZS5waXRjaCA9IDY3OwogICAgICBpZiAoIU51bWJlci5pc0Zpbml0ZShOdW1iZXIoYmFzZS5iZWFyaW5nKSkpIGJhc2Uu
+          YmVhcmluZyA9IGhlYWRpbmdGcm9tTWFwKG0pOwogICAgICBpZiAoIU51bWJlci5pc0Zpbml0ZShOdW1iZXIoYmFzZS56b29t
+          KSkgfHwgTnVtYmVyKGJhc2Uuem9vbSkgPCAxNi4yKSB7CiAgICAgICAgYmFzZS56b29tID0gTWF0aC5tYXgoMTYuMiwgTnVt
+          YmVyKG0uZ2V0Wm9vbT8uKCkgfHwgMTYuMikpOwogICAgICB9CiAgICAgIGJhc2UucGFkZGluZyA9IGJhc2UucGFkZGluZyB8
+          fCB7IHRvcDogNjgsIGJvdHRvbTogMTkwLCBsZWZ0OiAxOCwgcmlnaHQ6IDE4IH07CiAgICB9IGVsc2UgewogICAgICBiYXNl
+          LnBpdGNoID0gNTY7CiAgICAgIGlmICghTnVtYmVyLmlzRmluaXRlKE51bWJlcihiYXNlLmJlYXJpbmcpKSkgYmFzZS5iZWFy
+          aW5nID0gaGVhZGluZ0Zyb21NYXAobSk7CiAgICAgIGlmICghTnVtYmVyLmlzRmluaXRlKE51bWJlcihiYXNlLnpvb20pKSB8
+          fCBOdW1iZXIoYmFzZS56b29tKSA8IDE1LjYpIHsKICAgICAgICBiYXNlLnpvb20gPSBNYXRoLm1heCgxNS42LCBOdW1iZXIo
+          bS5nZXRab29tPy4oKSB8fCAxNS42KSk7CiAgICAgIH0KICAgICAgYmFzZS5wYWRkaW5nID0gYmFzZS5wYWRkaW5nIHx8IHsg
+          dG9wOiA2MiwgYm90dG9tOiAxNzUsIGxlZnQ6IDE4LCByaWdodDogMTggfTsKICAgIH0KICAgIHJldHVybiBiYXNlOwogIH0K
+          CiAgZnVuY3Rpb24gc2V0RXh0cnVzaW9ucyhtLCBvbikgewogICAgdHJ5IHsKICAgICAgY29uc3QgbGF5ZXJzID0gbS5nZXRT
+          dHlsZT8uKCk/LmxheWVycyB8fCBbXTsKICAgICAgZm9yIChjb25zdCBsYXllciBvZiBsYXllcnMpIHsKICAgICAgICBpZiAo
+          bGF5ZXIudHlwZSAhPT0gJ2ZpbGwtZXh0cnVzaW9uJykgY29udGludWU7CiAgICAgICAgaWYgKCFzdGF0ZS5zYXZlZEV4dHJ1
+          c2lvbnMuaGFzKGxheWVyLmlkKSkgewogICAgICAgICAgbGV0IHYgPSAndmlzaWJsZSc7CiAgICAgICAgICB0cnkgeyB2ID0g
+          bS5nZXRMYXlvdXRQcm9wZXJ0eShsYXllci5pZCwgJ3Zpc2liaWxpdHknKSB8fCAndmlzaWJsZSc7IH0gY2F0Y2ggKF8pIHt9
+          CiAgICAgICAgICBzdGF0ZS5zYXZlZEV4dHJ1c2lvbnMuc2V0KGxheWVyLmlkLCB2KTsKICAgICAgICB9CiAgICAgICAgdHJ5
+          IHsgbS5zZXRMYXlvdXRQcm9wZXJ0eShsYXllci5pZCwgJ3Zpc2liaWxpdHknLCBvbiA/ICd2aXNpYmxlJyA6ICdub25lJyk7
+          IH0gY2F0Y2ggKF8pIHt9CiAgICAgIH0KICAgIH0gY2F0Y2ggKF8pIHt9CiAgfQoKICBmdW5jdGlvbiBwYXRjaE1hcChtKSB7
+          CiAgICBpZiAoIW0gfHwgbS5fX2Flcm9uYXZEcml2ZUNvcmVSYzEyMzcyKSByZXR1cm47CiAgICBtLl9fYWVyb25hdkRyaXZl
+          Q29yZVJjMTIzNzIgPSB0cnVlOwogICAgdHJ5IHsgbS5zZXRNYXhQaXRjaD8uKDc1KTsgfSBjYXRjaCAoXykge30KICAgIGNv
+          bnN0IG9yaWdpbmFsID0gbS5lYXNlVG8uYmluZChtKTsKICAgIHN0YXRlLm9yaWdpbmFsRWFzZVRvID0gb3JpZ2luYWw7CiAg
+          ICBtLmVhc2VUbyA9IGZ1bmN0aW9uKG9wdGlvbnMsIGV2ZW50RGF0YSkgewogICAgICBsZXQgbmV4dCA9IHsgLi4uKG9wdGlv
+          bnMgfHwge30pIH07CiAgICAgIGlmIChpc0RyaXZlKCkgJiYgaXNNYXBTY3JlZW4oKSkgbmV4dCA9IGNhbWVyYUZvcihzZWxl
+          Y3RlZFZpZXcoKSwgbSwgbmV4dCk7CiAgICAgIHJldHVybiBvcmlnaW5hbChuZXh0LCBldmVudERhdGEpOwogICAgfTsKICB9
+          CgogIGZ1bmN0aW9uIGFwcGx5Vmlldyh7IGluc3RhbnQgPSBmYWxzZSB9ID0ge30pIHsKICAgIGNvbnN0IG0gPSBtYXBPYmpl
+          Y3QoKTsKICAgIGlmICghbSB8fCAhaXNEcml2ZSgpIHx8ICFpc01hcFNjcmVlbigpKSByZXR1cm47CiAgICBzdGF0ZS5tYXAg
+          PSBtOwogICAgcGF0Y2hNYXAobSk7CgogICAgY29uc3QgdmlldyA9IHNlbGVjdGVkVmlldygpOwogICAgc2V0RXh0cnVzaW9u
+          cyhtLCB2aWV3ICE9PSAnMmQnKTsKCiAgICBjb25zdCB0YXJnZXQgPSBjYW1lcmFGb3IodmlldywgbSwgewogICAgICBjZW50
+          ZXI6IG0uZ2V0Q2VudGVyPy4oKSwKICAgICAgYmVhcmluZzogdmlldyA9PT0gJzJkJyA/IDAgOiBoZWFkaW5nRnJvbU1hcCht
+          KSwKICAgICAgZHVyYXRpb246IGluc3RhbnQgPyAwIDogNTUwCiAgICB9KTsKICAgIHRyeSB7IHN0YXRlLm9yaWdpbmFsRWFz
+          ZVRvID8gc3RhdGUub3JpZ2luYWxFYXNlVG8odGFyZ2V0KSA6IG0uZWFzZVRvKHRhcmdldCk7IH0gY2F0Y2ggKF8pIHt9Cgog
+          ICAgc3RhdGUubGFzdFZpZXcgPSB2aWV3OwogICAgc3luY0h1ZCgpOwogICAgd2luZG93LmRpc3BhdGNoRXZlbnQobmV3IEN1
+          c3RvbUV2ZW50KCdhZXJvbmF2OmRyaXZlLWNvcmUtdmlldycsIHsgZGV0YWlsOiB7IHZpZXcgfSB9KSk7CiAgfQoKICBmdW5j
+          dGlvbiBlbnN1cmVIdWQoKSB7CiAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYWVyb25hdkRyaXZlMjNkJyk/LnJlbW92
+          ZSgpOwogICAgZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2Flcm9uYXZEcml2ZTNkSHVkJyk/LnJlbW92ZSgpOwoKICAgIGlm
+          ICghJCgnI2Flcm9uYXZEcml2ZUNvcmVTdHlsZScpKSB7CiAgICAgIGNvbnN0IHN0ID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVu
+          dCgnc3R5bGUnKTsKICAgICAgc3QuaWQgPSAnYWVyb25hdkRyaXZlQ29yZVN0eWxlJzsKICAgICAgc3QudGV4dENvbnRlbnQg
+          PSBgCiAgICAgICAgI2Flcm9uYXZEcml2ZUNvcmVIdWR7cG9zaXRpb246YWJzb2x1dGU7ei1pbmRleDozNTtsZWZ0Om1heCg4
+          cHgsZW52KHNhZmUtYXJlYS1pbnNldC1sZWZ0KSk7cmlnaHQ6bWF4KDhweCxlbnYoc2FmZS1hcmVhLWluc2V0LXJpZ2h0KSk7
+          dG9wOjhweDtkaXNwbGF5Om5vbmU7YWxpZ24taXRlbXM6ZmxleC1zdGFydDtqdXN0aWZ5LWNvbnRlbnQ6c3BhY2UtYmV0d2Vl
+          bjtnYXA6OHB4O3BvaW50ZXItZXZlbnRzOm5vbmU7Zm9udC1mYW1pbHk6LWFwcGxlLXN5c3RlbSxCbGlua01hY1N5c3RlbUZv
+          bnQsIlNlZ29lIFVJIixzYW5zLXNlcmlmO2NvbG9yOiNmZmZ9CiAgICAgICAgYm9keS5hZXJvbmF2LWRyaXZlLWNvcmUtM2Qg
+          I2Flcm9uYXZEcml2ZUNvcmVIdWR7ZGlzcGxheTpmbGV4fQogICAgICAgICNhZXJvbmF2RHJpdmVDb3JlSHVkIC5kYy1zcGVl
+          ZCwjYWVyb25hdkRyaXZlQ29yZUh1ZCAuZGMtdHVybntiYWNrZ3JvdW5kOiMwNzExMWRlYTtib3JkZXI6MXB4IHNvbGlkICMz
+          MjUwNjU7Ym9yZGVyLXJhZGl1czoxNXB4O2JhY2tkcm9wLWZpbHRlcjpibHVyKDEycHgpO2JveC1zaGFkb3c6MCA4cHggMjBw
+          eCAjMDAwN30KICAgICAgICAjYWVyb25hdkRyaXZlQ29yZUh1ZCAuZGMtc3BlZWR7cGFkZGluZzo4cHggMTFweDttaW4td2lk
+          dGg6NzZweH0uZGMtc3BlZWQgYntmb250LXNpemU6MzJweDtsaW5lLWhlaWdodDoxfS5kYy1zcGVlZCBzbWFsbHtkaXNwbGF5
+          OmJsb2NrO2NvbG9yOiNhOWM0ZDU7Zm9udC1zaXplOjlweDtmb250LXdlaWdodDo4MDA7bWFyZ2luLXRvcDoycHh9CiAgICAg
+          ICAgI2Flcm9uYXZEcml2ZUNvcmVIdWQgLmRjLXR1cm57bWFyZ2luLWxlZnQ6YXV0bzttYXgtd2lkdGg6bWluKDYyMHB4LDY4
+          dncpO3BhZGRpbmc6OXB4IDEycHh9LmRjLXR1cm4gYntkaXNwbGF5OmJsb2NrO2ZvbnQtc2l6ZToxOHB4fS5kYy10dXJuIHN0
+          cm9uZ3tkaXNwbGF5OmJsb2NrO21hcmdpbi10b3A6MnB4O2ZvbnQtc2l6ZToxMnB4O3doaXRlLXNwYWNlOm5vd3JhcDtvdmVy
+          ZmxvdzpoaWRkZW47dGV4dC1vdmVyZmxvdzplbGxpcHNpc30uZGMtdHVybiBzbWFsbHtkaXNwbGF5OmJsb2NrO21hcmdpbi10
+          b3A6M3B4O2NvbG9yOiNhOWM0ZDU7Zm9udC1zaXplOjlweDt3aGl0ZS1zcGFjZTpub3dyYXA7b3ZlcmZsb3c6aGlkZGVuO3Rl
+          eHQtb3ZlcmZsb3c6ZWxsaXBzaXN9CiAgICAgICAgQG1lZGlhKG1heC13aWR0aDo2MjBweCl7I2Flcm9uYXZEcml2ZUNvcmVI
+          dWQgLmRjLXNwZWVke21pbi13aWR0aDo1OHB4O3BhZGRpbmc6N3B4IDhweH0uZGMtc3BlZWQgYntmb250LXNpemU6MjZweCFp
+          bXBvcnRhbnR9I2Flcm9uYXZEcml2ZUNvcmVIdWQgLmRjLXR1cm57bWF4LXdpZHRoOjY0dnc7cGFkZGluZzo3cHggOXB4fS5k
+          Yy10dXJuIGJ7Zm9udC1zaXplOjE1cHghaW1wb3J0YW50fS5kYy10dXJuIHN0cm9uZ3tmb250LXNpemU6MTBweCFpbXBvcnRh
+          bnR9LmRjLXR1cm4gc21hbGx7Zm9udC1zaXplOjhweCFpbXBvcnRhbnR9fQogICAgICBgOwogICAgICBkb2N1bWVudC5oZWFk
+          LmFwcGVuZENoaWxkKHN0KTsKICAgIH0KCiAgICBsZXQgaHVkID0gJCgnI2Flcm9uYXZEcml2ZUNvcmVIdWQnKTsKICAgIGNv
+          bnN0IHdyYXAgPSAkKCcjc2NyZWVuLW1hcCAubWFwLXdyYXAnKTsKICAgIGlmICghd3JhcCkgcmV0dXJuIG51bGw7CiAgICBp
+          ZiAoaHVkICYmIGh1ZC5wYXJlbnRFbGVtZW50ICE9PSB3cmFwKSB7IGh1ZC5yZW1vdmUoKTsgaHVkID0gbnVsbDsgfQogICAg
+          aWYgKCFodWQpIHsKICAgICAgaHVkID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnZGl2Jyk7CiAgICAgIGh1ZC5pZCA9ICdh
+          ZXJvbmF2RHJpdmVDb3JlSHVkJzsKICAgICAgaHVkLmlubmVySFRNTCA9ICc8ZGl2IGNsYXNzPSJkYy1zcGVlZCI+PGIgaWQ9
+          ImRjU3BlZWQiPuKAlDwvYj48c21hbGw+a20vaDwvc21hbGw+PC9kaXY+PGRpdiBjbGFzcz0iZGMtdHVybiI+PGIgaWQ9ImRj
+          RGlzdCI+4oCUPC9iPjxzdHJvbmcgaWQ9ImRjSW5zdHIiPlByb250byBwYXJhIGNvbmR1emlyPC9zdHJvbmc+PHNtYWxsIGlk
+          PSJkY01ldGEiPlNlbGVjaW9uZSB1bSBkZXN0aW5vPC9zbWFsbD48L2Rpdj48L2Rpdj4nOwogICAgICB3cmFwLmFwcGVuZENo
+          aWxkKGh1ZCk7CiAgICB9CiAgICByZXR1cm4gaHVkOwogIH0KCiAgZnVuY3Rpb24gc3luY0h1ZCgpIHsKICAgIGNvbnN0IGh1
+          ZCA9IGVuc3VyZUh1ZCgpOwogICAgY29uc3Qgc2hvdyA9IGlzRHJpdmUoKSAmJiBpc01hcFNjcmVlbigpICYmIHNlbGVjdGVk
+          VmlldygpICE9PSAnMmQnOwogICAgZG9jdW1lbnQuYm9keS5jbGFzc0xpc3QudG9nZ2xlKCdhZXJvbmF2LWRyaXZlLWNvcmUt
+          M2QnLCBzaG93KTsKICAgIGlmICghaHVkIHx8ICFzaG93KSByZXR1cm47CgogICAgY29uc3Qgc3BlZWRUZXh0ID0gU3RyaW5n
+          KCQoJyNnc1ZhbHVlJyk/LnRleHRDb250ZW50IHx8ICfigJQnKTsKICAgIGNvbnN0IHNwZWVkTWF0Y2ggPSBzcGVlZFRleHQu
+          cmVwbGFjZSgnLCcsICcuJykubWF0Y2goLy0/XGQrKD86XC5cZCspPy8pOwogICAgJCgnI2RjU3BlZWQnKS50ZXh0Q29udGVu
+          dCA9IHNwZWVkTWF0Y2ggPyBTdHJpbmcoTWF0aC5yb3VuZChOdW1iZXIoc3BlZWRNYXRjaFswXSkpKSA6ICfigJQnOwoKICAg
+          IGNvbnN0IGNhcmQgPSAkKCcjZHJpdmVOYXZDYXJkJyk7CiAgICBjb25zdCBrcGlzID0gY2FyZCA/IEFycmF5LmZyb20oY2Fy
+          ZC5xdWVyeVNlbGVjdG9yQWxsKCcuZHJpdmUtbmF2LWtwaScpKSA6IFtdOwogICAgJCgnI2RjRGlzdCcpLnRleHRDb250ZW50
+          ID0ga3Bpc1swXT8ucXVlcnlTZWxlY3Rvcignc3Ryb25nJyk/LnRleHRDb250ZW50IHx8ICfigJQnOwogICAgJCgnI2RjSW5z
+          dHInKS50ZXh0Q29udGVudCA9IGNhcmQ/LnF1ZXJ5U2VsZWN0b3IoJ2g0Jyk/LnRleHRDb250ZW50IHx8ICdQcm9udG8gcGFy
+          YSBjb25kdXppcic7CiAgICBjb25zdCBkZXN0ID0ga3Bpc1sxXT8ucXVlcnlTZWxlY3Rvcignc3Ryb25nJyk/LnRleHRDb250
+          ZW50IHx8ICdEZXN0aW5vJzsKICAgIGNvbnN0IHJlc3QgPSBrcGlzWzJdPy5xdWVyeVNlbGVjdG9yKCdzdHJvbmcnKT8udGV4
+          dENvbnRlbnQgfHwgJ+KAlCc7CiAgICAkKCcjZGNNZXRhJykudGV4dENvbnRlbnQgPSBgJHtkZXN0fSDCtyAke3Jlc3R9YDsK
+          ICB9CgogIGZ1bmN0aW9uIHRpY2soKSB7CiAgICBjb25zdCBtID0gbWFwT2JqZWN0KCk7CiAgICBpZiAobSkgcGF0Y2hNYXAo
+          bSk7CiAgICBpZiAoaXNEcml2ZSgpICYmIGlzTWFwU2NyZWVuKCkpIHsKICAgICAgY29uc3QgdiA9IHNlbGVjdGVkVmlldygp
+          OwogICAgICBpZiAodiAhPT0gc3RhdGUubGFzdFZpZXcpIGFwcGx5Vmlldyh7IGluc3RhbnQ6IGZhbHNlIH0pOwogICAgICBl
+          bHNlIHNldEV4dHJ1c2lvbnMobSwgdiAhPT0gJzJkJyk7CiAgICB9CiAgICBzeW5jSHVkKCk7CiAgfQoKICB3aW5kb3cuQUVS
+          T05BVkRyaXZlQ29yZSA9IHsKICAgIGFwcGx5OiBhcHBseVZpZXcsCiAgICB2aWV3OiBzZWxlY3RlZFZpZXcsCiAgICBzdGF0
+          dXM6ICgpID0+ICh7IHJlbGVhc2U6ICdSQzEyLjM3LjInLCB2aWV3OiBzZWxlY3RlZFZpZXcoKSwgYWN0aXZlOiBpc0RyaXZl
+          KCkgJiYgaXNNYXBTY3JlZW4oKSB9KQogIH07CgogIFsnYWVyb25hdjptYXAtcmVhZHknLCdhZXJvbmF2OnNjcmVlbi1jaGFu
+          Z2UnLCdwYWdlc2hvdyddLmZvckVhY2goZXYgPT4KICAgIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKGV2LCAoKSA9PiBzZXRU
+          aW1lb3V0KCgpID0+IGFwcGx5Vmlldyh7IGluc3RhbnQ6IHRydWUgfSksIDEwMCkpCiAgKTsKCiAgZG9jdW1lbnQuYWRkRXZl
+          bnRMaXN0ZW5lcignY2xpY2snLCBlID0+IHsKICAgIGlmIChlLnRhcmdldD8uY2xvc2VzdD8uKCdbZGF0YS1kcml2ZS12aWV3
+          XSxbZGF0YS1kcml2ZS1wcm94eV0sI21vZGVEcml2ZSwjbXlQb3NpdGlvbkJ0bixbZGF0YS1ib3R0b209Im1hcCJdJykpIHsK
+          ICAgICAgc2V0VGltZW91dCgoKSA9PiBhcHBseVZpZXcoeyBpbnN0YW50OiBmYWxzZSB9KSwgODApOwogICAgfQogIH0sIHRy
+          dWUpOwoKICBkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCd2aXNpYmlsaXR5Y2hhbmdlJywgKCkgPT4gewogICAgaWYgKCFk
+          b2N1bWVudC5oaWRkZW4pIHNldFRpbWVvdXQoKCkgPT4gYXBwbHlWaWV3KHsgaW5zdGFudDogdHJ1ZSB9KSwgMTAwKTsKICB9
+          KTsKCiAgc2V0SW50ZXJ2YWwodGljaywgMTIwMCk7CiAgc2V0VGltZW91dCgoKSA9PiB7IHRpY2soKTsgYXBwbHlWaWV3KHsg
+          aW5zdGFudDogdHJ1ZSB9KTsgfSwgMzAwKTsKfSkoKTsK
+          '''
+          drive_core = base64.b64decode(''.join(DRIVE_CORE_B64.split())).decode('utf-8')
+          Path('drive-core.js').write_text(drive_core, encoding='utf-8')
+
+          index = Path('index.html')
+          h = index.read_text(encoding='utf-8')
+          h = h.replace('<title>AERONAV — RC12.37.1</title>', '<title>AERONAV — RC12.37.2</title>', 1)
+          h = h.replace(
+              "const APP_VERSION = 'RC12.37.1 · Service Worker Recovery + Drive 2D/3D';",
+              "const APP_VERSION = 'RC12.37.2 · Drive 2D/3D Core Fix';",
+              1
+          )
+          tag = '<script src="./drive-core.js?v=RC12.37.2"></script>'
+          if tag not in h:
+              anchor = '<script src="./cockpit-lite.js?v=RC12.32"></script>'
+              if anchor not in h:
+                  raise SystemExit('cockpit-lite anchor not found')
+              h = h.replace(anchor, anchor + '\n' + tag, 1)
+          index.write_text(h, encoding='utf-8')
+
+          sw = Path('sw.js')
+          s = sw.read_text(encoding='utf-8')
+
+          start = s.find('\nconst DRIVE3D_INJECT=`')
+          end_marker = '\n\nasync function injectAngolaMapsIntoMainNavigation'
+          end = s.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('DRIVE3D_INJECT block not found')
+          s = s[:start] + end_marker + s[end + len(end_marker):]
+
+          line = "    if(!body.includes('data-aeronav-drive3d-rc1237'))body=body.replace(/<\\/body>/i,DRIVE3D_INJECT+'</body>');\n"
+          if line not in s:
+              raise SystemExit('Drive3D injection line not found')
+          s = s.replace(line, '', 1)
+
+          start = s.find('    const drive23dBridge = `')
+          end_marker = "    const headers=new Headers(response.headers);"
+          end = s.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('drive23dBridge block not found')
+          s = s[:start] + end_marker + s[end + len(end_marker):]
+
+          s = s.replace(
+              '/* AERONAV RC12.37.1 — Service Worker Recovery + Drive 2D/3D functional hotfix */',
+              '/* AERONAV RC12.37.2 — Drive 2D/3D Core Fix + versioned offline shell */',
+              1
+          )
+          s = s.replace(
+              "const CACHE='aeronav-jorge-RC12_37_1-drive2d3d-hotfix-20261007';",
+              "const CACHE='aeronav-jorge-RC12_37_2-drive-core-20261008';",
+              1
+          )
+          s = s.replace("release:'RC12.37.1'", "release:'RC12.37.2'", 1)
+
+          local_anchor = 'const LOCAL=["./cockpit-lite.js",'
+          if '"./drive-core.js"' not in s:
+              if local_anchor not in s:
+                  raise SystemExit('LOCAL cache anchor not found')
+              s = s.replace(local_anchor, 'const LOCAL=["./drive-core.js", "./cockpit-lite.js",', 1)
+
+          forbidden = ('DRIVE3D_INJECT', 'drive23dBridge', 'data-aeronav-drive3d-rc1237', 'data-aeronav-drive23d-rc12371')
+          if any(x in s for x in forbidden):
+              raise SystemExit('old Drive hotfix remains in sw.js')
+
+          sw.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Validate result
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check sw.js
+          node --check drive-core.js
+          grep -Fq "AERONAV — RC12.37.2" index.html
+          grep -Fq "RC12.37.2 · Drive 2D/3D Core Fix" index.html
+          grep -Fq '<script src="./drive-core.js?v=RC12.37.2"></script>' index.html
+          grep -Fq "aeronav-jorge-RC12_37_2-drive-core-20261008" sw.js
+          grep -Fq "release:'RC12.37.2'" sw.js
+          grep -Fq '"./drive-core.js"' sw.js
+          ! grep -Fq "DRIVE3D_INJECT" sw.js
+          ! grep -Fq "drive23dBridge" sw.js
+          ! grep -Fq "data-aeronav-drive3d-rc1237" sw.js
+          ! grep -Fq "data-aeronav-drive23d-rc12371" sw.js
+
+      - name: Commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "AERONAV Update"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html sw.js drive-core.js
+          if git diff --cached --quiet; then
+            echo "No changes required."
+            exit 0
+          fi
+          git commit -m "RC12.37.2 Drive 2D 3D core fix"
+          git push origin HEAD:main
