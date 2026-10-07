@@ -1,0 +1,133 @@
+name: AERONAV RC12.37.8 True 3D Aircraft Models FIX
+'on':
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  install_aircraft3d:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout main
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+    - name: Apply RC12.37.8
+      shell: bash
+      run: "set -euo pipefail\ntest -f index.html\ntest -f sw.js\ntest -f photo3d-renderer.js\ntest -f flight-camera-director.js\n\
+        test -f aircraft-visual-profiles.js\n\npython3 - <<'PY'\nfrom pathlib import Path\nimport base64\n\nh=Path(\"index.html\"\
+        ).read_text(encoding=\"utf-8\")\nfor needle in [\n    \"<title>AERONAV — RC12.37.7</title>\",\n    \"const APP_VERSION\
+        \ = 'RC12.37.7 · Aircraft Visual Profiles';\",\n    '<script src=\"./photo3d-renderer.js?v=RC12.37.4\"></script>',\n\
+        \    '<script src=\"./aircraft-visual-profiles.js?v=RC12.37.7\"></script>'\n]:\n    if needle not in h:\n        raise\
+        \ SystemExit(\"Baseline não encontrado: \"+needle)\n\nh=h.replace(\"<title>AERONAV — RC12.37.7</title>\",\"<title>AERONAV\
+        \ — RC12.37.8</title>\",1)\nh=h.replace(\"const APP_VERSION = 'RC12.37.7 · Aircraft Visual Profiles';\",\"const APP_VERSION\
+        \ = 'RC12.37.8 · True 3D Aircraft Models';\",1)\nh=h.replace('<script src=\"./photo3d-renderer.js?v=RC12.37.4\"></script>','<script\
+        \ src=\"./photo3d-renderer.js?v=RC12.37.8\"></script>',1)\n\ntag='<script src=\"./aircraft-3d-models.js?v=RC12.37.8\"\
+        ></script>'\nif tag not in h:\n    h=h.replace('<script src=\"./photo3d-renderer.js?v=RC12.37.8\"></script>','<script\
+        \ src=\"./photo3d-renderer.js?v=RC12.37.8\"></script>\\n'+tag,1)\nPath(\"index.html\").write_text(h,encoding=\"utf-8\"\
+        )\n\np=Path(\"photo3d-renderer.js\")\nc=p.read_text(encoding=\"utf-8\")\nsync_old=\"  function syncCamera(force =\
+        \ false) {\\n    if (!runtime.enabled || !runtime.viewer || !runtime.ready || !mapScreenActive()) return;\"\nsync_new=\"\
+        \  function syncCamera(force = false) {\\n    if (window.__AERONAV_3D_AIRCRAFT_CAMERA_OVERRIDE__) return;\\n    if\
+        \ (!runtime.enabled || !runtime.viewer || !runtime.ready || !mapScreenActive()) return;\"\nif sync_old not in c:\n\
+        \    raise SystemExit(\"Photo3D syncCamera baseline não encontrado\")\nif \"__AERONAV_3D_AIRCRAFT_CAMERA_OVERRIDE__\"\
+        \ not in c:\n    c=c.replace(sync_old,sync_new,1)\n\napi_old=\"window.AERONAVPhoto3DRenderer = { enable, disable,\
+        \ toggle, status, sync: () => syncCamera(true) };\"\napi_new=\"window.AERONAVPhoto3DRenderer = { enable, disable,\
+        \ toggle, status, sync: () => syncCamera(true), viewer: () => runtime.viewer };\"\nif api_old not in c:\n    raise\
+        \ SystemExit(\"Photo3D API baseline não encontrado\")\nc=c.replace(api_old,api_new,1)\nc=c.replace(\"release: 'RC12.37.4'\"\
+        ,\"release: 'RC12.37.8'\",1)\np.write_text(c,encoding=\"utf-8\")\n\nPath(\"aircraft-3d-models.js\").write_text(base64.b64decode(\"\
+        LyogQUVST05BViBSQzEyLjM3Ljgg4oCUIFRydWUgM0QgYWlyY3JhZnQgbW9kZWxzIGZvciBQaG90bzNEL0Nlc2l1bS4gKi8KKCgpID0+IHsKICAndXNlIHN0cmljdCc7CiAgaWYgKHdpbmRvdy5fX0FFUk9OQVZfQUlSQ1JBRlRfM0RfUkMxMjM3OF9fKSByZXR1cm47CiAgd2luZG93Ll9fQUVST05BVl9BSVJDUkFGVF8zRF9SQzEyMzc4X18gPSB0cnVlOwogIGlmICgvXC8oPzptYXRoaWF8d2VuZGxlcnxmYW1pbHkpKD86XC98XC5odG1sfCQpL2kudGVzdChsb2NhdGlvbi5wYXRobmFtZSB8fCAnJykpIHJldHVybjsKCiAgY29uc3QgTU9ERUxTID0gewogICAgYzE1Mjp7bmFtZTonQ2Vzc25hIDE1MicsdXJsOicuL2Fzc2V0cy9haXJjcmFmdDNkL2MxNTIuZ2xiJyxyYW5nZTozNCxtaW5QeDo4Mn0sCiAgICBjMTcyOntuYW1lOidDZXNzbmEgMTcyJyx1cmw6Jy4vYXNzZXRzL2FpcmNyYWZ0M2QvYzE3Mi5nbGInLHJhbmdlOjM4LG1pblB4Ojg0fSwKICAgIHE0MDA6e25hbWU6J0RlIEhhdmlsbGFuZCBEYXNoIDggUTQwMCcsdXJsOicuL2Fzc2V0cy9haXJjcmFmdDNkL3E0MDAuZ2xiJyxyYW5nZTo5NSxtaW5QeDo5Mn0sCiAgICBiNzM3Nzp7bmFtZTonQm9laW5nIDczNy03MDAnLHVybDonLi9hc3NldHMvYWlyY3JhZnQzZC9iNzM3Ny5nbGInLHJhbmdlOjEwNSxtaW5QeDo5Nn0sCiAgICBhMjIwMzp7bmFtZTonQWlyYnVzIEEyMjAtMzAwJyx1cmw6Jy4vYXNzZXRzL2FpcmNyYWZ0M2QvYTIyMDMuZ2xiJyxyYW5nZToxMTIsbWluUHg6OTZ9LAogICAgYjc3NzMwMDp7bmFtZTonQm9laW5nIDc3Ny0zMDBFUicsdXJsOicuL2Fzc2V0cy9haXJjcmFmdDNkL2I3NzczMDAuZ2xiJyxyYW5nZToyMTAsbWluUHg6MTA4fSwKICAgIGI3ODc5OntuYW1lOidCb2VpbmcgNzg3LTknLHVybDonLi9hc3NldHMvYWlyY3JhZnQzZC9iNzg3OS5nbGInLHJhbmdlOjE4NSxtaW5QeDoxMDZ9LAogICAgYjc4NzEwOntuYW1lOidCb2VpbmcgNzg3LTEwJyx1cmw6Jy4vYXNzZXRzL2FpcmNyYWZ0M2QvYjc4NzEwLmdsYicscmFuZ2U6MTk4LG1pblB4OjEwOH0KICB9OwoKICBjb25zdCBDQU1FUkE9ewogICAgYmVoaW5kOntvZmZzZXQ6MTgwLHBpdGNoOi0xOCxyYW5nZToxfSwKICAgIGxlZnQ6e29mZnNldDotOTAscGl0Y2g6LTE1LHJhbmdlOjEuMDR9LAogICAgcmlnaHQ6e29mZnNldDo5MCxwaXRjaDotMTUscmFuZ2U6MS4wNH0sCiAgICB0b3A6e29mZnNldDoxODAscGl0Y2g6LTg5LHJhbmdlOjEuMTJ9LAogICAgZnJvbnQ6e29mZnNldDowLHBpdGNoOi0xMixyYW5nZToxLjAyfSwKICAgIGluY2xpbmVkOntvZmZzZXQ6MTQ1LHBpdGNoOi0yNyxyYW5nZTouOTZ9LAogICAgb3JiaXQ6e29mZnNldDoxODAscGl0Y2g6LTIwLHJhbmdlOjEuMDh9CiAgfTsKCiAgY29uc3QgcnVudGltZT17bW9kZWw6bnVsbCxtb2RlbElkOicnLGxvYWRpbmc6ZmFsc2UsZXJyb3I6JycsYWN0aXZlOmZhbHNlLG9yYml0OjAsbGFzdFVwZGF0ZTowfTsKCiAgY29uc3Qgc2VsZWN0ZWRJZD0oKT0+e2NvbnN0IGlkPWxvY2FsU3RvcmFnZS5nZXRJdGVtKCdhZXJvbmF2LmFpcmNyYWZ0UHJlZicpfHwnYzE1Mic7cmV0dXJuIE1PREVMU1tpZF0/aWQ6J2MxNTInO307CiAgY29uc3QgY2FtZXJhU3RhdHVzPSgpPT57dHJ5e3JldHVybiB3aW5kb3cuQUVST05BVkZsaWdodENhbWVyYT8uc3RhdHVzPy4oKXx8e307fWNhdGNoKF8pe3JldHVybiB7fTt9fTsKICBjb25zdCBwaG90b1N0YXR1cz0oKT0+e3RyeXtyZXR1cm4gd2luZG93LkFFUk9OQVZQaG90bzNEUmVuZGVyZXI/LnN0YXR1cz8uKCl8fHt9O31jYXRjaChfKXtyZXR1cm4ge307fX07CiAgY29uc3Qgdmlld2VyPSgpPT57dHJ5e3JldHVybiB3aW5kb3cuQUVST05BVlBob3RvM0RSZW5kZXJlcj8udmlld2VyPy4oKXx8bnVsbDt9Y2F0Y2goXyl7cmV0dXJuIG51bGw7fX07CiAgY29uc3Qgc25hcHNob3Q9KCk9Pnt0cnl7cmV0dXJuIHdpbmRvdy5BRVJPTkFWQ29ja3BpdD8uc25hcHNob3Q/LigpfHx7fTt9Y2F0Y2goXyl7cmV0dXJuIHt9O319OwoKICBmdW5jdGlvbiBwb3NpdGlvbigpewogICAgY29uc3QgZz13aW5kb3cuX19BRVJPTkFWX0xBU1RfR1BTX187CiAgICBsZXQgbGF0PU51bWJlcihnPy5jb29yZHM/LmxhdGl0dWRlKSxsb249TnVtYmVyKGc/LmNvb3Jkcz8ubG9uZ2l0dWRlKSxhbHQ9TnVtYmVyKGc/LmNvb3Jkcz8uYWx0aXR1ZGUpOwogICAgY29uc3Qgcz1zbmFwc2hvdCgpOwogICAgaWYoIU51bWJlci5pc0Zpbml0ZShhbHQpJiZOdW1iZXIuaXNGaW5pdGUoTnVtYmVyKHMuYWx0KSkpYWx0PU51bWJlcihzLmFsdCkvMy4yODA4Mzk4OTU7CiAgICBpZighTnVtYmVyLmlzRmluaXRlKGxhdCl8fCFOdW1iZXIuaXNGaW5pdGUobG9uKSl7CiAgICAgIHRyeXtjb25zdCBtPXdpbmRvdy5fX0FFUk9OQVZfTUFQX198fHdpbmRvdy5hZXJvbmF2TWFwfHx3aW5kb3cubWFpbk1hcHx8d2luZG93Lm1hcCxjPW0/LmdldENlbnRlcj8uKCk7bGF0PU51bWJlcihjPy5sYXQpO2xvbj1OdW1iZXIoYz8ubG5nKTt9Y2F0Y2goXyl7fQogICAgfQogICAgaWYoIU51bWJlci5pc0Zpbml0ZShhbHQpKWFsdD0xMjA7CiAgICByZXR1cm57bGF0LGxvbixhbHR9OwogIH0KCiAgZnVuY3Rpb24gaGVhZGluZygpewogICAgY29uc3Qgcz1OdW1iZXIoc25hcHNob3QoKT8uaGVhZGluZyk7aWYoTnVtYmVyLmlzRmluaXRlKHMpKXJldHVybihzKzM2MCklMzYwOwogICAgY29uc3QgZz1OdW1iZXIod2luZG93Ll9fQUVST05BVl9MQVNUX0dQU19fPy5jb29yZHM/LmhlYWRpbmcpO2lmKE51bWJlci5pc0Zpbml0ZShnKSYmZz49MClyZXR1cm4gZyUzNjA7CiAgICB0cnl7Y29uc3QgbT13aW5kb3cuX19BRVJPTkFWX01BUF9ffHx3aW5kb3cuYWVyb25hdk1hcHx8d2luZG93Lm1haW5NYXB8fHdpbmRvdy5tYXA7cmV0dXJuKE51bWJlcihtPy5nZXRCZWFyaW5nPy4oKXx8MCkrMzYwKSUzNjA7fWNhdGNoKF8pe3JldHVybiAwO30KICB9CgogIGZ1bmN0aW9uIHByZXNldCgpe2NvbnN0IHA9Y2FtZXJhU3RhdHVzKCkucHJlc2V0fHwnYmVoaW5kJztyZXR1cm4gcD09PSdjb2NrcGl0Jz9udWxsOnA7fQoKICBmdW5jdGlvbiBzaG91bGRSdW4oKXsKICAgIGNvbnN0IHA9cGhvdG9TdGF0dXMoKSxjPWNhbWVyYVN0YXR1cygpOwogICAgcmV0dXJuICEhKHAuZW5hYmxlZCYmcC5yZWFkeSYmYy5hY3RpdmUmJnByZXNldCgpJiZkb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcjc2NyZWVuLW1hcCcpPy5jbGFzc0xpc3QuY29udGFpbnMoJ2FjdGl2ZScpJiZsb2NhbFN0b3JhZ2UuZ2V0SXRlbSgnYWVyb25hdi5tb2RlJyk9PT0nZmxpZ2h0Jyk7CiAgfQoKICBmdW5jdGlvbiBlbnN1cmVTdHlsZSgpewogICAgaWYoZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2FpcmNyYWZ0M2RTdHlsZScpKXJldHVybjsKICAgIGNvbnN0IHN0PWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ3N0eWxlJyk7c3QuaWQ9J2FpcmNyYWZ0M2RTdHlsZSc7CiAgICBzdC50ZXh0Q29udGVudD0nYm9keS5hZXJvbmF2LWFpcmNyYWZ0LTNkLW9uICNmbGlnaHRDYW1lcmFBaXJjcmFmdHtkaXNwbGF5Om5vbmUhaW1wb3J0YW50fSNhaXJjcmFmdDNkQmFkZ2V7cG9zaXRpb246YWJzb2x1dGU7ei1pbmRleDozMztyaWdodDoxMnB4O3RvcDo5MnB4O2Rpc3BsYXk6bm9uZTtwYWRkaW5nOjZweCA5cHg7Ym9yZGVyLXJhZGl1czo5OTlweDtiYWNrZ3JvdW5kOiMwNzEzMWRlODtib3JkZXI6MXB4IHNvbGlkICMzMTU2NmU7Y29sb3I6I2RmZjZmZjtmb250OjkwMCA5cHgvMSAtYXBwbGUtc3lzdGVtLEJsaW5rTWFjU3lzdGVtRm9udCwiU2Vnb2UgVUkiLHNhbnMtc2VyaWY7cG9pbnRlci1ldmVudHM6bm9uZX1ib2R5LmFlcm9uYXYtYWlyY3JhZnQtM2Qtb24gI2FpcmNyYWZ0M2RCYWRnZXtkaXNwbGF5OmJsb2NrfSc7CiAgICBkb2N1bWVudC5oZWFkLmFwcGVuZENoaWxkKHN0KTsKICAgIGNvbnN0IHdyYXA9ZG9jdW1lbnQucXVlcnlTZWxlY3RvcignI3NjcmVlbi1tYXAgLm1hcC13cmFwJyk7CiAgICBpZih3cmFwJiYhZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2FpcmNyYWZ0M2RCYWRnZScpKXtjb25zdCBiPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2RpdicpO2IuaWQ9J2FpcmNyYWZ0M2RCYWRnZSc7d3JhcC5hcHBlbmRDaGlsZChiKTt9CiAgfQoKICBmdW5jdGlvbiBvdmVycmlkZShvbil7d2luZG93Ll9fQUVST05BVl8zRF9BSVJDUkFGVF9DQU1FUkFfT1ZFUlJJREVfXz0hIW9uO30KCiAgYXN5bmMgZnVuY3Rpb24gbG9hZE1vZGVsKGlkKXsKICAgIGNvbnN0IHY9dmlld2VyKCksQz13aW5kb3cuQ2VzaXVtO2lmKCF2fHwhQ3x8IU1PREVMU1tpZF18fHJ1bnRpbWUubG9hZGluZylyZXR1cm4gZmFsc2U7CiAgICBpZihydW50aW1lLm1vZGVsJiZydW50aW1lLm1vZGVsSWQ9PT1pZClyZXR1cm4gdHJ1ZTsKICAgIHJ1bnRpbWUubG9hZGluZz10cnVlO3J1bnRpbWUuZXJyb3I9Jyc7CiAgICB0cnl7CiAgICAgIGlmKHJ1bnRpbWUubW9kZWwpe3RyeXt2LnNjZW5lLnByaW1pdGl2ZXMucmVtb3ZlKHJ1bnRpbWUubW9kZWwpO31jYXRjaChfKXt9cnVudGltZS5tb2RlbD1udWxsO3J1bnRpbWUubW9kZWxJZD0nJzt9CiAgICAgIGNvbnN0IHA9cG9zaXRpb24oKTtpZighTnVtYmVyLmlzRmluaXRlKHAubGF0KXx8IU51bWJlci5pc0Zpbml0ZShwLmxvbikpdGhyb3cgbmV3IEVycm9yKCdwb3Npw6fDo28gaW5kaXNwb27DrXZlbCcpOwogICAgICBjb25zdCBtYXRyaXg9Qy5UcmFuc2Zvcm1zLmhlYWRpbmdQaXRjaFJvbGxUb0ZpeGVkRnJhbWUoQy5DYXJ0ZXNpYW4zLmZyb21EZWdyZWVzKHAubG9uLHAubGF0LHAuYWx0KSxuZXcgQy5IZWFkaW5nUGl0Y2hSb2xsKEMuTWF0aC50b1JhZGlhbnMoaGVhZGluZygpKSwwLDApKTsKICAgICAgY29uc3QgY2ZnPU1PREVMU1tpZF07CiAgICAgIGNvbnN0IG1vZGVsPWF3YWl0IEMuTW9kZWwuZnJvbUdsdGZBc3luYyh7dXJsOmNmZy51cmwsbW9kZWxNYXRyaXg6bWF0cml4LG1pbmltdW1QaXhlbFNpemU6Y2ZnLm1pblB4LG1heGltdW1TY2FsZToyMDAwMH0pOwogICAgICB2LnNjZW5lLnByaW1pdGl2ZXMuYWRkKG1vZGVsKTtydW50aW1lLm1vZGVsPW1vZGVsO3J1bnRpbWUubW9kZWxJZD1pZDt2LnNjZW5lLnJlcXVlc3RSZW5kZXI/LigpO3JldHVybiB0cnVlOwogICAgfWNhdGNoKGUpe3J1bnRpbWUuZXJyb3I9U3RyaW5nKGU/Lm1lc3NhZ2V8fGV8fCdlcnJvIDNEJyk7cmV0dXJuIGZhbHNlO30KICAgIGZpbmFsbHl7cnVudGltZS5sb2FkaW5nPWZhbHNlO30KICB9CgogIGZ1bmN0aW9uIHVwZGF0ZU1vZGVsKCl7CiAgICBjb25zdCB2PXZpZXdlcigpLEM9d2luZG93LkNlc2l1bTtpZighdnx8IUN8fCFydW50aW1lLm1vZGVsKXJldHVybjsKICAgIGNvbnN0IHA9cG9zaXRpb24oKTtpZighTnVtYmVyLmlzRmluaXRlKHAubGF0KXx8IU51bWJlci5pc0Zpbml0ZShwLmxvbikpcmV0dXJuOwogICAgcnVudGltZS5tb2RlbC5tb2RlbE1hdHJpeD1DLlRyYW5zZm9ybXMuaGVhZGluZ1BpdGNoUm9sbFRvRml4ZWRGcmFtZShDLkNhcnRlc2lhbjMuZnJvbURlZ3JlZXMocC5sb24scC5sYXQscC5hbHQpLG5ldyBDLkhlYWRpbmdQaXRjaFJvbGwoQy5NYXRoLnRvUmFkaWFucyhoZWFkaW5nKCkpLDAsMCkpOwogICAgcnVudGltZS5tb2RlbC5zaG93PXRydWU7CiAgfQoKICBmdW5jdGlvbiB1cGRhdGVDYW1lcmEoKXsKICAgIGNvbnN0IHY9dmlld2VyKCksQz13aW5kb3cuQ2VzaXVtO2lmKCF2fHwhQ3x8IXJ1bnRpbWUubW9kZWwpcmV0dXJuOwogICAgY29uc3QgcHI9cHJlc2V0KCksY2FtPUNBTUVSQVtwcl18fENBTUVSQS5iZWhpbmQscD1wb3NpdGlvbigpO2lmKCFOdW1iZXIuaXNGaW5pdGUocC5sYXQpfHwhTnVtYmVyLmlzRmluaXRlKHAubG9uKSlyZXR1cm47CiAgICBjb25zdCBjZmc9TU9ERUxTW3J1bnRpbWUubW9kZWxJZF18fE1PREVMUy5jMTUyLGg9aGVhZGluZygpOwogICAgbGV0IG9mZj1jYW0ub2Zmc2V0O2lmKHByPT09J29yYml0Jyl7cnVudGltZS5vcmJpdD0ocnVudGltZS5vcmJpdCsyLjQpJTM2MDtvZmY9MTgwK3J1bnRpbWUub3JiaXQ7fWVsc2UgcnVudGltZS5vcmJpdD0wOwogICAgY29uc3QgdGFyZ2V0PUMuQ2FydGVzaWFuMy5mcm9tRGVncmVlcyhwLmxvbixwLmxhdCxwLmFsdCk7CiAgICB2LmNhbWVyYS5sb29rQXQodGFyZ2V0LG5ldyBDLkhlYWRpbmdQaXRjaFJhbmdlKEMuTWF0aC50b1JhZGlhbnMoKGgrb2ZmKzM2MCklMzYwKSxDLk1hdGgudG9SYWRpYW5zKGNhbS5waXRjaCksY2ZnLnJhbmdlKmNhbS5yYW5nZSkpOwogICAgdi5zY2VuZS5yZXF1ZXN0UmVuZGVyPy4oKTsKICB9CgogIGFzeW5jIGZ1bmN0aW9uIGFjdGl2YXRlKCl7CiAgICBlbnN1cmVTdHlsZSgpO2lmKCFzaG91bGRSdW4oKSl7ZGVhY3RpdmF0ZSgpO3JldHVybiBmYWxzZTt9CiAgICBjb25zdCBpZD1zZWxlY3RlZElkKCk7aWYoIXJ1bnRpbWUubW9kZWx8fHJ1bnRpbWUubW9kZWxJZCE9PWlkKXtpZighYXdhaXQgbG9hZE1vZGVsKGlkKSlyZXR1cm4gZmFsc2U7fQogICAgcnVudGltZS5hY3RpdmU9dHJ1ZTtvdmVycmlkZSh0cnVlKTtkb2N1bWVudC5ib2R5LmNsYXNzTGlzdC5hZGQoJ2Flcm9uYXYtYWlyY3JhZnQtM2Qtb24nKTsKICAgIGNvbnN0IGI9ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2FpcmNyYWZ0M2RCYWRnZScpO2lmKGIpYi50ZXh0Q29udGVudD1gM0QgwrcgJHtNT0RFTFNbaWRdLm5hbWV9IMK3ICR7U3RyaW5nKGNhbWVyYVN0YXR1cygpLnByZXNldHx8J2JlaGluZCcpLnRvVXBwZXJDYXNlKCl9YDsKICAgIHVwZGF0ZU1vZGVsKCk7dXBkYXRlQ2FtZXJhKCk7cmV0dXJuIHRydWU7CiAgfQoKICBmdW5jdGlvbiBkZWFjdGl2YXRlKCl7CiAgICBpZighcnVudGltZS5hY3RpdmUmJiF3aW5kb3cuX19BRVJPTkFWXzNEX0FJUkNSQUZUX0NBTUVSQV9PVkVSUklERV9fKXJldHVybjsKICAgIHJ1bnRpbWUuYWN0aXZlPWZhbHNlO292ZXJyaWRlKGZhbHNlKTtkb2N1bWVudC5ib2R5LmNsYXNzTGlzdC5yZW1vdmUoJ2Flcm9uYXYtYWlyY3JhZnQtM2Qtb24nKTsKICAgIGlmKHJ1bnRpbWUubW9kZWwpcnVudGltZS5tb2RlbC5zaG93PWZhbHNlOwogICAgY29uc3Qgdj12aWV3ZXIoKSxDPXdpbmRvdy5DZXNpdW07dHJ5e2lmKHYmJkMpdi5jYW1lcmEubG9va0F0VHJhbnNmb3JtKEMuTWF0cml4NC5JREVOVElUWSk7fWNhdGNoKF8pe30KICAgIHNldFRpbWVvdXQoKCk9Pnt0cnl7d2luZG93LkFFUk9OQVZQaG90bzNEUmVuZGVyZXI/LnN5bmM/LigpO31jYXRjaChfKXt9fSw0MCk7CiAgfQoKICBhc3luYyBmdW5jdGlvbiB0aWNrKCl7CiAgICBjb25zdCBub3c9cGVyZm9ybWFuY2Uubm93KCk7aWYobm93LXJ1bnRpbWUubGFzdFVwZGF0ZTwxMjApcmV0dXJuO3J1bnRpbWUubGFzdFVwZGF0ZT1ub3c7CiAgICBpZighc2hvdWxkUnVuKCkpe2RlYWN0aXZhdGUoKTtyZXR1cm47fQogICAgY29uc3QgaWQ9c2VsZWN0ZWRJZCgpO2lmKCFydW50aW1lLm1vZGVsfHxydW50aW1lLm1vZGVsSWQhPT1pZHx8IXJ1bnRpbWUuYWN0aXZlKXthd2FpdCBhY3RpdmF0ZSgpO3JldHVybjt9CiAgICB1cGRhdGVNb2RlbCgpO3VwZGF0ZUNhbWVyYSgpOwogICAgY29uc3QgYj1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnYWlyY3JhZnQzZEJhZGdlJyk7aWYoYiliLnRleHRDb250ZW50PWAzRCDCtyAke01PREVMU1tpZF0ubmFtZX0gwrcgJHtTdHJpbmcoY2FtZXJhU3RhdHVzKCkucHJlc2V0fHwnYmVoaW5kJykudG9VcHBlckNhc2UoKX1gOwogIH0KCiAgd2luZG93LkFFUk9OQVYzREFpcmNyYWZ0PXsKICAgIHJlbGVhc2U6J1JDMTIuMzcuOCcsYWN0aXZhdGUsZGVhY3RpdmF0ZSxzeW5jOnRpY2ssCiAgICBtb2RlbHM6KCk9Pk9iamVjdC5mcm9tRW50cmllcyhPYmplY3QuZW50cmllcyhNT0RFTFMpLm1hcCgoW2ssdl0pPT5bayx7bmFtZTp2Lm5hbWUsdXJsOnYudXJsfV0pKSwKICAgIHN0YXR1czooKT0+KHtyZWxlYXNlOidSQzEyLjM3LjgnLGFjdGl2ZTpydW50aW1lLmFjdGl2ZSxsb2FkaW5nOnJ1bnRpbWUubG9hZGluZyxlcnJvcjpydW50aW1lLmVycm9yLGFpcmNyYWZ0OnNlbGVjdGVkSWQoKSxhaXJjcmFmdE5hbWU6TU9ERUxTW3NlbGVjdGVkSWQoKV0ubmFtZSxtb2RlbExvYWRlZDohIXJ1bnRpbWUubW9kZWwsbW9kZWxJZDpydW50aW1lLm1vZGVsSWQscHJlc2V0OnByZXNldCgpfSkKICB9OwoKICBlbnN1cmVTdHlsZSgpOwogIFsnYWVyb25hdjpjYW1lcmEtY2hhbmdlJywnYWVyb25hdjptYXAtcmVhZHknLCdhZXJvbmF2OnNjcmVlbi1jaGFuZ2UnLCdwYWdlc2hvdyddLmZvckVhY2goZXY9PndpbmRvdy5hZGRFdmVudExpc3RlbmVyKGV2LCgpPT5zZXRUaW1lb3V0KHRpY2ssODApKSk7CiAgZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcignY2hhbmdlJyxlPT57aWYoZS50YXJnZXQ/Lm1hdGNoZXM/LignI2FkZG9uQWlyY3JhZnQnKSlzZXRUaW1lb3V0KHRpY2ssMTIwKTt9LHRydWUpOwogIGRvY3VtZW50LmFkZEV2ZW50TGlzdGVuZXIoJ3Zpc2liaWxpdHljaGFuZ2UnLCgpPT57aWYoZG9jdW1lbnQuaGlkZGVuKWRlYWN0aXZhdGUoKTtlbHNlIHNldFRpbWVvdXQodGljaywxMDApO30pOwogIHNldEludGVydmFsKHRpY2ssMTQwKTtzZXRUaW1lb3V0KHRpY2ssOTAwKTsKfSkoKTsK\"\
+        ).decode(\"utf-8\"),encoding=\"utf-8\")\nPY\n\npython3 - <<'PY'\n\nfrom pathlib import Path\nimport math, struct,\
+        \ json\n\nOUT = Path(\"assets/aircraft3d\")\nOUT.mkdir(parents=True, exist_ok=True)\n\nMATERIALS = [\n    {\"name\"\
+        :\"White\",\"pbrMetallicRoughness\":{\"baseColorFactor\":[0.96,0.96,0.98,1],\"metallicFactor\":0.05,\"roughnessFactor\"\
+        :0.68},\"extensions\":{\"KHR_materials_unlit\":{}}},\n    {\"name\":\"Red\",\"pbrMetallicRoughness\":{\"baseColorFactor\"\
+        :[0.78,0.01,0.03,1],\"metallicFactor\":0.02,\"roughnessFactor\":0.72},\"extensions\":{\"KHR_materials_unlit\":{}}},\n\
+        \    {\"name\":\"Orange\",\"pbrMetallicRoughness\":{\"baseColorFactor\":[0.96,0.25,0.02,1],\"metallicFactor\":0.02,\"\
+        roughnessFactor\":0.72},\"extensions\":{\"KHR_materials_unlit\":{}}},\n    {\"name\":\"Dark\",\"pbrMetallicRoughness\"\
+        :{\"baseColorFactor\":[0.06,0.08,0.10,1],\"metallicFactor\":0.1,\"roughnessFactor\":0.55},\"extensions\":{\"KHR_materials_unlit\"\
+        :{}}},\n    {\"name\":\"Glass\",\"pbrMetallicRoughness\":{\"baseColorFactor\":[0.03,0.18,0.28,1],\"metallicFactor\"\
+        :0.0,\"roughnessFactor\":0.25},\"extensions\":{\"KHR_materials_unlit\":{}}},\n]\n\nAIRCRAFT = {\n    \"c152\":   \
+        \ dict(name=\"Cessna 152\", length=7.3, span=10.2, radius=.48, wing_chord=1.55, tail_span=3.5, tail_chord=.8, tail_height=1.35,\
+        \ kind=\"prop\", high_wing=True, prop_span=1.7),\n    \"c172\":    dict(name=\"Cessna 172\", length=8.3, span=11.0,\
+        \ radius=.54, wing_chord=1.75, tail_span=3.8, tail_chord=.9, tail_height=1.45, kind=\"prop\", high_wing=True, prop_span=1.9),\n\
+        \    \"q400\":    dict(name=\"De Havilland Dash 8 Q400\", length=32.8, span=28.4, radius=1.45, wing_chord=4.0, tail_span=10.0,\
+        \ tail_chord=2.2, tail_height=4.5, kind=\"turboprop\", high_wing=True, engine_y=6.0, engine_r=.75, prop_span=4.1),\n\
+        \    \"b7377\":   dict(name=\"Boeing 737-700\", length=33.6, span=35.8, radius=1.75, wing_chord=5.1, tail_span=11.2,\
+        \ tail_chord=2.5, tail_height=5.0, kind=\"jet\", high_wing=False, engine_y=6.7, engine_r=1.05),\n    \"a2203\":  \
+        \ dict(name=\"Airbus A220-300\", length=38.7, span=35.1, radius=1.85, wing_chord=5.6, tail_span=11.6, tail_chord=2.7,\
+        \ tail_height=5.3, kind=\"jet\", high_wing=False, engine_y=6.9, engine_r=1.18),\n    \"b777300\": dict(name=\"Boeing\
+        \ 777-300ER\", length=73.9, span=64.8, radius=3.1, wing_chord=9.4, tail_span=21.0, tail_chord=4.5, tail_height=8.2,\
+        \ kind=\"jet\", high_wing=False, engine_y=13.0, engine_r=2.1),\n    \"b7879\":   dict(name=\"Boeing 787-9\", length=62.8,\
+        \ span=60.1, radius=2.8, wing_chord=8.5, tail_span=19.2, tail_chord=4.0, tail_height=7.4, kind=\"jet\", high_wing=False,\
+        \ engine_y=12.0, engine_r=1.85),\n    \"b78710\":  dict(name=\"Boeing 787-10\", length=68.3, span=60.1, radius=2.85,\
+        \ wing_chord=8.7, tail_span=19.4, tail_chord=4.1, tail_height=7.5, kind=\"jet\", high_wing=False, engine_y=12.2, engine_r=1.88),\n\
+        }\n\ndef make_glb(key, p, path):\n    primitives, views, accessors = [], [], []\n    buffer = bytearray()\n\n    def\
+        \ add_primitive(verts, inds, mat):\n        nonlocal buffer\n        while len(buffer) % 4: buffer += b\"\\x00\"\n\
+        \        poff = len(buffer)\n        pdata = b\"\".join(struct.pack(\"<3f\", *v) for v in verts)\n        buffer +=\
+        \ pdata\n        pview = len(views)\n        views.append({\"buffer\":0,\"byteOffset\":poff,\"byteLength\":len(pdata),\"\
+        target\":34962})\n        xs=[v[0] for v in verts]; ys=[v[1] for v in verts]; zs=[v[2] for v in verts]\n        pacc\
+        \ = len(accessors)\n        accessors.append({\"bufferView\":pview,\"componentType\":5126,\"count\":len(verts),\"\
+        type\":\"VEC3\",\n                          \"min\":[min(xs),min(ys),min(zs)],\"max\":[max(xs),max(ys),max(zs)]})\n\
+        \        while len(buffer) % 4: buffer += b\"\\x00\"\n        ioff = len(buffer)\n        idata = b\"\".join(struct.pack(\"\
+        <H\", i) for i in inds)\n        buffer += idata\n        iview = len(views)\n        views.append({\"buffer\":0,\"\
+        byteOffset\":ioff,\"byteLength\":len(idata),\"target\":34963})\n        iacc = len(accessors)\n        accessors.append({\"\
+        bufferView\":iview,\"componentType\":5123,\"count\":len(inds),\"type\":\"SCALAR\"})\n        primitives.append({\"\
+        attributes\":{\"POSITION\":pacc},\"indices\":iacc,\"material\":mat})\n\n    def box(cx,cy,cz,sx,sy,sz,mat):\n    \
+        \    x0,x1=cx-sx/2,cx+sx/2; y0,y1=cy-sy/2,cy+sy/2; z0,z1=cz-sz/2,cz+sz/2\n        v=[(x0,y0,z0),(x1,y0,z0),(x1,y1,z0),(x0,y1,z0),(x0,y0,z1),(x1,y0,z1),(x1,y1,z1),(x0,y1,z1)]\n\
+        \        i=[0,1,2,0,2,3,4,6,5,4,7,6,0,4,5,0,5,1,1,5,6,1,6,2,2,6,7,2,7,3,3,7,4,3,4,0]\n        add_primitive(v,i,mat)\n\
+        \n    def prism_x(x0,x1,cy,cz,ry,rz,mat,n=12):\n        v=[]\n        for x in (x0,x1):\n            for k in range(n):\n\
+        \                a=2*math.pi*k/n\n                v.append((x,cy+math.cos(a)*ry,cz+math.sin(a)*rz))\n        i=[]\n\
+        \        for k in range(n):\n            j=(k+1)%n\n            i += [k,j,n+j,k,n+j,n+k]\n        c0=len(v); v.append((x0,cy,cz))\n\
+        \        c1=len(v); v.append((x1,cy,cz))\n        for k in range(n):\n            j=(k+1)%n\n            i += [c0,j,k,c1,n+k,n+j]\n\
+        \        add_primitive(v,i,mat)\n\n    L=p[\"length\"]; span=p[\"span\"]; r=p[\"radius\"]\n    prism_x(-L/2,L/2,0,0,r,r*.90,0,14)\n\
+        \    prism_x(L*.22,L*.46,0,r*.12,r*1.01,r*.82,4,12)\n\n    wing_z = r*.68 if p[\"high_wing\"] else -r*.10\n    box(-L*.02,0,wing_z,p[\"\
+        wing_chord\"],span,max(.08,r*.13),0)\n    box(-L*.39,0,r*.12,p[\"tail_chord\"],p[\"tail_span\"],max(.06,r*.09),0)\n\
+        \    box(-L*.405,0,r+p[\"tail_height\"]/2,p[\"tail_chord\"]*.72,max(.07,r*.13),p[\"tail_height\"],1)\n    box(-L*.08,-r*.98,r*.05,L*.62,max(.03,r*.06),max(.04,r*.10),2)\n\
+        \n    if p[\"kind\"] == \"prop\":\n        nose=L/2+.12\n        box(nose,0,0,.10,p[\"prop_span\"],.08,3)\n      \
+        \  box(nose,0,0,.10,.08,p[\"prop_span\"],3)\n    elif p[\"kind\"] == \"turboprop\":\n        for y in (-p[\"engine_y\"\
+        ],p[\"engine_y\"]):\n            prism_x(-L*.02,L*.13,y,wing_z-r*.55,p[\"engine_r\"],p[\"engine_r\"]*.9,3,10)\n  \
+        \          px=L*.14\n            box(px,y,wing_z-r*.55,.12,p[\"prop_span\"],.10,3)\n            box(px,y,wing_z-r*.55,.12,.10,p[\"\
+        prop_span\"],3)\n    else:\n        for y in (-p[\"engine_y\"],p[\"engine_y\"]):\n            prism_x(-L*.02,L*.14,y,wing_z-r*.72,p[\"\
+        engine_r\"],p[\"engine_r\"]*.92,3,12)\n\n    if key.startswith(\"b787\"):\n        box(-L*.05,-span*.43,wing_z+.02,p[\"\
+        wing_chord\"]*.45,span*.14,max(.06,r*.08),0)\n        box(-L*.05, span*.43,wing_z+.02,p[\"wing_chord\"]*.45,span*.14,max(.06,r*.08),0)\n\
+        \    elif key==\"b777300\":\n        box(-L*.06,-span*.46,wing_z+.02,p[\"wing_chord\"]*.34,span*.09,max(.07,r*.07),0)\n\
+        \        box(-L*.06, span*.46,wing_z+.02,p[\"wing_chord\"]*.34,span*.09,max(.07,r*.07),0)\n\n    doc={\"asset\":{\"\
+        version\":\"2.0\",\"generator\":\"AERONAV RC12.37.8 procedural aircraft\"},\n         \"extensionsUsed\":[\"KHR_materials_unlit\"\
+        ],\"scene\":0,\"scenes\":[{\"nodes\":[0]}],\n         \"nodes\":[{\"mesh\":0,\"name\":p[\"name\"]}],\"meshes\":[{\"\
+        name\":p[\"name\"],\"primitives\":primitives}],\n         \"materials\":MATERIALS,\"buffers\":[{\"byteLength\":len(buffer)}],\n\
+        \         \"bufferViews\":views,\"accessors\":accessors}\n\n    j=json.dumps(doc,separators=(\",\",\":\"),ensure_ascii=False).encode(\"\
+        utf-8\")\n    while len(j)%4: j+=b\" \"\n    b=bytes(buffer)\n    while len(b)%4: b+=b\"\\x00\"\n    total=12+8+len(j)+8+len(b)\n\
+        \n    out=bytearray()\n    out += b\"glTF\" + struct.pack(\"<II\",2,total)\n    out += struct.pack(\"<I4s\",len(j),b\"\
+        JSON\") + j\n    out += struct.pack(\"<I4s\",len(b),b\"BIN\\x00\") + b\n    path.write_bytes(out)\n\nfor key,p in\
+        \ AIRCRAFT.items():\n    make_glb(key,p,OUT/f\"{key}.glb\")\n\nPY\n\npython3 - <<'PY'\nfrom pathlib import Path\n\n\
+        s=Path(\"sw.js\").read_text(encoding=\"utf-8\")\nfor needle in [\n    \"/* AERONAV RC12.37.7 — Aircraft Visual Profiles\
+        \ + versioned offline shell */\",\n    \"const CACHE='aeronav-jorge-RC12_37_7-aircraft-visuals-20261008';\",\n   \
+        \ \"release:'RC12.37.7'\",\n    'const LOCAL=[\"./aircraft-visual-profiles.js\",'\n]:\n    if needle not in s:\n \
+        \       raise SystemExit(\"SW baseline não encontrado: \"+needle)\n\ns=s.replace(\"/* AERONAV RC12.37.7 — Aircraft\
+        \ Visual Profiles + versioned offline shell */\",\n            \"/* AERONAV RC12.37.8 — True 3D Aircraft Models +\
+        \ versioned offline shell */\",1)\ns=s.replace(\"const CACHE='aeronav-jorge-RC12_37_7-aircraft-visuals-20261008';\"\
+        ,\n            \"const CACHE='aeronav-jorge-RC12_37_8-aircraft3d-20261008';\",1)\ns=s.replace(\"release:'RC12.37.7'\"\
+        ,\"release:'RC12.37.8'\",1)\n\nentries=[\n    '\"./aircraft-3d-models.js\"',\n    '\"./assets/aircraft3d/c152.glb\"\
+        ',\n    '\"./assets/aircraft3d/c172.glb\"',\n    '\"./assets/aircraft3d/q400.glb\"',\n    '\"./assets/aircraft3d/b7377.glb\"\
+        ',\n    '\"./assets/aircraft3d/a2203.glb\"',\n    '\"./assets/aircraft3d/b777300.glb\"',\n    '\"./assets/aircraft3d/b7879.glb\"\
+        ',\n    '\"./assets/aircraft3d/b78710.glb\"'\n]\nif '\"./aircraft-3d-models.js\"' not in s:\n    s=s.replace('const\
+        \ LOCAL=[\"./aircraft-visual-profiles.js\",',\n                'const LOCAL=['+\", \".join(entries)+', \"./aircraft-visual-profiles.js\"\
+        ,',1)\n\nPath(\"sw.js\").write_text(s,encoding=\"utf-8\")\nPY\n"
+    - name: Validate RC12.37.8
+      shell: bash
+      run: "set -euo pipefail\nnode --check sw.js\nnode --check photo3d-renderer.js\nnode --check aircraft-3d-models.js\n\n\
+        grep -q \"<title>AERONAV — RC12.37.8</title>\" index.html\ngrep -q \"const APP_VERSION = 'RC12.37.8 · True 3D Aircraft\
+        \ Models';\" index.html\ngrep -q 'photo3d-renderer.js?v=RC12.37.8' index.html\ngrep -q 'aircraft-3d-models.js?v=RC12.37.8'\
+        \ index.html\n\ngrep -q \"__AERONAV_3D_AIRCRAFT_CAMERA_OVERRIDE__\" photo3d-renderer.js\ngrep -q \"viewer: () => runtime.viewer\"\
+        \ photo3d-renderer.js\ngrep -q \"release: 'RC12.37.8'\" photo3d-renderer.js\n\ngrep -q \"AERONAV3DAircraft\" aircraft-3d-models.js\n\
+        grep -q \"Model.fromGltfAsync\" aircraft-3d-models.js\ngrep -q \"HeadingPitchRange\" aircraft-3d-models.js\n\nfor\
+        \ f in assets/aircraft3d/c152.glb assets/aircraft3d/c172.glb assets/aircraft3d/q400.glb assets/aircraft3d/b7377.glb\
+        \ assets/aircraft3d/a2203.glb assets/aircraft3d/b777300.glb assets/aircraft3d/b7879.glb assets/aircraft3d/b78710.glb\n\
+        do\n  test -s \"$f\"\n  test \"$(head -c 4 \"$f\")\" = \"glTF\"\ndone\n\ngrep -q \"aeronav-jorge-RC12_37_8-aircraft3d-20261008\"\
+        \ sw.js\ngrep -q \"release:'RC12.37.8'\" sw.js\ngrep -q '\"./aircraft-3d-models.js\"' sw.js\ngrep -q '\"./assets/aircraft3d/b78710.glb\"\
+        ' sw.js\n"
+    - name: Commit RC12.37.8
+      shell: bash
+      run: "set -euo pipefail\ngit config user.name \"AERONAV Update\"\ngit config user.email \"actions@users.noreply.github.com\"\
+        \ngit add index.html sw.js photo3d-renderer.js aircraft-3d-models.js assets/aircraft3d\nif git diff --cached --quiet;\
+        \ then\n  echo \"No changes required.\"\n  exit 0\nfi\ngit commit -m \"RC12.37.8 add procedural 3D aircraft models\"\
+        \ngit push origin HEAD:main\n"
