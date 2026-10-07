@@ -1,0 +1,68 @@
+name: AERONAV RC12.37.7 Aircraft Visual Profiles Fix
+'on':
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  install_visual_profiles:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout main
+      uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+    - name: Apply RC12.37.7
+      shell: bash
+      run: "set -euo pipefail\ntest -f index.html\ntest -f sw.js\ntest -f flight-camera-director.js\n\npython3 - <<'PY'\nfrom pathlib import Path\nimport base64\n\nh = Path(\"index.html\").read_text(encoding=\"utf-8\")\n\nold_title = \"<title>AERONAV — RC12.37.6</title>\"\nold_app = \"const APP_VERSION = 'RC12.37.6 · Automatic Flight Camera Director';\"\nold_camera = '<script src=\"./flight-camera-director.js?v=RC12.37.6\"></script>'\nnew_visual = '<script src=\"./aircraft-visual-profiles.js?v=RC12.37.7\"></script>'\n\nif old_title not in h:\n    raise SystemExit(\"Expected RC12.37.6 title not found\")\nif old_app not in h:\n    raise SystemExit(\"Expected RC12.37.6 APP_VERSION not found\")\nif old_camera not in h:\n    raise SystemExit(\"RC12.37.6 camera script tag not found\")\n\nh = h.replace(old_title, \"<title>AERONAV — RC12.37.7</title>\", 1)\nh = h.replace(old_app, \"const APP_VERSION = 'RC12.37.7 · Aircraft Visual Profiles';\", 1)\n\nif new_visual not in h:\n    h = h.replace(old_camera, old_camera + \"\\n\" + new_visual, 1)\n\nPath(\"index.html\").write_text(h, encoding=\"utf-8\")\n\njs = base64.b64decode(\"LyogQUVST05BViBSQzEyLjM3Ljcg4oCUIEFpcmNyYWZ0IFZpc3VhbCBQcm9maWxlcyBvdmVybGF5LiAqLwooKCkgPT4gewogICd1c2Ugc3RyaWN0JzsKICBpZiAod2luZG93Ll9fQUVST05BVl9BSVJDUkFGVF9WSVNVQUxTX1JDMTIzNzdfXykgcmV0dXJuOwogIHdpbmRvdy5fX0FFUk9OQVZfQUlSQ1JBRlRfVklTVUFMU19SQzEyMzc3X18gPSB0cnVlOwogIGlmICgvXC8oPzptYXRoaWF8d2VuZGxlcnxmYW1pbHkpKD86XC98XC5odG1sfCQpL2kudGVzdChsb2NhdGlvbi5wYXRobmFtZSB8fCAnJykpIHJldHVybjsKCiAgY29uc3QgJCA9IHMgPT4gZG9jdW1lbnQucXVlcnlTZWxlY3RvcihzKTsKCiAgY29uc3QgUFJPRklMRVMgPSB7CiAgICBjMTUyOiAgICB7IG5hbWU6J0Nlc3NuYSAxNTInLCAgICAgICAgICAgICAgICB3aWR0aDonbWluKDMwdncsMjE1cHgpJywgdG9wOidtaW4oMjN2dywxNzBweCknIH0sCiAgICBjMTcyOiAgICB7IG5hbWU6J0Nlc3NuYSAxNzInLCAgICAgICAgICAgICAgICB3aWR0aDonbWluKDMydncsMjI1cHgpJywgdG9wOidtaW4oMjR2dywxNzVweCknIH0sCiAgICBxNDAwOiAgICB7IG5hbWU6J0RlIEhhdmlsbGFuZCBEYXNoIDggUTQwMCcsICB3aWR0aDonbWluKDQwdncsMjg1cHgpJywgdG9wOidtaW4oMjl2dywyMTVweCknIH0sCiAgICBiNzM3NzogICB7IG5hbWU6J0JvZWluZyA3MzctNzAwJywgICAgICAgICAgICB3aWR0aDonbWluKDQydncsMzA1cHgpJywgdG9wOidtaW4oMzB2dywyMjVweCknIH0sCiAgICBhMjIwMzogICB7IG5hbWU6J0FpcmJ1cyBBMjIwLTMwMCcsICAgICAgICAgICB3aWR0aDonbWluKDQxdncsMzAwcHgpJywgdG9wOidtaW4oMzB2dywyMjBweCknIH0sCiAgICBiNzc3MzAwOiB7IG5hbWU6J0JvZWluZyA3NzctMzAwRVInLCAgICAgICAgICB3aWR0aDonbWluKDQ4dncsMzUwcHgpJywgdG9wOidtaW4oMzR2dywyNTBweCknIH0sCiAgICBiNzg3OTogICB7IG5hbWU6J0JvZWluZyA3ODctOScsICAgICAgICAgICAgICB3aWR0aDonbWluKDQ2dncsMzQwcHgpJywgdG9wOidtaW4oMzN2dywyNDVweCknIH0sCiAgICBiNzg3MTA6ICB7IG5hbWU6J0JvZWluZyA3ODctMTAnLCAgICAgICAgICAgICB3aWR0aDonbWluKDQ4dncsMzUwcHgpJywgdG9wOidtaW4oMzR2dywyNTBweCknIH0KICB9OwoKICBjb25zdCBzdGF0ZSA9IHsgbGFzdEFpcmNyYWZ0OicnLCBsYXN0UHJlc2V0OicnLCBsYXN0U3JjOicnIH07CgogIGZ1bmN0aW9uIGFpcmNyYWZ0SWQoKSB7CiAgICBjb25zdCBpZCA9IGxvY2FsU3RvcmFnZS5nZXRJdGVtKCdhZXJvbmF2LmFpcmNyYWZ0UHJlZicpIHx8ICdjMTUyJzsKICAgIHJldHVybiBQUk9GSUxFU1tpZF0gPyBpZCA6ICdjMTUyJzsKICB9CgogIGZ1bmN0aW9uIGNhbWVyYVN0YXR1cygpIHsKICAgIHRyeSB7IHJldHVybiB3aW5kb3cuQUVST05BVkZsaWdodENhbWVyYT8uc3RhdHVzPy4oKSB8fCB7fTsgfQogICAgY2F0Y2ggKF8pIHsgcmV0dXJuIHt9OyB9CiAgfQoKICBmdW5jdGlvbiBlbnN1cmVTdHlsZSgpIHsKICAgIGlmICgkKCcjYWlyY3JhZnRWaXN1YWxQcm9maWxlc1N0eWxlJykpIHJldHVybjsKICAgIGNvbnN0IHN0ID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnc3R5bGUnKTsKICAgIHN0LmlkID0gJ2FpcmNyYWZ0VmlzdWFsUHJvZmlsZXNTdHlsZSc7CiAgICBzdC50ZXh0Q29udGVudCA9IGAKICAgICAgI2ZsaWdodEFpcmNyYWZ0SWRlbnRpdHl7CiAgICAgICAgcG9zaXRpb246YWJzb2x1dGU7ei1pbmRleDozMTtyaWdodDoxMnB4O2JvdHRvbToxMnB4O2Rpc3BsYXk6bm9uZTsKICAgICAgICBhbGlnbi1pdGVtczpjZW50ZXI7Z2FwOjdweDtwYWRkaW5nOjZweCA5cHg7Ym9yZGVyLXJhZGl1czo5OTlweDsKICAgICAgICBiYWNrZ3JvdW5kOiMwNzEzMWRlODtib3JkZXI6MXB4IHNvbGlkICMzMTU2NmU7Y29sb3I6I2VlZjlmZjsKICAgICAgICBmb250OjkwMCA5cHgvMSAtYXBwbGUtc3lzdGVtLEJsaW5rTWFjU3lzdGVtRm9udCwiU2Vnb2UgVUkiLHNhbnMtc2VyaWY7CiAgICAgICAgcG9pbnRlci1ldmVudHM6bm9uZTttYXgtd2lkdGg6bWluKDcydncsNDMwcHgpCiAgICAgIH0KICAgICAgYm9keS5hZXJvbmF2LWZsaWdodC1jYW1lcmEtb24gI2ZsaWdodEFpcmNyYWZ0SWRlbnRpdHl7ZGlzcGxheTpmbGV4fQogICAgICAjZmxpZ2h0QWlyY3JhZnRJZGVudGl0eSAudGFhZy1tYXJrewogICAgICAgIGRpc3BsYXk6aW5saW5lLWZsZXg7YWxpZ24taXRlbXM6Y2VudGVyO2p1c3RpZnktY29udGVudDpjZW50ZXI7CiAgICAgICAgcGFkZGluZzo0cHggN3B4O2JvcmRlci1yYWRpdXM6OTk5cHg7CiAgICAgICAgYmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoOTBkZWcsI2I5MDAxMCwjZTMxYjIzIDU4JSwjZjU4MjIwKTsKICAgICAgICBjb2xvcjojZmZmO2xldHRlci1zcGFjaW5nOi4wOGVtCiAgICAgIH0KICAgICAgI2ZsaWdodEFpcmNyYWZ0SWRlbnRpdHkgLmFpcmNyYWZ0LW5hbWV7CiAgICAgICAgb3ZlcmZsb3c6aGlkZGVuO3RleHQtb3ZlcmZsb3c6ZWxsaXBzaXM7d2hpdGUtc3BhY2U6bm93cmFwCiAgICAgIH0KICAgICAgQG1lZGlhKG1heC13aWR0aDo2MjBweCl7CiAgICAgICAgI2ZsaWdodEFpcmNyYWZ0SWRlbnRpdHl7cmlnaHQ6N3B4O2JvdHRvbTo0NHB4O21heC13aWR0aDo2MnZ3fQogICAgICB9CiAgICBgOwogICAgZG9jdW1lbnQuaGVhZC5hcHBlbmRDaGlsZChzdCk7CiAgfQoKICBmdW5jdGlvbiBlbnN1cmVJZGVudGl0eSgpIHsKICAgIGVuc3VyZVN0eWxlKCk7CiAgICBjb25zdCB3cmFwID0gJCgnI3NjcmVlbi1tYXAgLm1hcC13cmFwJyk7CiAgICBpZiAoIXdyYXApIHJldHVybiBudWxsOwogICAgbGV0IGlkID0gJCgnI2ZsaWdodEFpcmNyYWZ0SWRlbnRpdHknKTsKICAgIGlmICghaWQpIHsKICAgICAgaWQgPSBkb2N1bWVudC5jcmVhdGVFbGVtZW50KCdkaXYnKTsKICAgICAgaWQuaWQgPSAnZmxpZ2h0QWlyY3JhZnRJZGVudGl0eSc7CiAgICAgIGlkLmlubmVySFRNTCA9ICc8c3BhbiBjbGFzcz0idGFhZy1tYXJrIj5UQUFHPC9zcGFuPjxzcGFuIGNsYXNzPSJhaXJjcmFmdC1uYW1lIj5BZXJvbmF2ZTwvc3Bhbj4nOwogICAgICB3cmFwLmFwcGVuZENoaWxkKGlkKTsKICAgIH0KICAgIHJldHVybiBpZDsKICB9CgogIGZ1bmN0aW9uIHNlbGVjdGVkQXZhdGFyU291cmNlKCkgewogICAgY29uc3QgbWFya2VyID0gJCgnLnBvc2l0aW9uLW1hcmtlci5mbGlnaHQgaW1nJyk7CiAgICByZXR1cm4gbWFya2VyPy5nZXRBdHRyaWJ1dGU/Lignc3JjJykgfHwgbWFya2VyPy5zcmMgfHwgJyc7CiAgfQoKICBmdW5jdGlvbiBzeW5jQWlyY3JhZnRJbWFnZSgpIHsKICAgIGNvbnN0IGltZyA9ICQoJyNmbGlnaHRDYW1lcmFBaXJjcmFmdCcpOwogICAgaWYgKCFpbWcpIHJldHVybjsKICAgIGNvbnN0IGlkID0gYWlyY3JhZnRJZCgpOwogICAgY29uc3Qgc3JjID0gc2VsZWN0ZWRBdmF0YXJTb3VyY2UoKTsKICAgIGlmIChzcmMgJiYgKHN0YXRlLmxhc3RBaXJjcmFmdCAhPT0gaWQgfHwgc3RhdGUubGFzdFNyYyAhPT0gc3JjKSkgewogICAgICBpbWcuc3JjID0gc3JjOwogICAgICBpbWcuZGF0YXNldC5haXJjcmFmdElkID0gaWQ7CiAgICAgIGltZy5hbHQgPSBgVEFBRyDCtyAke1BST0ZJTEVTW2lkXS5uYW1lfWA7CiAgICAgIHN0YXRlLmxhc3RBaXJjcmFmdCA9IGlkOwogICAgICBzdGF0ZS5sYXN0U3JjID0gc3JjOwogICAgfQogIH0KCiAgZnVuY3Rpb24gdHJhbnNmb3JtRm9yUHJlc2V0KHByZXNldCkgewogICAgaWYgKHByZXNldCA9PT0gJ2Zyb250JykgcmV0dXJuICd0cmFuc2xhdGUoLTUwJSwtNTAlKSBzY2FsZVgoLTEpIHNjYWxlWSguOTMpJzsKICAgIGlmIChwcmVzZXQgPT09ICdsZWZ0JykgcmV0dXJuICd0cmFuc2xhdGUoLTUwJSwtNTAlKSByb3RhdGUoLTZkZWcpIHNrZXdZKC0yZGVnKSc7CiAgICBpZiAocHJlc2V0ID09PSAncmlnaHQnKSByZXR1cm4gJ3RyYW5zbGF0ZSgtNTAlLC01MCUpIHJvdGF0ZSg2ZGVnKSBza2V3WSgyZGVnKSc7CiAgICBpZiAocHJlc2V0ID09PSAnaW5jbGluZWQnKSByZXR1cm4gJ3RyYW5zbGF0ZSgtNTAlLC01MCUpIHJvdGF0ZSgzZGVnKSc7CiAgICBpZiAocHJlc2V0ID09PSAndG9wJykgcmV0dXJuICd0cmFuc2xhdGUoLTUwJSwtNTAlKSBzY2FsZSguOTYpJzsKICAgIHJldHVybiAndHJhbnNsYXRlKC01MCUsLTUwJSknOwogIH0KCiAgZnVuY3Rpb24gc3luYygpIHsKICAgIGVuc3VyZUlkZW50aXR5KCk7CiAgICBzeW5jQWlyY3JhZnRJbWFnZSgpOwoKICAgIGNvbnN0IGlkID0gYWlyY3JhZnRJZCgpOwogICAgY29uc3QgcHJvZmlsZSA9IFBST0ZJTEVTW2lkXTsKICAgIGNvbnN0IGNhbSA9IGNhbWVyYVN0YXR1cygpOwogICAgY29uc3QgcHJlc2V0ID0gY2FtLnByZXNldCB8fCAnYmVoaW5kJzsKCiAgICBjb25zdCBpZGVudGl0eSA9ICQoJyNmbGlnaHRBaXJjcmFmdElkZW50aXR5IC5haXJjcmFmdC1uYW1lJyk7CiAgICBpZiAoaWRlbnRpdHkpIGlkZW50aXR5LnRleHRDb250ZW50ID0gcHJvZmlsZS5uYW1lOwoKICAgIGNvbnN0IHBsYW5lID0gJCgnI2ZsaWdodENhbWVyYUFpcmNyYWZ0Jyk7CiAgICBpZiAocGxhbmUpIHsKICAgICAgcGxhbmUuc3R5bGUud2lkdGggPSBwcmVzZXQgPT09ICd0b3AnID8gcHJvZmlsZS50b3AgOiBwcm9maWxlLndpZHRoOwogICAgICBwbGFuZS5zdHlsZS50cmFuc2Zvcm0gPSB0cmFuc2Zvcm1Gb3JQcmVzZXQocHJlc2V0KTsKICAgICAgcGxhbmUuZGF0YXNldC5haXJjcmFmdFByb2ZpbGUgPSBpZDsKICAgIH0KCiAgICBjb25zdCBiYWRnZSA9ICQoJyNmbGlnaHRDYW1lcmFCYWRnZScpOwogICAgaWYgKGJhZGdlICYmIGNhbS5hY3RpdmUpIHsKICAgICAgYmFkZ2UudGl0bGUgPSBgJHtwcm9maWxlLm5hbWV9IMK3ICR7Y2FtLmF1dG9tYXRpYyA/ICdBVVRPJyA6ICdNQU5VQUwnfWA7CiAgICB9CgogICAgc3RhdGUubGFzdFByZXNldCA9IHByZXNldDsKICB9CgogIHdpbmRvdy5BRVJPTkFWQWlyY3JhZnRWaXN1YWxzID0gewogICAgcmVsZWFzZTonUkMxMi4zNy43JywKICAgIHByb2ZpbGVzOigpID0+ICh7Li4uUFJPRklMRVN9KSwKICAgIHN5bmMsCiAgICBzdGF0dXM6KCkgPT4gewogICAgICBjb25zdCBpZCA9IGFpcmNyYWZ0SWQoKTsKICAgICAgY29uc3QgY2FtID0gY2FtZXJhU3RhdHVzKCk7CiAgICAgIHJldHVybiB7CiAgICAgICAgcmVsZWFzZTonUkMxMi4zNy43JywKICAgICAgICBhaXJjcmFmdDppZCwKICAgICAgICBhaXJjcmFmdE5hbWU6UFJPRklMRVNbaWRdLm5hbWUsCiAgICAgICAgcHJlc2V0OmNhbS5wcmVzZXQgfHwgJ2JlaGluZCcsCiAgICAgICAgYXV0b21hdGljOiEhY2FtLmF1dG9tYXRpYywKICAgICAgICBhY3RpdmU6ISFjYW0uYWN0aXZlCiAgICAgIH07CiAgICB9CiAgfTsKCiAgWydhZXJvbmF2OmNhbWVyYS1jaGFuZ2UnLCdhZXJvbmF2Om1hcC1yZWFkeScsJ2Flcm9uYXY6c2NyZWVuLWNoYW5nZScsJ3BhZ2VzaG93J10uZm9yRWFjaChldiA9PiB7CiAgICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcihldiwgKCkgPT4gc2V0VGltZW91dChzeW5jLCA4MCkpOwogIH0pOwoKICBkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCdjbGljaycsIGUgPT4gewogICAgaWYgKGUudGFyZ2V0Py5jbG9zZXN0Py4oJyNhZGRvbkFpcmNyYWZ0LCNmbGlnaHRDYW1lcmFCdG4sI21vYmlsZUZsaWdodENhbWVyYUJ0bixbZGF0YS1mbGlnaHQtY2FtZXJhXSwjZmNBdXRvVG9nZ2xlJykpIHsKICAgICAgc2V0VGltZW91dChzeW5jLCAxMjApOwogICAgfQogIH0sIHRydWUpOwoKICBkb2N1bWVudC5hZGRFdmVudExpc3RlbmVyKCdjaGFuZ2UnLCBlID0+IHsKICAgIGlmIChlLnRhcmdldD8ubWF0Y2hlcz8uKCcjYWRkb25BaXJjcmFmdCcpKSBzZXRUaW1lb3V0KHN5bmMsIDE2MCk7CiAgfSwgdHJ1ZSk7CgogIGRvY3VtZW50LmFkZEV2ZW50TGlzdGVuZXIoJ3Zpc2liaWxpdHljaGFuZ2UnLCAoKSA9PiB7CiAgICBpZiAoIWRvY3VtZW50LmhpZGRlbikgc2V0VGltZW91dChzeW5jLCAxMDApOwogIH0pOwoKICBzZXRJbnRlcnZhbChzeW5jLCA3MDApOwogIHNldFRpbWVvdXQoc3luYywgNTAwKTsKfSkoKTsK\").decode(\"utf-8\")\nPath(\"aircraft-visual-profiles.js\").write_text(js, encoding=\"utf-8\")\n\ns = Path(\"sw.js\").read_text(encoding=\"utf-8\")\n\nold_header = \"/* AERONAV RC12.37.6 — Automatic Flight Camera Director + versioned offline shell */\"\nold_cache = \"const CACHE='aeronav-jorge-RC12_37_6-auto-flight-cameras-20261008';\"\nold_release = \"release:'RC12.37.6'\"\n\nif old_header not in s:\n    raise SystemExit(\"Expected RC12.37.6 SW header not found\")\nif old_cache not in s:\n    raise SystemExit(\"Expected RC12.37.6 cache not found\")\nif old_release not in s:\n    raise SystemExit(\"Expected RC12.37.6 SW release not found\")\n\ns = s.replace(\n    old_header,\n    \"/* AERONAV RC12.37.7 — Aircraft Visual Profiles + versioned offline shell */\",\n    1\n)\ns = s.replace(\n    old_cache,\n    \"const CACHE='aeronav-jorge-RC12_37_7-aircraft-visuals-20261008';\",\n    1\n)\ns = s.replace(old_release, \"release:'RC12.37.7'\", 1)\n\nlocal_anchor = 'const LOCAL=[\"./flight-camera-director.js\",'\nif local_anchor not in s:\n    raise SystemExit(\"Service Worker LOCAL camera anchor not found\")\nif '\"./aircraft-visual-profiles.js\"' not in s:\n    s = s.replace(\n        local_anchor,\n        'const LOCAL=[\"./aircraft-visual-profiles.js\", \"./flight-camera-director.js\",',\n        1\n    )\n\nPath(\"sw.js\").write_text(s, encoding=\"utf-8\")\nPY\n"
+    - name: Validate RC12.37.7
+      shell: bash
+      run: 'set -euo pipefail
+
+        node --check sw.js
+
+        node --check flight-camera-director.js
+
+        node --check aircraft-visual-profiles.js
+
+
+        grep -q "<title>AERONAV — RC12.37.7</title>" index.html
+
+        grep -q "const APP_VERSION = ''RC12.37.7 · Aircraft Visual Profiles'';" index.html
+
+        grep -q ''aircraft-visual-profiles.js?v=RC12.37.7'' index.html
+
+        grep -q ''flight-camera-director.js?v=RC12.37.6'' index.html
+
+
+        grep -q "Cessna 152" aircraft-visual-profiles.js
+
+        grep -q "Cessna 172" aircraft-visual-profiles.js
+
+        grep -q "Dash 8 Q400" aircraft-visual-profiles.js
+
+        grep -q "Boeing 737-700" aircraft-visual-profiles.js
+
+        grep -q "Airbus A220-300" aircraft-visual-profiles.js
+
+        grep -q "Boeing 777-300ER" aircraft-visual-profiles.js
+
+        grep -q "Boeing 787-9" aircraft-visual-profiles.js
+
+        grep -q "Boeing 787-10" aircraft-visual-profiles.js
+
+        grep -q "AERONAVAircraftVisuals" aircraft-visual-profiles.js
+
+        grep -q "TAAG" aircraft-visual-profiles.js
+
+
+        grep -q "aeronav-jorge-RC12_37_7-aircraft-visuals-20261008" sw.js
+
+        grep -q "release:''RC12.37.7''" sw.js
+
+        grep -q ''"./aircraft-visual-profiles.js"'' sw.js
+
+        '
+    - name: Commit RC12.37.7
+      shell: bash
+      run: "set -euo pipefail\ngit config user.name \"AERONAV Update\"\ngit config user.email \"actions@users.noreply.github.com\"\ngit add index.html sw.js aircraft-visual-profiles.js\n\nif git diff --cached --quiet; then\n  echo \"No changes required.\"\n  exit 0\nfi\n\ngit commit -m \"RC12.37.7 add aircraft visual profiles\"\ngit push origin HEAD:main\n"
