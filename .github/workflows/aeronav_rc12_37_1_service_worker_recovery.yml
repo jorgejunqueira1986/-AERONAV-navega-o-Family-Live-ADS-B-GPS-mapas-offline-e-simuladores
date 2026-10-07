@@ -1,0 +1,89 @@
+name: AERONAV RC12.37.1 Service Worker Recovery
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate expected files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f index.html
+          test -f sw.js
+          test -f "sw 2.js"
+          grep -q "RC12.37.1" "sw 2.js"
+          grep -q "aeronav-jorge-RC12_37_1-drive2d3d-hotfix-20261007" "sw 2.js"
+          grep -q "serviceWorker.register('./sw.js')" index.html
+
+      - name: Consolidate active service worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "sw 2.js" sw.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          sw = Path("sw.js")
+          s = sw.read_text(encoding="utf-8")
+          s = s.replace(
+              "/* AERONAV RC12.37.1 — Drive 2D/3D functional hotfix + versioned offline shell */",
+              "/* AERONAV RC12.37.1 — Service Worker Recovery + Drive 2D/3D functional hotfix */",
+              1,
+          )
+          s = s.replace("release:'RC12.37.0'", "release:'RC12.37.1'")
+          s = s.replace("AERONAV — RC12.37.0", "AERONAV — RC12.37.1")
+          sw.write_text(s, encoding="utf-8")
+
+          idx = Path("index.html")
+          h = idx.read_text(encoding="utf-8")
+          h = h.replace("<title>AERONAV — RC12.36.3</title>",
+                        "<title>AERONAV — RC12.37.1</title>", 1)
+          h = h.replace(
+              "const APP_VERSION = 'RC12.36.3 · Rotas para endereços';",
+              "const APP_VERSION = 'RC12.37.1 · Service Worker Recovery + Drive 2D/3D';",
+              1,
+          )
+          idx.write_text(h, encoding="utf-8")
+          PY
+
+          rm -f "sw 2.js"
+
+      - name: Safety checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check sw.js
+          grep -q "<title>AERONAV — RC12.37.1</title>" index.html
+          grep -q "const APP_VERSION = 'RC12.37.1 · Service Worker Recovery + Drive 2D/3D';" index.html
+          grep -q "const CACHE='aeronav-jorge-RC12_37_1-drive2d3d-hotfix-20261007';" sw.js
+          grep -q "release:'RC12.37.1'" sw.js
+          grep -q "serviceWorker.register('./sw.js')" index.html
+          test ! -f "sw 2.js"
+
+      - name: Commit correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "AERONAV Update"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html sw.js
+          git add -u
+          if git diff --cached --quiet; then
+            echo "No changes required."
+            exit 0
+          fi
+          git commit -m "RC12.37.1 Service Worker Recovery"
+          git push origin HEAD:main
