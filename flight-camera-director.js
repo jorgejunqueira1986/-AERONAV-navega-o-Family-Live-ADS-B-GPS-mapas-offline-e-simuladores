@@ -1,11 +1,12 @@
-/* AERONAV RC12.37.5 — Manual Flight Camera Director. */
+/* AERONAV RC12.37.6 — Flight Camera Director: manual + automatic phase mode. */
 (() => {
   'use strict';
-  if (window.__AERONAV_FLIGHT_CAMERA_RC12375__) return;
-  window.__AERONAV_FLIGHT_CAMERA_RC12375__ = true;
+  if (window.__AERONAV_FLIGHT_CAMERA_RC12376__) return;
+  window.__AERONAV_FLIGHT_CAMERA_RC12376__ = true;
   if (/\/(?:mathia|wendler|family)(?:\/|\.html|$)/i.test(location.pathname || '')) return;
 
   const KEY = 'aeronav.flight.camera.v3';
+  const PHASE_KEY = 'aeronav.flightops.phase.v1';
   const $ = s => document.querySelector(s);
 
   const PRESETS = {
@@ -19,11 +20,34 @@
     cockpit:  { label:'COCKPIT',        pitch:55, bearingOffset:0,   zoom:9.2,  external:false, planeY:0  }
   };
 
-  let prefs = { preset:'behind', enabled:true };
+  const AUTO_MAP = {
+    ground:'behind',
+    taxi:'behind',
+    takeoff:'behind',
+    climb:'right',
+    cruise:'behind',
+    descent:'left',
+    approach:'inclined',
+    landing:'behind'
+  };
+
+  const PHASE_LABEL = {
+    ground:'PARADO',
+    taxi:'TÁXI',
+    takeoff:'DESCOLAGEM',
+    climb:'SUBIDA',
+    cruise:'CRUZEIRO',
+    descent:'DESCIDA',
+    approach:'APROXIMAÇÃO',
+    landing:'ATERRAGEM'
+  };
+
+  let prefs = { preset:'behind', enabled:true, automatic:true };
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (saved && PRESETS[saved.preset]) prefs.preset = saved.preset;
     if (saved && typeof saved.enabled === 'boolean') prefs.enabled = saved.enabled;
+    if (saved && typeof saved.automatic === 'boolean') prefs.automatic = saved.automatic;
   } catch (_) {}
 
   const runtime = {
@@ -34,7 +58,13 @@
     lastApply:0,
     orbitAngle:0,
     lastPlaneSrc:'',
-    menuOpen:false
+    menuOpen:false,
+    autoPhase:'ground',
+    phaseChangedAt:0,
+    candidate:'',
+    candidateHits:0,
+    lastPhaseStorage:'',
+    lastPhaseStorageAt:0
   };
 
   function save() {
@@ -59,6 +89,18 @@
 
   function snapshot() {
     try { return window.AERONAVCockpit?.snapshot?.() || null; } catch (_) { return null; }
+  }
+
+  function flightOpsPhase() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(PHASE_KEY) || '{"phase":"ground","at":0}');
+      return {
+        phase: raw?.phase === 'airborne' ? 'airborne' : 'ground',
+        at: Number(raw?.at || 0)
+      };
+    } catch (_) {
+      return { phase:'ground', at:0 };
+    }
   }
 
   function updateNavigationState() {
@@ -94,20 +136,102 @@
     try { return Number(m.getBearing?.() || 0); } catch (_) { return 0; }
   }
 
+  function deriveAutoPhase() {
+    const s = snapshot() || {};
+    const ops = flightOpsPhase();
+    const gs = Number(s.gs);
+    const vs = Number(s.vs);
+    const alt = Number(s.alt);
+    const dist = Number(s.distanceNm);
+    const now = Date.now();
+    const age = ops.at > 0 ? now - ops.at : Infinity;
+
+    if (ops.phase !== runtime.lastPhaseStorage || ops.at !== runtime.lastPhaseStorageAt) {
+      runtime.lastPhaseStorage = ops.phase;
+      runtime.lastPhaseStorageAt = ops.at;
+    }
+
+    if (ops.phase === 'ground') {
+      if (age < 75000 && runtime.autoPhase !== 'ground' && runtime.autoPhase !== 'taxi') return 'landing';
+      if (Number.isFinite(gs) && Number.isFinite(vs) && gs >= 40 && vs >= 100) return 'takeoff';
+      if (Number.isFinite(gs) && gs >= 4) return 'taxi';
+      return 'ground';
+    }
+
+    if (age < 90000 && (!Number.isFinite(vs) || vs > 80)) return 'takeoff';
+
+    const nearDestination =
+      Number.isFinite(dist) && dist <= 18 &&
+      (!Number.isFinite(vs) || vs < 100);
+
+    const lowAndSlow =
+      Number.isFinite(gs) && gs <= 175 &&
+      Number.isFinite(alt) && alt <= 4500 &&
+      (!Number.isFinite(vs) || vs < 150);
+
+    if (nearDestination || lowAndSlow) {
+      if ((Number.isFinite(dist) && dist <= 3) || (Number.isFinite(gs) && gs <= 125)) return 'landing';
+      return 'approach';
+    }
+
+    if (Number.isFinite(vs)) {
+      if (vs >= 250) return 'climb';
+      if (vs <= -250) return 'descent';
+    }
+
+    return 'cruise';
+  }
+
+  function stableAutoPhase() {
+    const candidate = deriveAutoPhase();
+    const now = Date.now();
+
+    if (candidate === runtime.autoPhase) {
+      runtime.candidate = '';
+      runtime.candidateHits = 0;
+      return runtime.autoPhase;
+    }
+
+    if (candidate !== runtime.candidate) {
+      runtime.candidate = candidate;
+      runtime.candidateHits = 1;
+      return runtime.autoPhase;
+    }
+
+    runtime.candidateHits += 1;
+
+    const urgent = ['takeoff','landing','approach'].includes(candidate);
+    const enoughHits = urgent ? 2 : 3;
+    const dwell = now - runtime.phaseChangedAt;
+    if (runtime.candidateHits >= enoughHits && (urgent || dwell >= 5000)) {
+      runtime.autoPhase = candidate;
+      runtime.phaseChangedAt = now;
+      runtime.candidate = '';
+      runtime.candidateHits = 0;
+    }
+
+    return runtime.autoPhase;
+  }
+
   function ensureStyles() {
     if ($('#aeronavFlightCameraStyles')) return;
     const st = document.createElement('style');
     st.id = 'aeronavFlightCameraStyles';
     st.textContent = `
       #flightCameraBtn.active,#mobileFlightCameraBtn.active{background:#0d6efd!important;border-color:#55c7ff!important;color:#fff!important}
-      #flightCameraMenu{position:absolute;z-index:52;right:10px;top:10px;width:min(370px,calc(100vw - 20px));display:none;padding:10px;border-radius:17px;background:#06131feb;border:1px solid #31566e;box-shadow:0 18px 50px #000b;backdrop-filter:blur(16px);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#eef9ff}
+      #flightCameraMenu{position:absolute;z-index:52;right:10px;top:10px;width:min(390px,calc(100vw - 20px));display:none;padding:10px;border-radius:17px;background:#06131feb;border:1px solid #31566e;box-shadow:0 18px 50px #000b;backdrop-filter:blur(16px);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#eef9ff}
       #flightCameraMenu.show{display:block}
       #flightCameraMenu .fc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
       #flightCameraMenu .fc-head strong{font-size:13px;letter-spacing:.05em}
       #flightCameraMenu .fc-close{border:0;background:#13293a;color:#fff;width:31px;height:31px;border-radius:10px;font-weight:900}
+      #flightCameraMenu .fc-auto{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;padding:10px;border-radius:13px;background:#0a1d2b;border:1px solid #284d65}
+      #flightCameraMenu .fc-auto-copy strong{display:block;font-size:11px}.fc-auto-copy small{display:block;margin-top:3px;color:#8fb1c6;font-size:9px}
+      #flightCameraMenu .fc-auto-btn{min-width:96px;border:1px solid #425d6f;background:#1a2832;color:#d5e5ee;border-radius:999px;padding:8px 10px;font-size:10px;font-weight:1000}
+      #flightCameraMenu .fc-auto-btn.on{background:#0d8b59;border-color:#4fe0a1;color:#fff}
       #flightCameraMenu .fc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
       #flightCameraMenu .fc-grid button{border:1px solid #284d65;background:#0a2030;color:#dff5ff;border-radius:12px;padding:10px 8px;font-size:11px;font-weight:900;letter-spacing:.02em}
       #flightCameraMenu .fc-grid button.active{background:#0b78e3;border-color:#68cfff;color:#fff}
+      #flightCameraMenu .fc-grid button:disabled{opacity:.45}
       #flightCameraMenu .fc-note{margin-top:8px;color:#8fb1c6;font-size:9px;line-height:1.35}
       #flightCameraAircraft{position:absolute;z-index:29;left:50%;top:66%;transform:translate(-50%,-50%);width:min(42vw,310px);max-height:28vh;object-fit:contain;filter:drop-shadow(0 16px 14px #0009);pointer-events:none;display:none;transition:top .35s ease,width .35s ease,transform .35s ease}
       body.aeronav-flight-camera-external #flightCameraAircraft{display:block}
@@ -154,17 +278,22 @@
       const menu = document.createElement('div');
       menu.id = 'flightCameraMenu';
       menu.innerHTML = `
-        <div class="fc-head"><strong>🎥 CÂMARA DE VOO · MANUAL</strong><button class="fc-close" type="button" aria-label="Fechar">✕</button></div>
+        <div class="fc-head"><strong>🎥 CÂMARA DE VOO</strong><button class="fc-close" type="button" aria-label="Fechar">✕</button></div>
+        <div class="fc-auto">
+          <div class="fc-auto-copy"><strong>MODO AUTOMÁTICO</strong><small id="fcAutoState">—</small></div>
+          <button class="fc-auto-btn" id="fcAutoToggle" type="button">AUTO</button>
+        </div>
         <div class="fc-grid">
           ${Object.entries(PRESETS).map(([id,p]) => `<button type="button" data-flight-camera="${id}">${p.label}</button>`).join('')}
         </div>
-        <div class="fc-note">RC12.37.5 · Escolha manual. A mudança automática por fase de voo será ativada na próxima correção.</div>
+        <div class="fc-note">AUTO ON: a câmara muda por fase de voo. AUTO OFF: a vista fica totalmente manual. Ao escolher um ângulo manual, o AUTO é desligado.</div>
       `;
       wrap.appendChild(menu);
       menu.querySelector('.fc-close').onclick = () => closeMenu();
+      menu.querySelector('#fcAutoToggle').onclick = () => setAutomatic(!prefs.automatic);
       menu.querySelectorAll('[data-flight-camera]').forEach(b => {
         b.onclick = () => {
-          setPreset(b.dataset.flightCamera);
+          setPreset(b.dataset.flightCamera, { manual:true });
           closeMenu();
         };
       });
@@ -186,10 +315,7 @@
   function syncSelectedAircraftImage() {
     const out = $('#flightCameraAircraft');
     if (!out) return;
-    const source =
-      $('.position-marker.flight img') ||
-      $('#aeronavRearAircraft image') ||
-      null;
+    const source = $('.position-marker.flight img') || null;
     const src = source?.getAttribute?.('src') || source?.src || '';
     if (src && src !== runtime.lastPlaneSrc) {
       runtime.lastPlaneSrc = src;
@@ -210,8 +336,26 @@
       b.hidden = !modeFlight();
     }
 
+    const autoBtn = $('#fcAutoToggle');
+    if (autoBtn) {
+      autoBtn.classList.toggle('on', prefs.automatic);
+      autoBtn.textContent = prefs.automatic ? 'AUTO ON' : 'AUTO OFF';
+      autoBtn.setAttribute('aria-pressed', String(prefs.automatic));
+    }
+
+    const autoState = $('#fcAutoState');
+    if (autoState) {
+      autoState.textContent = prefs.automatic
+        ? `${PHASE_LABEL[runtime.autoPhase] || runtime.autoPhase} → ${preset.label}`
+        : `Manual · ${preset.label}`;
+    }
+
     const badge = $('#flightCameraBadge');
-    if (badge) badge.textContent = `🎥 ${preset.label}`;
+    if (badge) {
+      badge.textContent = prefs.automatic
+        ? `AUTO · ${PHASE_LABEL[runtime.autoPhase] || runtime.autoPhase} · ${preset.label}`
+        : `MANUAL · ${preset.label}`;
+    }
 
     const plane = $('#flightCameraAircraft');
     if (plane) {
@@ -260,14 +404,14 @@
       zoom: Math.max(currentZoom, p.zoom),
       pitch: p.pitch,
       bearing,
-      duration: instant ? 0 : (presetId === 'orbit' ? 260 : 650),
+      duration: instant ? 0 : (presetId === 'orbit' ? 260 : 700),
       padding: p.external
         ? { top:70, bottom:175, left:14, right:14 }
         : { top:55, bottom:75, left:12, right:12 }
     };
   }
 
-  function applyPreset({ instant = false } = {}) {
+  function applyPreset({ instant = false, source = 'manual' } = {}) {
     ensureUi();
     syncSelectedAircraftImage();
     syncUi();
@@ -288,7 +432,14 @@
       m.easeTo(targetFor(prefs.preset, m, instant));
       window.AERONAVPhoto3DRenderer?.sync?.();
       window.dispatchEvent(new CustomEvent('aeronav:camera-change', {
-        detail: { preset:prefs.preset, label:preset.label, source:'manual', release:'RC12.37.5' }
+        detail: {
+          preset:prefs.preset,
+          label:preset.label,
+          source,
+          phase:runtime.autoPhase,
+          automatic:prefs.automatic,
+          release:'RC12.37.6'
+        }
       }));
       runtime.lastApply = Date.now();
       return true;
@@ -297,66 +448,125 @@
     }
   }
 
-  function setPreset(id) {
+  function setPreset(id, { manual = false, instant = false } = {}) {
     if (!PRESETS[id]) return false;
+
+    if (manual) prefs.automatic = false;
     prefs.preset = id;
     prefs.enabled = true;
     runtime.orbitAngle = 0;
     save();
     syncUi();
-    applyPreset({ instant:false });
+    applyPreset({ instant, source:manual ? 'manual' : 'automatic' });
     return true;
+  }
+
+  function setAutomatic(on) {
+    prefs.automatic = !!on;
+    prefs.enabled = true;
+    runtime.candidate = '';
+    runtime.candidateHits = 0;
+    runtime.phaseChangedAt = Date.now();
+
+    if (prefs.automatic) {
+      runtime.autoPhase = deriveAutoPhase();
+      prefs.preset = AUTO_MAP[runtime.autoPhase] || 'behind';
+    }
+
+    save();
+    syncUi();
+    applyPreset({ instant:false, source:prefs.automatic ? 'automatic' : 'manual' });
+    return prefs.automatic;
   }
 
   function enable(on = true) {
     prefs.enabled = !!on;
     save();
     syncUi();
-    if (prefs.enabled) applyPreset({ instant:true });
+    if (prefs.enabled) applyPreset({ instant:true, source:prefs.automatic ? 'automatic' : 'manual' });
     return prefs.enabled;
+  }
+
+  function autoTick() {
+    if (!prefs.automatic || !prefs.enabled || !modeFlight() || !mapActive()) return;
+
+    const phase = stableAutoPhase();
+    const target = AUTO_MAP[phase] || 'behind';
+    if (target !== prefs.preset) {
+      prefs.preset = target;
+      runtime.orbitAngle = 0;
+      save();
+      syncUi();
+      applyPreset({ instant:false, source:'automatic' });
+    }
   }
 
   function tick() {
     ensureUi();
     syncSelectedAircraftImage();
+
+    if (prefs.automatic) autoTick();
     syncUi();
+
     if (!prefs.enabled || !modeFlight() || !mapActive()) return;
 
     const now = Date.now();
     const cadence = prefs.preset === 'orbit' ? 280 : 1200;
-    if (now - runtime.lastApply >= cadence) applyPreset({ instant:false });
+    if (now - runtime.lastApply >= cadence) {
+      applyPreset({
+        instant:false,
+        source:prefs.automatic ? 'automatic' : 'manual'
+      });
+    }
   }
 
   window.AERONAVFlightCamera = {
-    release:'RC12.37.5',
+    release:'RC12.37.6',
     presets:() => Object.fromEntries(Object.entries(PRESETS).map(([k,v]) => [k,v.label])),
-    set:setPreset,
+    autoMap:() => ({ ...AUTO_MAP }),
+    set:(id) => setPreset(id, { manual:true }),
+    automatic:setAutomatic,
     enable,
-    apply:() => applyPreset({ instant:false }),
+    apply:() => applyPreset({ instant:false, source:prefs.automatic ? 'automatic' : 'manual' }),
     open:() => { ensureUi(); runtime.menuOpen=false; toggleMenu(); },
     status:() => ({
-      release:'RC12.37.5',
+      release:'RC12.37.6',
       enabled:prefs.enabled,
       preset:prefs.preset,
       label:(PRESETS[prefs.preset] || PRESETS.behind).label,
       active:prefs.enabled && modeFlight() && mapActive(),
-      automatic:false
+      automatic:prefs.automatic,
+      phase:runtime.autoPhase,
+      phaseLabel:PHASE_LABEL[runtime.autoPhase] || runtime.autoPhase
     })
   };
 
   document.addEventListener('click', e => {
     if (!e.target?.closest?.('#flightCameraMenu,#flightCameraBtn,#mobileFlightCameraBtn')) closeMenu();
-    if (e.target?.closest?.('#modeFlight,[data-bottom="map"],#myPositionBtn')) setTimeout(() => applyPreset({ instant:true }), 160);
+    if (e.target?.closest?.('#modeFlight,[data-bottom="map"],#myPositionBtn')) {
+      setTimeout(() => applyPreset({ instant:true, source:prefs.automatic ? 'automatic' : 'manual' }), 160);
+    }
   }, true);
 
   ['aeronav:map-ready','aeronav:screen-change','pageshow'].forEach(ev => {
-    window.addEventListener(ev, () => setTimeout(() => applyPreset({ instant:true }), 180));
+    window.addEventListener(ev, () => setTimeout(() => {
+      if (prefs.automatic) {
+        runtime.autoPhase = deriveAutoPhase();
+        prefs.preset = AUTO_MAP[runtime.autoPhase] || prefs.preset;
+      }
+      applyPreset({ instant:true, source:prefs.automatic ? 'automatic' : 'manual' });
+    }, 180));
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) setTimeout(() => applyPreset({ instant:true }), 180);
+    if (!document.hidden) setTimeout(() => applyPreset({ instant:true, source:prefs.automatic ? 'automatic' : 'manual' }), 180);
   });
 
-  setInterval(tick, 260);
-  setTimeout(() => { ensureUi(); applyPreset({ instant:true }); }, 700);
+  setInterval(tick, 320);
+  setTimeout(() => {
+    ensureUi();
+    runtime.autoPhase = deriveAutoPhase();
+    if (prefs.automatic) prefs.preset = AUTO_MAP[runtime.autoPhase] || prefs.preset;
+    applyPreset({ instant:true, source:prefs.automatic ? 'automatic' : 'manual' });
+  }, 700);
 })();
