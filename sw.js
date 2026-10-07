@@ -1,3 +1,4 @@
+/* AERONAV RC12.37 — Drive 3D visual update + versioned offline shell */
 /* AERONAV RC12.32 — bounded UI work + versioned offline shell */
 /* AERONAV RC12.31.2 — Performance Recovery */
 /* AERONAV RC12.31 — Diagnostic + Recovery */
@@ -12,7 +13,7 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_36_3-address-save-share-20261006';
+const CACHE='aeronav-jorge-RC12_37_0-drive3d-20261007';
 const LOCAL=["./cockpit-lite.js", "./assets/people/mathia-avatar-rc12313.png", "./assets/people/jorge-avatar-rc12313.png", "./index.html", "./manifest.json", "./sw.js", "./family-viewer.html", "./wendler.html", "./family-viewer-preview.html", "./cockpit-audio.js", "./family-call.js", "./angola-offline-fragment.js", "./vendor/pmtiles-3.2.1.js", "./work-status-fragment.js", "./meteo-visual-voo.js", "./meteo-route-phase2.js", "./meteo-altitude-phase3.js", "./diagnostic-recovery.js", "./gps-view-modes.js", "./flight-ops-fragment.js", "./", "./vendor/maplibre-gl-5.24.0.js", "./vendor/maplibre-gl-5.24.0.css", "./vendor/fonts/Noto Sans Regular/0-255.pbf", "./vendor/fonts/Noto Sans Regular/256-511.pbf"];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
@@ -114,6 +115,36 @@ self.addEventListener('activate',event=>{
   })());
 });
 
+const DRIVE3D_INJECT=`<style id="aeronav-drive3d-style">
+#aeronavDrive3dHud{position:absolute;z-index:35;left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));top:10px;display:none;align-items:flex-start;justify-content:space-between;gap:10px;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#fff;text-shadow:0 2px 8px #000b}
+body.aeronav-drive3d #aeronavDrive3dHud{display:flex}
+#aeronavDrive3dHud .d3-left{display:flex;align-items:center;gap:9px;filter:drop-shadow(0 8px 18px #0008)}
+#aeronavDrive3dHud .d3-speed{min-width:88px;padding:9px 12px;border-radius:17px;background:#07111de9;border:1px solid #325065;backdrop-filter:blur(12px);display:flex;align-items:baseline;gap:5px}
+#aeronavDrive3dHud .d3-speed b{font-size:38px;line-height:1;letter-spacing:-1px}.d3-speed small{font-size:10px;color:#bed0dd;font-weight:800}
+#aeronavDrive3dHud .d3-limit{width:54px;height:54px;border-radius:50%;background:#fff;color:#121212;border:6px solid #ec3036;display:grid;place-items:center;font-weight:1000;font-size:19px;box-shadow:0 8px 18px #0008;text-shadow:none}
+#aeronavDrive3dHud .d3-turn{margin-left:auto;max-width:min(650px,66vw);min-width:290px;padding:10px 13px;border-radius:17px;background:#07111dec;border:1px solid #325065;backdrop-filter:blur(12px);display:grid;grid-template-columns:54px minmax(0,1fr);gap:11px;align-items:center;filter:drop-shadow(0 8px 20px #0009)}
+#aeronavDrive3dHud .d3-arrow{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(180deg,#25a8ff,#0878ff);font-size:35px;font-weight:900}
+#aeronavDrive3dHud .d3-copy{min-width:0}.d3-copy b{display:block;font-size:22px;line-height:1.05}.d3-copy strong{display:block;margin-top:3px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.d3-copy small{display:block;margin-top:4px;font-size:10px;color:#9eb7c8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.aeronav-drive3d #mapBadge{display:none!important}
+@media(max-width:720px){#aeronavDrive3dHud{left:7px;right:7px;top:7px;gap:6px}#aeronavDrive3dHud .d3-speed{min-width:64px;padding:7px 8px;border-radius:13px}.d3-speed b{font-size:28px!important}.d3-speed small{font-size:8px!important}#aeronavDrive3dHud .d3-limit{width:43px;height:43px;border-width:5px;font-size:15px}#aeronavDrive3dHud .d3-turn{min-width:0;max-width:62vw;padding:7px 9px;border-radius:13px;grid-template-columns:39px minmax(0,1fr);gap:7px}#aeronavDrive3dHud .d3-arrow{width:39px;height:39px;border-radius:10px;font-size:27px}.d3-copy b{font-size:17px!important}.d3-copy strong{font-size:11px!important}.d3-copy small{font-size:8px!important}}
+</style><script data-aeronav-drive3d-rc1237>(function(){
+'use strict';
+if(window.__AERONAV_DRIVE3D_RC1237)return;window.__AERONAV_DRIVE3D_RC1237=true;
+function q(s){return document.querySelector(s)}
+function active(){var d=q('#modeDrive'),w=q('#modeWalk'),m=q('#screen-map');return !!(d&&d.classList.contains('active')&&!(w&&w.classList.contains('active'))&&m&&m.classList.contains('active'))}
+function is2d(){var b=q('[data-drive-view="2d"]');return !!(b&&b.classList.contains('active'))}
+function map(){return window.__AERONAV_MAP__||window.aeronavMap||window.mainMap||null}
+function clean(v){return String(v==null?'—':v).replace(/<[^>]*>/g,'').trim()||'—'}
+function num(v){var m=String(v||'').replace(',','.').match(/-?\d+(?:\.\d+)?/);return m?Math.round(Number(m[0])):'—'}
+function glyph(t){t=String(t||'').toLowerCase();if(/retorno|invers|u[- ]?turn/.test(t))return '↶';if(/rotunda|roundabout/.test(t))return '↻';if(/esquer|left/.test(t))return '↖';if(/direit|right/.test(t))return '↗';if(/incorp|merge/.test(t))return '⇧';return '↑'}
+function ensureHud(){var h=q('#aeronavDrive3dHud');if(h)return h;var wrap=q('#screen-map .map-wrap');if(!wrap)return null;h=document.createElement('div');h.id='aeronavDrive3dHud';h.innerHTML='<div class="d3-left"><div class="d3-speed"><b id="d3Speed">—</b><small>km/h</small></div><div class="d3-limit" id="d3Limit">—</div></div><div class="d3-turn"><div class="d3-arrow" id="d3Arrow">↑</div><div class="d3-copy"><b id="d3Dist">—</b><strong id="d3Instr">Pronto para conduzir</strong><small id="d3Meta">Selecione um destino</small></div></div>';wrap.appendChild(h);return h}
+function hud(){var h=ensureHud();if(!h)return;document.body.classList.toggle('aeronav-drive3d',active());if(!active())return;var speed=q('#gsValue'),card=q('#driveNavCard'),k=card?Array.from(card.querySelectorAll('.drive-nav-kpi')):[];var instr=card&&card.querySelector('h4')?card.querySelector('h4').textContent:'Pronto para conduzir';var dist=k[0]&&k[0].querySelector('strong')?k[0].querySelector('strong').textContent:'—';var dest=k[1]&&k[1].querySelector('strong')?k[1].querySelector('strong').textContent:'Destino';var rest=k[2]&&k[2].querySelector('strong')?k[2].querySelector('strong').textContent:'—';var limit=k[3]&&k[3].querySelector('strong')?k[3].querySelector('strong').textContent:'—';q('#d3Speed').textContent=num(speed?speed.textContent:'—');q('#d3Limit').textContent=num(limit);q('#d3Arrow').textContent=glyph(instr);q('#d3Dist').textContent=clean(dist);q('#d3Instr').textContent=clean(instr);q('#d3Meta').textContent=clean(dest)+' · '+clean(rest)}
+function styleRoute(m){try{if(m.getLayer('active-route-halo')){m.setPaintProperty('active-route-halo','line-width',18);m.setPaintProperty('active-route-halo','line-color','#03121b');m.setPaintProperty('active-route-halo','line-opacity',.9)}if(m.getLayer('active-route')){m.setPaintProperty('active-route','line-width',11);m.setPaintProperty('active-route','line-color','#169cff');m.setPaintProperty('active-route','line-opacity',1)}}catch(_){}}
+function showBuildings(m){try{var ls=(m.getStyle&&m.getStyle().layers)||[];ls.forEach(function(l){if(l.type==='fill-extrusion'){try{m.setLayoutProperty(l.id,'visibility','visible')}catch(_){}}})}catch(_){}}
+function patch(m){if(!m||m.__aeronavDrive37)return;m.__aeronavDrive37=true;try{if(m.setMaxPitch)m.setMaxPitch(75)}catch(_){};var oe=m.easeTo&&m.easeTo.bind(m);if(oe)m.easeTo=function(o,e){var x=Object.assign({},o||{});if(active()&&!is2d()){x.pitch=67;if(!Number.isFinite(Number(x.zoom))||Number(x.zoom)<15.7)x.zoom=Math.max(16.2,Number(m.getZoom?m.getZoom():16.2)||16.2)}return oe(x,e)};}
+function tune(){var m=map();if(m){patch(m);if(active()){showBuildings(m);styleRoute(m);if(!is2d()){try{var p=Number(m.getPitch?m.getPitch():0);if(p<61&&m.easeTo)m.easeTo({pitch:67,zoom:Math.max(16.2,Number(m.getZoom?m.getZoom():16.2)||16.2),duration:260})}catch(_){}}}}hud();if(document.title.indexOf('RC12.37')<0)document.title='AERONAV — RC12.37.0'}
+window.addEventListener('aeronav:map-ready',function(e){setTimeout(function(){patch((e&&e.detail&&e.detail.map)||map());tune()},80)});window.addEventListener('aeronav:screen-change',function(){setTimeout(tune,80)});window.addEventListener('aeronav:cockpit-change',function(){setTimeout(tune,80)});document.addEventListener('visibilitychange',function(){if(!document.hidden)setTimeout(tune,80)});setInterval(tune,650);setTimeout(tune,250);
+})();<\/script>`;
 
 async function injectAngolaMapsIntoMainNavigation(response,request){
   const fallback=response?.clone?.()||response;
@@ -153,13 +184,14 @@ async function injectAngolaMapsIntoMainNavigation(response,request){
     if(!body.includes('meteo-route-phase2.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-route-phase2.js?v=RC12.32"></script></body>');
     if(!body.includes('meteo-altitude-phase3.js'))body=body.replace(/<\/body>/i,'<script src="./meteo-altitude-phase3.js?v=RC12.32"></script></body>');
     if(!body.includes('diagnostic-recovery.js'))body=body.replace(/<\/body>/i,'<script src="./diagnostic-recovery.js?v=RC12.36"></script></body>');
+    if(!body.includes('data-aeronav-drive3d-rc1237'))body=body.replace(/<\/body>/i,DRIVE3D_INJECT+'</body>');
     const headers=new Headers(response.headers);
     headers.delete('content-length');
     headers.delete('content-encoding');
     headers.set('content-type','text/html; charset=utf-8');
     return new Response(body,{status:response.status,statusText:response.statusText,headers});
   }catch(e){
-    console.warn('AERONAV Angola injection',e);
+    console.warn('AERONAV navigation injection',e);
     return fallback;
   }
 }
@@ -202,7 +234,7 @@ self.addEventListener('message',event=>{
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
         cacheVersion:CACHE,
-        release:'RC12.36'
+        release:'RC12.37.0'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){
@@ -229,4 +261,3 @@ self.addEventListener('notificationclick',event=>{
     try{await clients.openWindow(new URL('./mathia/',self.location.href).href);}catch(_){}
   })());
 });
-
