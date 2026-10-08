@@ -1,0 +1,146 @@
+name: AERONAV RC12.37.13 - Corrigir Vistas
+
+'on':
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aeronav-vistas-fix
+  cancel-in-progress: false
+
+jobs:
+  corrigir_vistas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Corrigir Vistas sem alterar mapas nem rotas
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYFIX'
+          from pathlib import Path
+          p=Path('cockpit-lite.js')
+          if not p.is_file():
+              raise SystemExit('cockpit-lite.js não encontrado na raiz do repositório')
+          s=p.read_text(encoding='utf-8')
+
+          def change(old, new, description):
+              global s
+              if new in s:
+                  print(f'{description}: já corrigido')
+                  return
+              n=s.count(old)
+              if n != 1:
+                  raise SystemExit(f'{description}: esperado 1 bloco original, encontrado {n}; alteração cancelada')
+              s=s.replace(old,new,1)
+              print(f'{description}: corrigido')
+
+          change('/* AERONAV RC12.32 — compact cockpit, shared live state, no network/GPS owner. */',
+                 '/* AERONAV RC12.37.13 — fix visible Vistas menu with TAAG external cameras. */\n/* AERONAV RC12.32 — compact cockpit, shared live state, no network/GPS owner. */'.replace('\\n','\n'),
+                 'identificação da correção')
+
+          change("function closeMenu(){if(menu)menu.hidden=true;if(button)button.setAttribute('aria-expanded','false');}",
+                 "function closeMenu(){if(menu){menu.hidden=true;menu.setAttribute('aria-hidden','true');}if(button)button.setAttribute('aria-expanded','false');}",
+                 'fecho do menu')
+
+          change('#clViewMenu{position:absolute;z-index:50;top:9px;left:9px;right:9px;padding:12px;border:1px solid #56c9ed;border-radius:15px;background:#031627;box-shadow:0 12px 30px #0008}',
+                 '#clViewMenu{position:absolute;z-index:150;top:9px;left:9px;right:9px;padding:12px;border:1px solid #56c9ed;border-radius:15px;background:#031627;box-shadow:0 12px 30px #0008;max-height:min(72dvh,480px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}',
+                 'camada de apresentação do menu')
+
+          change("host.appendChild(root);menu=$('clViewMenu');",
+                 "host.appendChild(root);menu=$('clViewMenu');\n /* O modo de câmara externa oculta #cockpitLite: o menu deve ser seu irmão. */\n host.appendChild(menu);menu.setAttribute('aria-hidden','true');".replace('\\n','\n'),
+                 'menu fora do painel ocultável')
+
+          change("button.addEventListener('click',()=>{menu.hidden=!menu.hidden;button.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden)$('clCloseViews')?.focus();});",
+                 """button.addEventListener('click',e=>{
+            e.preventDefault();e.stopPropagation();
+            const opening=menu.hidden;
+            menu.hidden=!opening;
+            menu.setAttribute('aria-hidden',String(!opening));
+            button.setAttribute('aria-expanded',String(opening));
+            if(opening){
+             $('flightCameraMenu')?.classList.remove('show');
+             $('mobileMapMenu')?.classList.remove('show');
+             $('mobileMapMenuBtn')?.setAttribute('aria-expanded','false');
+             $('clCloseViews')?.focus({preventScroll:true});
+            }
+           });""",
+                 'toque no botão Vistas')
+
+          if "host.appendChild(menu)" not in s or "menu.hidden=!opening" not in s:
+              raise SystemExit('Verificação do novo comportamento falhou')
+          p.write_text(s, encoding='utf-8')
+
+          # A PWA usa service worker com cache-first: invalidar a cache é essencial.
+          def patch_document(filename, changes):
+              doc=Path(filename)
+              if not doc.is_file():
+                  raise SystemExit(f'{filename} não encontrado')
+              value=doc.read_text(encoding='utf-8')
+              for before, after in changes:
+                  if after in value:
+                      continue
+                  if value.count(before)!=1:
+                      raise SystemExit(f'{filename}: referência original não encontrada; alteração abortada')
+                  value=value.replace(before, after, 1)
+              doc.write_text(value, encoding='utf-8')
+
+          patch_document('index.html', [
+              ('<title>AERONAV — RC12.37.12</title>', '<title>AERONAV — RC12.37.13</title>'),
+              ("const APP_VERSION = 'RC12.37.12 · TAAG Camera Perspectives';", "const APP_VERSION = 'RC12.37.13 · Vistas Menu Fix';"),
+              ('<script src="./cockpit-lite.js?v=RC12.32"></script>', '<script src="./cockpit-lite.js?v=RC12.37.13"></script>')
+          ])
+
+          patch_document('sw.js', [
+              ('/* AERONAV RC12.37.12 — TAAG Camera Perspectives + versioned offline shell */', '/* AERONAV RC12.37.13 — Vistas menu fix + versioned offline shell */'),
+              ("const CACHE='aeronav-jorge-RC12_37_12-taag-camera-perspectives-20261008';", "const CACHE='aeronav-jorge-RC12_37_13-vistas-menu-fix-20261008';"),
+              ("release:'RC12.37.12'", "release:'RC12.37.13'")
+          ])
+          PYFIX
+
+      - name: Validar sintaxe e acessibilidade do menu
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cockpit-lite.js
+          node --check sw.js
+          python3 - <<'PYTEST'
+          from pathlib import Path
+          s=Path('cockpit-lite.js').read_text(encoding='utf-8')
+          assert "host.appendChild(menu)" in s
+          assert "z-index:150" in s
+          assert "menu.hidden=!opening" in s
+          assert "menu.setAttribute('aria-hidden',String(!opening))" in s
+          assert "#clViewMenu[hidden]" in s
+          assert "data-cl-view=\"aerial\"" in s
+          assert "data-cl-view=\"cockpit\"" in s
+          assert "data-cl-view=\"clean\"" in s
+          h=Path('index.html').read_text(encoding='utf-8')
+          w=Path('sw.js').read_text(encoding='utf-8')
+          assert '<title>AERONAV — RC12.37.13</title>' in h
+          assert 'cockpit-lite.js?v=RC12.37.13' in h
+          assert 'aeronav-jorge-RC12_37_13-vistas-menu-fix-20261008' in w
+          assert "release:'RC12.37.13'" in w
+          print('VALIDAÇÃO RC12.37.13: APROVADA')
+          PYTEST
+
+      - name: Publicar correção em main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'AERONAV CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add cockpit-lite.js index.html sw.js
+          if git diff --cached --quiet; then
+            echo 'Correção já aplicada. Nada a publicar.'
+            exit 0
+          fi
+          git commit -m 'RC12.37.13 unlock Vistas menu on external flight camera'
+          git push origin HEAD:main
