@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.37.21</title>
+  <title>AERONAV — RC12.37.22</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -588,7 +588,7 @@ body{min-height:var(--app-vh);margin:0}
 
 </style>
 <style id="aeronav-marker-size-style">
-/* RC12.37.21 · Ajuste independente dos ícones no mapa (não altera zoom) */
+/* RC12.37.22 · Ajuste independente dos ícones no mapa (não altera zoom) */
 .marker-size-overlay{position:fixed;inset:0;z-index:380;background:rgba(2,11,20,.76);display:flex;align-items:center;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));box-sizing:border-box;backdrop-filter:blur(5px)}
 .marker-size-panel{width:min(440px,100%);max-height:85dvh;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(165deg,#0a293c,#061623);color:#eafaff;border:1px solid #327699;border-radius:20px;box-shadow:0 24px 75px #000b;padding:18px;box-sizing:border-box}
 .marker-size-heading{display:flex;align-items:start;justify-content:space-between;gap:12px;margin-bottom:8px}
@@ -604,6 +604,20 @@ body{min-height:var(--app-vh);margin:0}
 .marker-size-tools input[type=range]{width:100%;min-width:0;accent-color:#47cfff;flex:1;touch-action:pan-y}
 .marker-size-tip{font-size:11px;color:#a0c2d2;margin:12px 0}
 .marker-size-reset{width:100%;min-height:44px;border:1px solid #37728e;border-radius:12px;background:#092a40;color:#eaffff;font-weight:800}
+</style>
+<style id="aeronav-flight-visible-scale-3722">
+/* RC12.37.22 — avião visível: imagens de vista traseira, ângulos, e canvas GLB. */
+:root{--aeronav-flight-visual-scale:1}
+#flightCameraAircraft,
+#aeronavRearAircraft,
+#aeronavAircraftPerspectiveCanvas,
+body:not(.aeronav-photo-angle-cockpit) #aeronavPhotoAngleImage3716{
+  scale:var(--aeronav-flight-visual-scale,1) !important;
+  transform-origin:center center;
+}
+/* O cockpit contém janelas e instrumentos na fotografia. Não ampliar a
+   fotografia completa: desalinharia janelas e mapa de navegação. */
+body.aeronav-photo-angle-cockpit #aeronavPhotoAngleImage3716{scale:1 !important}
 </style>
 </head>
 <body>
@@ -844,7 +858,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = 'RC12.37.21 · Atualização segura iPad';
+  const APP_VERSION = 'RC12.37.22 · Atualização segura iPad';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -4372,7 +4386,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
 
-  // ---------- RC12.37.21 encrypted saved routes / presets sync ----------
+  // ---------- RC12.37.22 encrypted saved routes / presets sync ----------
   // Separate encrypted rows avoid overwriting unrelated iPhone/iPad routes.
   const ROUTE_LIBRARY_PREFIX='__AERONAV_ROUTE_LIB_';
   const ROUTE_LIBRARY_TOMBS='aeronav.routes.library.tombstones.v1';
@@ -5160,7 +5174,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
 
-  // ---------- RC12.37.21 — tamanhos reais: ownship, Family Live, tráfego ADS-B ----------
+  // ---------- RC12.37.22 — tamanhos reais: ownship, Family Live, tráfego ADS-B ----------
   // Não tocar em transform: o MapLibre utiliza-o para posicionar e rodar marcadores.
   const OWN_MARKER_SIZES_KEY='aeronav.markerSizes.v1';
   const OWN_MARKER_KINDS=['flight','drive','walk'];
@@ -5176,6 +5190,15 @@ body{min-height:var(--app-vh);margin:0}
     return Object.fromEntries(OWN_MARKER_KINDS.map(k=>[k,ownMarkerClamp(v[k]??100)]));
   }
   const ownMarkerSizes=ownMarkerReadSizes();
+  // A aeronave principal pode estar num renderer separado: fotografia 3D,
+  // WebGL GLB ou vista traseira. O controle é único e persistente.
+  function ownMarkerApplyFlightVisuals(){
+    const ratio=String(ownMarkerSizes.flight/100);
+    document.documentElement.style.setProperty('--aeronav-flight-visual-scale',ratio);
+    return ratio;
+  }
+  // Carrega o tamanho guardado mesmo antes de existir posição GPS.
+  ownMarkerApplyFlightVisuals();
   function ownMarkerApplyNode(el,kind,source='own'){
     if(!el||!OWN_MARKER_KINDS.includes(kind))return false;
     const factor=ownMarkerSizes[kind]/100;
@@ -5208,6 +5231,9 @@ body{min-height:var(--app-vh);margin:0}
     return true;
   }
   function ownMarkerApplySize(){
+    // O renderer de voo pode ocultar o marcador GPS em favor do GLB/fotografia.
+    // Aplicar o tamanho SEMPRE, mesmo quando não existe marcador GPS.
+    ownMarkerApplyFlightVisuals();
     let changed=0;
     const own=state.positionMarker?.getElement?.();
     if(own?.classList?.contains('position-marker')){
@@ -5256,7 +5282,7 @@ body{min-height:var(--app-vh);margin:0}
     const specs=[['flight','✈','AVIÃO'],['drive','🚗','CARRO'],['walk','🚶','A PÉ / AVATARES']];
     dialog.innerHTML='<div class="marker-size-panel"><div class="marker-size-heading"><div><h2 id="markerSizeTitle">Tamanho dos ícones</h2><p>Aplica-se ao mapa principal, à família e às aeronaves ADS-B. Pré-visualização imediata mesmo sem GPS.</p></div><button type="button" class="marker-size-dismiss" aria-label="Fechar">✕</button></div>'+
       specs.map(([k,icon,title])=>'<section class="marker-size-item'+(current===k?' current':'')+'"><div class="marker-size-topline"><span>'+icon+' '+title+'</span><output data-marker-output="'+k+'">'+ownMarkerSizes[k]+'%</output></div><div class="marker-size-preview-wrap"><img data-marker-preview="'+k+'" alt="Pré-visualização '+title+'" draggable="false"></div><div class="marker-size-tools"><button type="button" data-marker-adjust="'+k+'" data-amount="-10" aria-label="Reduzir '+title+'">−</button><input data-marker-range="'+k+'" type="range" min="50" max="200" step="10" value="'+ownMarkerSizes[k]+'" aria-label="Tamanho '+title+'"><button type="button" data-marker-adjust="'+k+'" data-amount="10" aria-label="Aumentar '+title+'">+</button></div></section>').join('')+
-      '<p class="marker-size-tip">50%–200% · AVIÃO também ajusta ADS-B e aeronaves da família. A PÉ ajusta avatares da família. Guardado neste aparelho.</p><button type="button" class="marker-size-reset" id="markerSizeReset">Restaurar tamanhos normais (100%)</button></div>';
+      '<p class="marker-size-tip">50%–200% · AVIÃO ajusta o símbolo do mapa, ADS-B, aeronaves da família e vistas externas de voo 2D/3D. No cockpit a moldura não muda. Guardado neste aparelho.</p><button type="button" class="marker-size-reset" id="markerSizeReset">Restaurar tamanhos normais (100%)</button></div>';
     document.body.appendChild(dialog);
     // As imagens reais utilizadas no mapa servem de pré-visualização.
     const currentAircraft=AIRCRAFT.find(x=>x.id===state.aircraftPref)||AIRCRAFT[0];
