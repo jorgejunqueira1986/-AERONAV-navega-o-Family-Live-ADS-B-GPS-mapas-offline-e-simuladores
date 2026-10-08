@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.37.17</title>
+  <title>AERONAV — RC12.37.18</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -824,7 +824,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = 'RC12.37.17 · Atualização segura iPad';
+  const APP_VERSION = 'RC12.37.18 · Atualização segura iPad';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -1091,6 +1091,7 @@ body{min-height:var(--app-vh);margin:0}
       adminVerifyPromptId: '', adminVerifyRequestSent: false,
       routeSyncLastSeenAt: Number(localStorage.getItem('aeronav.family.routeSyncLastSeenAt')||0),
       routeSyncLastPushedSig: localStorage.getItem('aeronav.family.routeSyncLastPushedSig')||'',
+      routeSyncDeviceId: localStorage.getItem('aeronav.route.sync.deviceId') || (()=>{const id=crypto.randomUUID?.()||'route-device-'+Math.random().toString(36).slice(2);localStorage.setItem('aeronav.route.sync.deviceId',id);return id})(),
       routeSyncBusy: false, routeSyncApplying: false, routeSyncInitialPullDone: false,
       flightNumber: localStorage.getItem('aeronav.family.flight') || '',
       flightEta: localStorage.getItem('aeronav.family.eta') || '',
@@ -1827,10 +1828,10 @@ body{min-height:var(--app-vh);margin:0}
       req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error);
     });
   }
-  async function dbPut(store,value){ const db=await dbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(store,'readwrite'); tx.objectStore(store).put(value); tx.oncomplete=()=>{db.close();res(value)}; tx.onabort=tx.onerror=()=>{db.close();rej(tx.error)}; }); }
+  async function dbPut(store,value){ if(store==='routes'&&value?.id&&!state.family.routeLibraryApplying)value={...value,_libraryUpdatedAt:Date.now()}; const db=await dbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(store,'readwrite'); tx.objectStore(store).put(value); tx.oncomplete=()=>{db.close();res(value)}; tx.onabort=tx.onerror=()=>{db.close();rej(tx.error)}; }); }
   async function dbAll(store){ const db=await dbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(store,'readonly'); tx.oncomplete=()=>db.close();tx.onabort=()=>db.close();const r=tx.objectStore(store).getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); }); }
   async function dbGet(store,id){ const db=await dbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(store,'readonly'); tx.oncomplete=()=>db.close();tx.onabort=()=>db.close();const r=tx.objectStore(store).get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
-  async function dbDelete(store,id){ const db=await dbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(store,'readwrite'); tx.objectStore(store).delete(id); tx.oncomplete=()=>{db.close();res()}; tx.onabort=tx.onerror=()=>{db.close();rej(tx.error)}; }); }
+  async function dbDelete(store,id){ const db=await dbOpen(); return new Promise((res,rej)=>{ const tx=db.transaction(store,'readwrite'); tx.objectStore(store).delete(id); tx.oncomplete=()=>{db.close();if(store==='routes'&&!state.family.routeLibraryApplying)routeLibraryMarkDeleted('route',id);res()}; tx.onabort=tx.onerror=()=>{db.close();rej(tx.error)}; }); }
 
   // ---------- RC11.18 active-route recovery ----------
   const ACTIVE_ROUTE_SESSION_ID='active-route-session-v1';
@@ -4273,7 +4274,7 @@ body{min-height:var(--app-vh);margin:0}
     const route=closed?routeOverride:routeOverride;if(!closed&&!route)return false;await ensureFamilyHash();f.routeSyncBusy=true;
     try{
       const changedAt=closed?Date.now():Math.max(Date.now(),routeSyncChangedAt(route)||0);if(route&&!closed)route._deviceSyncChangedAt=changedAt;
-      const payload={v:1,action:closed?'closed':'route',changedAt,reason,sourceDeviceId:f.memberId,sourceDeviceLabel:f.deviceLabel||'Dispositivo de Jorge',routeId:String(route?.id||''),route:closed?null:routeSyncCleanRoute(route)};
+      const payload={v:1,action:closed?'closed':'route',changedAt,reason,sourceDeviceId:f.routeSyncDeviceId,sourceDeviceLabel:f.deviceLabel||'Dispositivo de Jorge',routeId:String(route?.id||''),route:closed?null:routeSyncCleanRoute(route)};
       const enc=await routeSyncEncode(payload);if(!enc)throw new Error('Não foi possível proteger a rota.');
       const body={room_hash:f.familyHash,member_id:FAMILY_ROUTE_SYNC_MEMBER_ID,display_name:'SYNC · Jorge iPhone/iPad',sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:'ROUTE_SYNC_ENC:'+enc,flight_number:route?.kind==='flight'?routeTrackingCallsign(route)||null:null,flight_eta:route?.plannedArrivalAt||null,updated_at:new Date(changedAt).toISOString()};
       const q=await fetchLiveTimed(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});if(!q.ok)throw new Error(`sync ${q.status}`);
@@ -4304,7 +4305,7 @@ body{min-height:var(--app-vh);margin:0}
       const path=`aeronav_locations?room_hash=eq.${encodeURIComponent(f.familyHash)}&member_id=eq.${encodeURIComponent(FAMILY_ROUTE_SYNC_MEMBER_ID)}&select=member_id,transport,updated_at&limit=1`;const r=await fetch(familyRest(path),{headers:familyHeaders(),cache:'no-store'});if(!r.ok)throw new Error(`sync ${r.status}`);const row=(await r.json())?.[0];if(!row){f.routeSyncInitialPullDone=true;return false}
       const payload=await routeSyncDecode(row);if(!payload){f.routeSyncInitialPullDone=true;return false}const remoteAt=Number(payload.changedAt||Date.parse(row.updated_at)||0),localAt=routeSyncChangedAt();
       f.routeSyncInitialPullDone=true;
-      if(String(payload.sourceDeviceId||'')===String(f.memberId)){f.routeSyncLastSeenAt=Math.max(f.routeSyncLastSeenAt||0,remoteAt);f.routeSyncLastPushedSig=payload.action==='closed'?'__CLOSED__':routeSyncSignature(payload.route);localStorage.setItem('aeronav.family.routeSyncLastSeenAt',String(f.routeSyncLastSeenAt));localStorage.setItem('aeronav.family.routeSyncLastPushedSig',f.routeSyncLastPushedSig);return false}
+      if(String(payload.sourceDeviceId||'')===String(f.routeSyncDeviceId)){f.routeSyncLastSeenAt=Math.max(f.routeSyncLastSeenAt||0,remoteAt);f.routeSyncLastPushedSig=payload.action==='closed'?'__CLOSED__':routeSyncSignature(payload.route);localStorage.setItem('aeronav.family.routeSyncLastSeenAt',String(f.routeSyncLastSeenAt));localStorage.setItem('aeronav.family.routeSyncLastPushedSig',f.routeSyncLastPushedSig);return false}
       if(localAt>remoteAt+1200){await pushDeviceRouteSync('newer-local-route',state.currentRoute,false);return false}
       if(!force&&remoteAt<=Number(f.routeSyncLastSeenAt||0)){return false}
       const remoteSig=payload.action==='closed'?'__CLOSED__':routeSyncSignature(payload.route),localSig=state.currentRoute?routeSyncSignature(state.currentRoute):'__NONE__';
@@ -4315,6 +4316,116 @@ body{min-height:var(--app-vh);margin:0}
   async function syncOwnRouteToFamilyIfChanged(){
     const f=state.family,r=state.currentRoute;if(!f.routeSyncInitialPullDone||f.routeSyncApplying||!r||!familyConfigured()||!navigator.onLine)return false;const sig=routeSyncSignature(r);if(!sig||sig===f.routeSyncLastPushedSig)return false;
     if(!r._deviceSyncChangedAt)r._deviceSyncChangedAt=Number(r.lastActiveAt||r.savedAt||r.createdAt||Date.now());return pushDeviceRouteSync('route-change',r,false);
+  }
+
+
+  // ---------- RC12.37.18 encrypted saved routes / presets sync ----------
+  // Separate encrypted rows avoid overwriting unrelated iPhone/iPad routes.
+  const ROUTE_LIBRARY_PREFIX='__AERONAV_ROUTE_LIB_';
+  const ROUTE_LIBRARY_TOMBS='aeronav.routes.library.tombstones.v1';
+  function routeLibraryTombstones(){try{return JSON.parse(localStorage.getItem(ROUTE_LIBRARY_TOMBS)||'{}')||{}}catch(_){return {}}}
+  function routeLibrarySaveTombstone(type,id,at){
+    if(!id)return;
+    const k=type+':'+String(id),t=routeLibraryTombstones();
+    if(Number(at)>Number(t[k]||0)){t[k]=Number(at);try{localStorage.setItem(ROUTE_LIBRARY_TOMBS,JSON.stringify(t))}catch(_){}}
+  }
+  function routeLibraryMarkDeleted(type,id){
+    if(state.family.routeLibraryApplying||!id)return;
+    routeLibrarySaveTombstone(type,id,Date.now());
+  }
+  async function routeLibraryRowId(type,id){
+    const hash=await sha256TextHex('aeronav-route-library-v1:'+type+':'+String(id));
+    return ROUTE_LIBRARY_PREFIX+(type==='preset'?'P_':'R_')+hash.slice(0,24);
+  }
+  function routeLibraryItem(type,id,action,changedAt,data){
+    return {v:1,type,id:String(id),action,changedAt:Number(changedAt)||1,
+      ...(action==='delete'?{}:{[type==='preset'?'preset':'route']:data})};
+  }
+  async function syncSavedRouteLibrary(force=false){
+    const f=state.family,now=Date.now();
+    if(!familyConfigured()||!navigator.onLine||f.routeLibraryBusy)return {ok:false,reason:'not-ready'};
+    if(!force&&now-Number(f.routeLibraryLastPullAt||0)<15000)return {ok:true,received:0,sent:0};
+    f.routeLibraryBusy=true;
+    let received=0,sent=0;
+    try{
+      await ensureFamilyHash();
+      const path='aeronav_locations?room_hash=eq.'+encodeURIComponent(f.familyHash)+
+        '&member_id=like.'+encodeURIComponent(ROUTE_LIBRARY_PREFIX+'%')+
+        '&select=member_id,transport,updated_at&limit=1000';
+      const response=await fetchLiveTimed(familyRest(path),{headers:familyHeaders(),cache:'no-store'});
+      if(!response.ok)throw new Error('leitura HTTP '+response.status);
+      const rows=await response.json(),records=new Map();
+      const local=new Map(),tombs=routeLibraryTombstones();
+      const add=(type,id,action,changedAt,data)=>{
+        id=String(id||'');if(!id)return;
+        const key=type+':'+id,item=routeLibraryItem(type,id,action,changedAt,data);
+        const old=local.get(key);if(!old||item.changedAt>old.changedAt||(item.changedAt===old.changedAt&&action==='delete'))local.set(key,item);
+      };
+      for(const route of await dbAll('routes')){
+        if(!route?.id)continue;
+        add('route',route.id,'upsert',route._libraryUpdatedAt||route.savedAt||route.createdAt||1,routeSyncCleanRoute(route));
+      }
+      for(const preset of routePresetsRead()){
+        if(!preset?.id)continue;
+        add('preset',preset.id,'upsert',preset.updatedAt||preset.createdAt||1,preset);
+      }
+      for(const [key,at] of Object.entries(tombs)){
+        const colon=key.indexOf(':');if(colon<0)continue;
+        const type=key.slice(0,colon),id=key.slice(colon+1);
+        if(type==='route'||type==='preset')add(type,id,'delete',at,null);
+      }
+      for(const row of rows){
+        if(!String(row?.member_id||'').startsWith(ROUTE_LIBRARY_PREFIX))continue;
+        const item=await routeSyncDecode(row);
+        if(!item||item.v!==1||!['route','preset'].includes(item.type)||!item.id||
+            !['upsert','delete'].includes(item.action))continue;
+        if(await routeLibraryRowId(item.type,item.id)!==row.member_id)continue;
+        const key=item.type+':'+item.id;
+        records.set(key,item);
+        const old=local.get(key),incomingAt=Number(item.changedAt)||0;
+        if(!incomingAt||old&&Number(old.changedAt)>=incomingAt)continue;
+        f.routeLibraryApplying=true;
+        try{
+          if(item.action==='delete'){
+            routeLibrarySaveTombstone(item.type,item.id,incomingAt);
+            if(item.type==='route')await dbDelete('routes',item.id);
+            else routePresetsWrite(routePresetsRead().filter(p=>String(p.id)!==String(item.id)));
+          }else if(item.type==='route'&&item.route?.id===item.id){
+            await dbPut('routes',{...item.route,_libraryUpdatedAt:incomingAt});
+          }else if(item.type==='preset'&&item.preset?.id===item.id){
+            const items=routePresetsRead().filter(p=>String(p.id)!==String(item.id));
+            items.push({...item.preset,updatedAt:incomingAt});
+            items.sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+            routePresetsWrite(items);
+          }else continue;
+          local.set(key,item);received++;
+        }finally{f.routeLibraryApplying=false}
+      }
+      for(const item of local.values()){
+        const remote=records.get(item.type+':'+item.id);
+        if(remote&&Number(remote.changedAt)>=Number(item.changedAt))continue;
+        const rowId=await routeLibraryRowId(item.type,item.id);
+        const encrypted=await routeSyncEncode(item);
+        const body={room_hash:f.familyHash,member_id:rowId,
+          display_name:'SYNC · Rotas Jorge',sharing:false,lat:null,lon:null,
+          accuracy:null,altitude:null,speed:null,heading:null,
+          transport:'ROUTE_SYNC_ENC:'+encrypted,flight_number:null,flight_eta:null,
+          updated_at:new Date(Math.max(1,Number(item.changedAt))).toISOString()};
+        const pushed=await fetchLiveTimed(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{
+          method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),
+          body:JSON.stringify(body)});
+        if(!pushed.ok)throw new Error('envio HTTP '+pushed.status+' ('+item.type+')');
+        sent++;
+        if(!force&&sent>=3)break;
+      }
+      f.routeLibraryLastPullAt=Date.now();
+      if(received&&state.activeTab==='route'){renderRouteScreen();}
+      return {ok:true,received,sent};
+    }catch(e){
+      console.warn('AERONAV saved routes sync failed',e);
+      if(force)throw e;
+      return {ok:false,received,sent,error:e?.message||String(e)};
+    }finally{f.routeLibraryApplying=false;f.routeLibraryBusy=false}
   }
 
   function isFamilyCallRow(m){ return /__CALL$/.test(String(m?.member_id||'')) || /^CALL_/.test(String(m?.transport||'')); }
@@ -4667,6 +4778,7 @@ body{min-height:var(--app-vh);margin:0}
     }
     await pullDeviceRouteSync(false);
     await syncOwnRouteToFamilyIfChanged();
+    await syncSavedRouteLibrary(false);
     await pushFamilyLocation(false);
     await pushFamilyBattery(false);
     await pullFamilyStayHistory(false);
@@ -6341,16 +6453,27 @@ body{min-height:var(--app-vh);margin:0}
   // RC11.87 · rotas pré-estabelecidas por perfil (Jorge)
   const ROUTE_PRESETS_KEY='aeronav.routePresets.v1';
   function routePresetsRead(){try{const x=JSON.parse(localStorage.getItem(ROUTE_PRESETS_KEY)||'[]');return Array.isArray(x)?x:[]}catch(_){return []}}
-  function routePresetsWrite(list){try{localStorage.setItem(ROUTE_PRESETS_KEY,JSON.stringify((list||[]).slice(0,20)));return true}catch(_){toast('Não foi possível guardar mais rotas pré-estabelecidas neste dispositivo.');return false}}
+  function routePresetsWrite(list){
+    try{
+      const items=(list||[]).slice(0,20),old=routePresetsRead(),prior=new Map(old.map(p=>[String(p.id),p]));
+      if(!state.family.routeLibraryApplying){
+        const now=Date.now();
+        for(const p of items){const oldItem=prior.get(String(p.id));const normalized=x=>JSON.stringify({...x,updatedAt:0});if(!oldItem||normalized(p)!==normalized(oldItem))p.updatedAt=now;else p.updatedAt=Number(oldItem.updatedAt||oldItem.createdAt||1)}
+        const kept=new Set(items.map(p=>String(p.id)));
+        for(const p of old)if(!kept.has(String(p.id)))routeLibraryMarkDeleted('preset',p.id);
+      }
+      localStorage.setItem(ROUTE_PRESETS_KEY,JSON.stringify(items));return true;
+    }catch(_){toast('Não foi possível guardar mais rotas pré-estabelecidas neste dispositivo.');return false}
+  }
   function routePresetClone(v){try{return JSON.parse(JSON.stringify(v))}catch(_){return null}}
   function routePresetSnapshot(r){if(!r)return null;const s={kind:r.kind||'road',mode:r.mode||'',routeMode:r.routeMode||'',name:r.name||'',routeString:r.routeString||'',from:routePresetClone(r.from),to:routePresetClone(r.to),aircraft:routePresetClone(r.aircraft),geometry:routePresetClone(r.geometry),path:routePresetClone(r.path),distance:Number(r.distance)||0,duration:Number(r.duration)||0,steps:routePresetClone(r.steps)||[],navpoints:routePresetClone(r.navpoints)||[],cruiseAltitudeFt:r.cruiseAltitudeFt||null,userSpeedLimitKmh:r.userSpeedLimitKmh||null,speedLimit:r.speedLimit||null,provider:r.provider||'',approx:!!r.approx};return s}
   function routePresetTypeLabel(p){const r=p?.route||{};if(r.kind==='flight')return '✈ VOO';if(r.mode==='walk')return '🚶 A PÉ';return '🚗 CARRO'}
-  function routePresetCardHTML(){const list=routePresetsRead();return `<div class="card" id="presetRoutesCard"><div class="page-head" style="margin-bottom:8px"><div><h3>★ Rotas pré-estabelecidas</h3><p>Crie uma rota uma vez, guarde-a e volte a carregá-la com um toque.</p></div><span class="badge info">${list.length}</span></div><div class="btn-row"><button class="primary-btn" id="createRoutePreset">＋ Criar pré-estabelecida</button></div><div style="margin-top:10px">${list.length?list.map(p=>`<div class="saved-route"><div><strong>${esc(p.name||'Rota')}</strong><small>${routePresetTypeLabel(p)} · ${esc(p.route?.from?.name||p.route?.from||'Origem')} → ${esc(p.route?.to?.name||p.route?.to||'Destino')}</small></div><div class="btn-row" style="margin:0"><button class="soft-btn" data-use-route-preset="${esc(p.id)}">▶ Usar</button><button class="soft-btn" data-rename-route-preset="${esc(p.id)}">✏️</button><button class="soft-btn" data-delete-route-preset="${esc(p.id)}">🗑</button></div></div>`).join(''):'<div class="empty">Ainda não existem rotas pré-estabelecidas.</div>'}</div></div>`}
+  function routePresetCardHTML(){const list=routePresetsRead();return `<div class="card" id="presetRoutesCard"><div class="page-head" style="margin-bottom:8px"><div><h3>★ Rotas pré-estabelecidas</h3><p>Crie uma rota uma vez, guarde-a e volte a carregá-la com um toque.</p></div><span class="badge info">${list.length}</span></div><div class="btn-row"><button class="primary-btn" id="createRoutePreset">＋ Criar pré-estabelecida</button><button class="secondary-btn" id="syncRoutesDevicesNow">⟳ Sincronizar iPhone/iPad</button></div><div style="margin-top:10px">${list.length?list.map(p=>`<div class="saved-route"><div><strong>${esc(p.name||'Rota')}</strong><small>${routePresetTypeLabel(p)} · ${esc(p.route?.from?.name||p.route?.from||'Origem')} → ${esc(p.route?.to?.name||p.route?.to||'Destino')}</small></div><div class="btn-row" style="margin:0"><button class="soft-btn" data-use-route-preset="${esc(p.id)}">▶ Usar</button><button class="soft-btn" data-rename-route-preset="${esc(p.id)}">✏️</button><button class="soft-btn" data-delete-route-preset="${esc(p.id)}">🗑</button></div></div>`).join(''):'<div class="empty">Ainda não existem rotas pré-estabelecidas.</div>'}</div></div>`}
   function createCurrentRoutePreset(){if(!state.currentRoute)return toast('Crie ou carregue uma rota primeiro. Depois guarde-a como pré-estabelecida.');const def=state.currentRoute.name||`${state.currentRoute.from?.name||'Origem'} → ${state.currentRoute.to?.name||'Destino'}`,name=(prompt('Nome da rota pré-estabelecida:',def)||'').trim();if(!name)return;const snap=routePresetSnapshot(state.currentRoute);if(!snap?.geometry?.coordinates?.length&&!snap?.path?.length)return toast('A rota atual ainda não possui geometria válida.');const list=routePresetsRead();list.unshift({id:'preset-'+Date.now(),name,createdAt:Date.now(),route:snap});if(routePresetsWrite(list)){renderRouteScreen();toast(`Rota “${name}” guardada como pré-estabelecida.`)}}
   function useRoutePreset(id){const p=routePresetsRead().find(x=>String(x.id)===String(id));if(!p?.route)return toast('Rota pré-estabelecida não encontrada.');const r=routePresetClone(p.route);if(!r)return toast('Não foi possível carregar esta rota.');const now=Date.now();r.id=(r.kind==='flight'?'flight-':'road-')+now;r.name=p.name||r.name;r.createdAt=now;r.plannedStartAt=new Date(now).toISOString();r.actualStartAt=null;r.status='planned';r.navigationActive=false;r.cancelledAt=null;r.completedAt=null;r.sharedAt=null;r._mapOpened=true;if(Number(r.duration)>0)r.plannedArrivalAt=new Date(now+Number(r.duration)*1000).toISOString();state.currentRoute=r;state.routePlannerMode=r.kind==='flight'?'flight':'drive';localStorage.setItem('aeronav.routePlannerMode',state.routePlannerMode);activateRouteContext(r,{offlineWhenDisconnected:false});markRouteDeviceSyncDirty('preset-route-loaded');drawRouteOnMap();renderRouteScreen();toast(`Rota pré-estabelecida “${p.name||'Rota'}” carregada.`)}
   function renameRoutePreset(id){const list=routePresetsRead(),p=list.find(x=>String(x.id)===String(id));if(!p)return;const name=(prompt('Novo nome da rota:',p.name||'Rota')||'').trim();if(!name)return;p.name=name;routePresetsWrite(list);renderRouteScreen()}
   function deleteRoutePreset(id){const list=routePresetsRead(),p=list.find(x=>String(x.id)===String(id));if(!p)return;if(!confirm(`Apagar a rota pré-estabelecida “${p.name||'Rota'}”?`))return;routePresetsWrite(list.filter(x=>String(x.id)!==String(id)));renderRouteScreen();toast('Rota pré-estabelecida apagada.')}
-  function wireRoutePresets(){$('#createRoutePreset')?.addEventListener('click',createCurrentRoutePreset);document.querySelectorAll('[data-use-route-preset]').forEach(b=>b.addEventListener('click',()=>useRoutePreset(b.dataset.useRoutePreset)));document.querySelectorAll('[data-rename-route-preset]').forEach(b=>b.addEventListener('click',()=>renameRoutePreset(b.dataset.renameRoutePreset)));document.querySelectorAll('[data-delete-route-preset]').forEach(b=>b.addEventListener('click',()=>deleteRoutePreset(b.dataset.deleteRoutePreset)))}
+  function wireRoutePresets(){$('#syncRoutesDevicesNow')?.addEventListener('click',async()=>{const b=$('#syncRoutesDevicesNow');if(b){b.disabled=true;b.textContent='⟳ A sincronizar…'}try{await pullDeviceRouteSync(true);const r=await syncSavedRouteLibrary(true);if(r?.ok)toast('Rotas iPhone/iPad sincronizadas: '+r.received+' recebidas, '+r.sent+' enviadas.');else toast('Ative a mesma configuração Família no iPhone e no iPad para sincronizar.')}catch(e){toast('Sincronização de rotas: '+(e?.message||e))}finally{if(b){b.disabled=false;b.textContent='⟳ Sincronizar iPhone/iPad'}}});$('#createRoutePreset')?.addEventListener('click',createCurrentRoutePreset);document.querySelectorAll('[data-use-route-preset]').forEach(b=>b.addEventListener('click',()=>useRoutePreset(b.dataset.useRoutePreset)));document.querySelectorAll('[data-rename-route-preset]').forEach(b=>b.addEventListener('click',()=>renameRoutePreset(b.dataset.renameRoutePreset)));document.querySelectorAll('[data-delete-route-preset]').forEach(b=>b.addEventListener('click',()=>deleteRoutePreset(b.dataset.deleteRoutePreset)))}
   function routePlannerSelectorHTML(){
     return `<div class="card route-planner-selector"><div class="page-head" style="margin-bottom:8px"><div><h3>Rotas</h3><p>Escolha o submenu. Rota de avião e rota de carro permanecem completamente separadas.</p></div><span class="badge info">ROTAS</span></div><div class="segmented wide"><button class="seg ${state.routePlannerMode==='flight'?'active':''}" data-route-planner="flight">✈ ROTA DE AVIÃO</button><button class="seg ${state.routePlannerMode==='drive'?'active':''}" data-route-planner="drive">🚗 ROTA DE CARRO</button></div></div>`;
   }
@@ -7459,11 +7582,7 @@ body{min-height:var(--app-vh);margin:0}
   let busy=false,swReloaded=false;
   if('serviceWorker' in navigator){
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
-      if(swReloaded)return;
-      swReloaded=true;
-      const key='aeronav.ipad.sw-reloaded.RC12.37.17';
-      try{if(sessionStorage.getItem(key))return;sessionStorage.setItem(key,'1');}catch(_){ }
-      location.reload();
+      window.aeronavAutoUpdateOnControllerChange?.();
     });
   }
   function setup(){
@@ -7492,6 +7611,55 @@ body{min-height:var(--app-vh);margin:0}
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});
   else setup();
+})();
+</script>
+
+<script id="aeronav-silent-auto-update-rc123718">
+(()=>{
+  'use strict';
+  if(!('serviceWorker' in navigator)||!/^https?:$/.test(location.protocol))return;
+  const INTERVAL=15*60*1000, RELOAD_LOCK='aeronav.ota.safeReloadAt';
+  let pending=false,checking=false,previousController=!!navigator.serviceWorker.controller;
+  function routeOngoing(){
+    try{
+      const raw=localStorage.getItem('aeronav.activeRouteFallback');
+      if(!raw)return false;
+      const data=JSON.parse(raw);
+      if(!data?.id||['completed','cancelled'].includes(data.status))return false;
+      return Date.now()-Number(data.savedAt||0)<12*60*60*1000;
+    }catch(_){return false}
+  }
+  function applyWhenSafe(){
+    if(!pending||document.visibilityState!=='visible'||routeOngoing())return;
+    try{
+      const now=Date.now(),last=Number(sessionStorage.getItem(RELOAD_LOCK)||0);
+      if(now-last<30*1000)return;
+      sessionStorage.setItem(RELOAD_LOCK,String(now));
+    }catch(_){ }
+    pending=false;
+    location.reload();
+  }
+  window.aeronavAutoUpdateOnControllerChange=()=>{
+    if(!previousController){previousController=true;return;}
+    pending=true;applyWhenSafe();
+  };
+  async function checkForUpdates(){
+    if(checking||!navigator.onLine)return;
+    checking=true;
+    try{
+      const reg=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
+      await reg.update();
+    }catch(e){console.warn('AERONAV update',e?.message||e)}
+    finally{checking=false;applyWhenSafe()}
+  }
+  setTimeout(checkForUpdates,8000);
+  setInterval(checkForUpdates,INTERVAL);
+  setInterval(applyWhenSafe,30000);
+  window.addEventListener('online',checkForUpdates);
+  window.addEventListener('pageshow',()=>{applyWhenSafe();checkForUpdates()});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'){applyWhenSafe();checkForUpdates()}
+  });
 })();
 </script>
 </body>
