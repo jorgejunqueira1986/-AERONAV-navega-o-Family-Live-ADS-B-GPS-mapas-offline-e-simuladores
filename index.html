@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.37.18</title>
+  <title>AERONAV — RC12.37.19</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -824,7 +824,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = 'RC12.37.18 · Atualização segura iPad';
+  const APP_VERSION = 'RC12.37.19 · Atualização segura iPad';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -1093,6 +1093,9 @@ body{min-height:var(--app-vh);margin:0}
       routeSyncLastPushedSig: localStorage.getItem('aeronav.family.routeSyncLastPushedSig')||'',
       routeSyncDeviceId: localStorage.getItem('aeronav.route.sync.deviceId') || (()=>{const id=crypto.randomUUID?.()||'route-device-'+Math.random().toString(36).slice(2);localStorage.setItem('aeronav.route.sync.deviceId',id);return id})(),
       routeSyncBusy: false, routeSyncApplying: false, routeSyncInitialPullDone: false,
+      routeSyncLastError: '', routeLibraryLastError: '', routeLibraryLastSuccessAt: 0,
+      routeLibraryBusy: false, routeLibraryApplying: false, routeLibraryLastPullAt: 0,
+      routeSyncPeerLastAt: 0, routeSyncPeers: [], routeSyncPeerError: '',
       flightNumber: localStorage.getItem('aeronav.family.flight') || '',
       flightEta: localStorage.getItem('aeronav.family.eta') || '',
       members: [],
@@ -4246,12 +4249,42 @@ body{min-height:var(--app-vh);margin:0}
   // ---------- RC11.46 iPhone ↔ iPad route synchronization ----------
   const FAMILY_ROUTE_SYNC_MEMBER_ID='__AERONAV_ROUTE_SYNC_JORGE';
   const LATEST_DEVICE_ROUTE_CACHE_ID='latest-device-route-sync-v1';
-  function isFamilyRouteSyncRow(m){return String(m?.member_id||'')===FAMILY_ROUTE_SYNC_MEMBER_ID||/^ROUTE_SYNC(?:_ENC)?:/.test(String(m?.transport||''));}
+  function isFamilyRouteSyncRow(m){return String(m?.member_id||'')===FAMILY_ROUTE_SYNC_MEMBER_ID||/^ROUTE_SYNC(?:_ENC|_GZ)?:/.test(String(m?.transport||''));}
   function routeSyncBytesToB64(bytes){let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
   function routeSyncB64ToBytes(s=''){let x=String(s).replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';const bin=atob(x);return Uint8Array.from(bin,c=>c.charCodeAt(0))}
   async function routeSyncCryptoKey(){const raw=new TextEncoder().encode(String(state.family.familyKey||'')+'|AERONAV-JORGE-ROUTE-SYNC-V1');const digest=await crypto.subtle.digest('SHA-256',raw);return crypto.subtle.importKey('raw',digest,{name:'AES-GCM'},false,['encrypt','decrypt'])}
-  async function routeSyncEncode(payload){const key=await routeSyncCryptoKey(),iv=crypto.getRandomValues(new Uint8Array(12)),plain=new TextEncoder().encode(JSON.stringify(payload||{})),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,plain)),out=new Uint8Array(iv.length+cipher.length);out.set(iv,0);out.set(cipher,iv.length);return routeSyncBytesToB64(out)}
-  async function routeSyncDecode(m){try{const raw=String(m?.transport||'');if(raw.startsWith('ROUTE_SYNC_ENC:')){const all=routeSyncB64ToBytes(raw.slice(15));if(all.length<29)return null;const key=await routeSyncCryptoKey(),iv=all.slice(0,12),cipher=all.slice(12),plain=await crypto.subtle.decrypt({name:'AES-GCM',iv},key,cipher);return JSON.parse(new TextDecoder().decode(plain))}if(raw.startsWith('ROUTE_SYNC:')){let x=raw.slice(11).replace(/-/g,'+').replace(/_/g,'/');while(x.length%4)x+='=';const bin=atob(x),b=Uint8Array.from(bin,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(b))}return null}catch(_){return null}}
+  async function routeSyncEncode(payload){
+    const key=await routeSyncCryptoKey(),iv=crypto.getRandomValues(new Uint8Array(12));
+    let bytes=new TextEncoder().encode(JSON.stringify(payload||{})),prefix='ROUTE_SYNC_ENC:';
+    if(bytes.length>500&&typeof CompressionStream==='function'){
+      try{
+        const stream=new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+        const packed=new Uint8Array(await new Response(stream).arrayBuffer());
+        if(packed.length<bytes.length*0.85){bytes=packed;prefix='ROUTE_SYNC_GZ:'}
+      }catch(e){console.warn('AERONAV route gzip unavailable; using AES-GCM',e)}
+    }
+    const cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,bytes));
+    const out=new Uint8Array(iv.length+cipher.length);out.set(iv,0);out.set(cipher,iv.length);
+    return prefix+routeSyncBytesToB64(out);
+  }
+  async function routeSyncDecode(m){
+    try{
+      const raw=String(m?.transport||'');
+      if(raw.startsWith('ROUTE_SYNC_ENC:')||raw.startsWith('ROUTE_SYNC_GZ:')){
+        const packed=raw.startsWith('ROUTE_SYNC_GZ:');
+        const all=routeSyncB64ToBytes(raw.slice(packed?14:15));if(all.length<29)return null;
+        const key=await routeSyncCryptoKey(),iv=all.slice(0,12),cipher=all.slice(12);
+        let bytes=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},key,cipher));
+        if(packed){const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+          bytes=new Uint8Array(await new Response(stream).arrayBuffer());}
+        return JSON.parse(new TextDecoder().decode(bytes));
+      }
+      if(raw.startsWith('ROUTE_SYNC:')){
+        const bytes=routeSyncB64ToBytes(raw.slice(11));return JSON.parse(new TextDecoder().decode(bytes));
+      }
+      return null;
+    }catch(e){console.warn('AERONAV rota recebida ilegível',e?.message||e);return null}
+  }
   function routeSyncCleanRoute(route){
     if(!route)return null;
     let r;try{r=JSON.parse(JSON.stringify(route))}catch(_){return null}
@@ -4276,10 +4309,10 @@ body{min-height:var(--app-vh);margin:0}
       const changedAt=closed?Date.now():Math.max(Date.now(),routeSyncChangedAt(route)||0);if(route&&!closed)route._deviceSyncChangedAt=changedAt;
       const payload={v:1,action:closed?'closed':'route',changedAt,reason,sourceDeviceId:f.routeSyncDeviceId,sourceDeviceLabel:f.deviceLabel||'Dispositivo de Jorge',routeId:String(route?.id||''),route:closed?null:routeSyncCleanRoute(route)};
       const enc=await routeSyncEncode(payload);if(!enc)throw new Error('Não foi possível proteger a rota.');
-      const body={room_hash:f.familyHash,member_id:FAMILY_ROUTE_SYNC_MEMBER_ID,display_name:'SYNC · Jorge iPhone/iPad',sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:'ROUTE_SYNC_ENC:'+enc,flight_number:route?.kind==='flight'?routeTrackingCallsign(route)||null:null,flight_eta:route?.plannedArrivalAt||null,updated_at:new Date(changedAt).toISOString()};
+      const body={room_hash:f.familyHash,member_id:FAMILY_ROUTE_SYNC_MEMBER_ID,display_name:'SYNC · Jorge iPhone/iPad',sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,transport:enc,flight_number:route?.kind==='flight'?routeTrackingCallsign(route)||null:null,flight_eta:route?.plannedArrivalAt||null,updated_at:new Date(changedAt).toISOString()};
       const q=await fetchLiveTimed(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});if(!q.ok)throw new Error(`sync ${q.status}`);
-      f.routeSyncLastSeenAt=changedAt;f.routeSyncLastPushedSig=closed?'__CLOSED__':routeSyncSignature(route);localStorage.setItem('aeronav.family.routeSyncLastSeenAt',String(changedAt));localStorage.setItem('aeronav.family.routeSyncLastPushedSig',f.routeSyncLastPushedSig);return true;
-    }catch(e){console.warn('AERONAV route device sync push failed',e);return false}finally{f.routeSyncBusy=false}
+      f.routeSyncLastError='';f.routeSyncLastSeenAt=changedAt;f.routeSyncLastPushedSig=closed?'__CLOSED__':routeSyncSignature(route);localStorage.setItem('aeronav.family.routeSyncLastSeenAt',String(changedAt));localStorage.setItem('aeronav.family.routeSyncLastPushedSig',f.routeSyncLastPushedSig);return true;
+    }catch(e){f.routeSyncLastError=String(e?.message||e);console.warn('AERONAV route device sync push failed',e);return false}finally{f.routeSyncBusy=false}
   }
   async function applyDeviceRouteSyncPayload(payload){
     const f=state.family,remoteAt=Number(payload?.changedAt||0);if(!payload||!remoteAt)return false;
@@ -4293,7 +4326,7 @@ body{min-height:var(--app-vh);margin:0}
       }
       const route=payload.route;if(!route?.id||!route?.geometry?.coordinates?.length)return false;route._deviceSyncChangedAt=remoteAt;route._deviceSyncReason='remote-'+String(payload.reason||'sync');route._syncedForOffline=true;state.currentRoute=route;
       const syncedKind=activateRouteContext(route);if(syncedKind==='flight')armFamilyFlightTrackingFromRoute(route,{push:false,shareRoute:false}).catch(()=>{});
-      try{await dbPut('routes',{...route,savedAt:Date.now()});await dbPut('aerodata',{id:LATEST_DEVICE_ROUTE_CACHE_ID,route:{...route},savedAt:remoteAt,sourceDeviceLabel:payload.sourceDeviceLabel||'outro dispositivo'});}catch(_){}
+      try{f.routeLibraryApplying=true;await dbPut('routes',{...route,_libraryUpdatedAt:remoteAt,savedAt:Date.now()});await dbPut('aerodata',{id:LATEST_DEVICE_ROUTE_CACHE_ID,route:{...route},savedAt:remoteAt,sourceDeviceLabel:payload.sourceDeviceLabel||'outro dispositivo'});}catch(_){}finally{f.routeLibraryApplying=false}
       if(routeIsInProgress(route)){updateRouteWakeLock().catch(()=>{});showActiveRouteNotificationOnce(route).catch(()=>{});const rec={id:ACTIVE_ROUTE_SESSION_ID,route:{...route,lastActiveAt:remoteAt},mode:state.mode,manualWalk:state.manualWalk,savedAt:remoteAt,reason:'device-sync',lastPosition:state.currentPosition?{lat:state.currentPosition.lat,lon:state.currentPosition.lon,at:state.currentPosition.at||Date.now()}:null};try{await dbPut('aerodata',rec)}catch(_){}state.followOwnship=true;}
       drawRouteOnMap();renderDriveNavCard();if(state.activeTab==='route')renderRouteScreen();if(state.activeTab==='journey')renderJourneyScreen();if(state.activeTab==='offline')renderOfflineScreen();
       toast(`Rota sincronizada do ${payload.sourceDeviceLabel||'outro dispositivo'}.`);return true;
@@ -4303,7 +4336,7 @@ body{min-height:var(--app-vh);margin:0}
     const f=state.family;if(!familyConfigured()||!navigator.onLine||f.routeSyncBusy)return false;await ensureFamilyHash();
     try{
       const path=`aeronav_locations?room_hash=eq.${encodeURIComponent(f.familyHash)}&member_id=eq.${encodeURIComponent(FAMILY_ROUTE_SYNC_MEMBER_ID)}&select=member_id,transport,updated_at&limit=1`;const r=await fetch(familyRest(path),{headers:familyHeaders(),cache:'no-store'});if(!r.ok)throw new Error(`sync ${r.status}`);const row=(await r.json())?.[0];if(!row){f.routeSyncInitialPullDone=true;return false}
-      const payload=await routeSyncDecode(row);if(!payload){f.routeSyncInitialPullDone=true;return false}const remoteAt=Number(payload.changedAt||Date.parse(row.updated_at)||0),localAt=routeSyncChangedAt();
+      const payload=await routeSyncDecode(row);if(!payload){f.routeSyncInitialPullDone=true;f.routeSyncLastError='A rota do servidor não pôde ser descodificada: confirma o mesmo Código da Família.';return false}const remoteAt=Number(payload.changedAt||Date.parse(row.updated_at)||0),localAt=routeSyncChangedAt();
       f.routeSyncInitialPullDone=true;
       if(String(payload.sourceDeviceId||'')===String(f.routeSyncDeviceId)){f.routeSyncLastSeenAt=Math.max(f.routeSyncLastSeenAt||0,remoteAt);f.routeSyncLastPushedSig=payload.action==='closed'?'__CLOSED__':routeSyncSignature(payload.route);localStorage.setItem('aeronav.family.routeSyncLastSeenAt',String(f.routeSyncLastSeenAt));localStorage.setItem('aeronav.family.routeSyncLastPushedSig',f.routeSyncLastPushedSig);return false}
       if(localAt>remoteAt+1200){await pushDeviceRouteSync('newer-local-route',state.currentRoute,false);return false}
@@ -4311,7 +4344,7 @@ body{min-height:var(--app-vh);margin:0}
       const remoteSig=payload.action==='closed'?'__CLOSED__':routeSyncSignature(payload.route),localSig=state.currentRoute?routeSyncSignature(state.currentRoute):'__NONE__';
       if(remoteSig===localSig){f.routeSyncLastSeenAt=remoteAt;f.routeSyncLastPushedSig=remoteSig;localStorage.setItem('aeronav.family.routeSyncLastSeenAt',String(remoteAt));localStorage.setItem('aeronav.family.routeSyncLastPushedSig',remoteSig);return false}
       const applied=await applyDeviceRouteSyncPayload({...payload,changedAt:remoteAt});if(applied){f.routeSyncLastSeenAt=remoteAt;f.routeSyncLastPushedSig=remoteSig;localStorage.setItem('aeronav.family.routeSyncLastSeenAt',String(remoteAt));localStorage.setItem('aeronav.family.routeSyncLastPushedSig',remoteSig)}return applied;
-    }catch(e){if(force)toast('Sincronização iPhone/iPad: '+(e?.message||e));return false}
+    }catch(e){f.routeSyncLastError=String(e?.message||e);if(force)toast('Sincronização iPhone/iPad: '+(e?.message||e));return false}
   }
   async function syncOwnRouteToFamilyIfChanged(){
     const f=state.family,r=state.currentRoute;if(!f.routeSyncInitialPullDone||f.routeSyncApplying||!r||!familyConfigured()||!navigator.onLine)return false;const sig=routeSyncSignature(r);if(!sig||sig===f.routeSyncLastPushedSig)return false;
@@ -4319,7 +4352,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
 
-  // ---------- RC12.37.18 encrypted saved routes / presets sync ----------
+  // ---------- RC12.37.19 encrypted saved routes / presets sync ----------
   // Separate encrypted rows avoid overwriting unrelated iPhone/iPad routes.
   const ROUTE_LIBRARY_PREFIX='__AERONAV_ROUTE_LIB_';
   const ROUTE_LIBRARY_TOMBS='aeronav.routes.library.tombstones.v1';
@@ -4344,7 +4377,7 @@ body{min-height:var(--app-vh);margin:0}
   async function syncSavedRouteLibrary(force=false){
     const f=state.family,now=Date.now();
     if(!familyConfigured()||!navigator.onLine||f.routeLibraryBusy)return {ok:false,reason:'not-ready'};
-    if(!force&&now-Number(f.routeLibraryLastPullAt||0)<15000)return {ok:true,received:0,sent:0};
+    if(!force&&now-Number(f.routeLibraryLastPullAt||0)<7000)return {ok:true,received:0,sent:0};
     f.routeLibraryBusy=true;
     let received=0,sent=0;
     try{
@@ -4409,7 +4442,7 @@ body{min-height:var(--app-vh);margin:0}
         const body={room_hash:f.familyHash,member_id:rowId,
           display_name:'SYNC · Rotas Jorge',sharing:false,lat:null,lon:null,
           accuracy:null,altitude:null,speed:null,heading:null,
-          transport:'ROUTE_SYNC_ENC:'+encrypted,flight_number:null,flight_eta:null,
+          transport:encrypted,flight_number:null,flight_eta:null,
           updated_at:new Date(Math.max(1,Number(item.changedAt))).toISOString()};
         const pushed=await fetchLiveTimed(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),{
           method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),
@@ -4418,18 +4451,46 @@ body{min-height:var(--app-vh);margin:0}
         sent++;
         if(!force&&sent>=3)break;
       }
-      f.routeLibraryLastPullAt=Date.now();
+      f.routeLibraryLastError='';f.routeLibraryLastSuccessAt=Date.now();f.routeLibraryLastPullAt=Date.now();
       if(received&&state.activeTab==='route'){renderRouteScreen();}
       return {ok:true,received,sent};
     }catch(e){
-      console.warn('AERONAV saved routes sync failed',e);
+      f.routeLibraryLastError=String(e?.message||e);console.warn('AERONAV saved routes sync failed',e);
       if(force)throw e;
       return {ok:false,received,sent,error:e?.message||String(e)};
     }finally{f.routeLibraryApplying=false;f.routeLibraryBusy=false}
   }
 
+  // Same person: Jorge profile, two independent authenticated devices.
+  // Heartbeat is metadata only. Routes remain encrypted under familyKey.
+  const JORGE_DEVICE_ROW_PREFIX='__AERONAV_JORGE_SYNC_DEV_';
+  function isJorgeDeviceRow(m){return String(m?.member_id||'').startsWith(JORGE_DEVICE_ROW_PREFIX)}
+  async function refreshJorgeRouteDevices(force=false){
+    const f=state.family;if(!familyConfigured()||!navigator.onLine||!isJorgeAdminName(f.displayName))return false;
+    if(!force&&Date.now()-(f.routeSyncPeerLastAt||0)<25000)return true;
+    try{
+      await ensureFamilyHash();
+      const type=/iPad/i.test(f.deviceLabel||navigator.userAgent)?'iPad':'iPhone';
+      const member_id=JORGE_DEVICE_ROW_PREFIX+String(f.routeSyncDeviceId).replace(/[^A-Za-z0-9_-]/g,'');
+      const row={room_hash:f.familyHash,member_id,display_name:'SYNC · Jorge '+type,
+        sharing:false,lat:null,lon:null,accuracy:null,altitude:null,speed:null,heading:null,
+        transport:'JORGE_DEVICE:'+type,flight_number:null,flight_eta:null,updated_at:new Date().toISOString()};
+      const upload=await fetchLiveTimed(familyRest('aeronav_locations?on_conflict=room_hash,member_id'),
+        {method:'POST',headers:familyHeaders({'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(row)});
+      if(!upload.ok)throw new Error('identificação do aparelho HTTP '+upload.status);
+      const path='aeronav_locations?room_hash=eq.'+encodeURIComponent(f.familyHash)+
+        '&member_id=like.'+encodeURIComponent(JORGE_DEVICE_ROW_PREFIX+'%')+
+        '&select=member_id,transport,updated_at&limit=12';
+      const answer=await fetchLiveTimed(familyRest(path),{headers:familyHeaders(),cache:'no-store'});
+      if(!answer.ok)throw new Error('consulta de dispositivos HTTP '+answer.status);
+      const rows=await answer.json();
+      f.routeSyncPeers=rows.filter(m=>m.member_id!==member_id && Date.now()-Date.parse(m.updated_at||0)<180000);
+      f.routeSyncPeerLastAt=Date.now();f.routeSyncPeerError='';return true;
+    }catch(e){f.routeSyncPeerError=String(e?.message||e);return false}
+  }
+
   function isFamilyCallRow(m){ return /__CALL$/.test(String(m?.member_id||'')) || /^CALL_/.test(String(m?.transport||'')); }
-  function isFamilySystemRow(m){ return isFamilySosRow(m)||isFamilyCallRow(m)||isFamilyJourneyRow(m)||isFamilyBatteryRow(m)||isFamilyRouteSyncRow(m)||isFamilyAdminVerifyRow(m)||isFamilyVisibilityRow(m); }
+  function isFamilySystemRow(m){ return isJorgeDeviceRow(m)||String(m?.member_id||'').startsWith(ROUTE_LIBRARY_PREFIX)||isFamilySosRow(m)||isFamilyCallRow(m)||isFamilyJourneyRow(m)||isFamilyBatteryRow(m)||isFamilyRouteSyncRow(m)||isFamilyAdminVerifyRow(m)||isFamilyVisibilityRow(m); }
   function parseFamilyCall(m){const x=/^CALL_(RINGING|ACCEPTED|DECLINED|ENDED):([A-Za-z0-9_-]{10,80})$/.exec(String(m?.transport||''));return x?{status:x[1],id:x[2]}:null;}
   function activeJourneyRoute(r=state.currentRoute){
     const coords=r?.geometry?.coordinates;if(!coords?.length)return null;
@@ -4773,12 +4834,14 @@ body{min-height:var(--app-vh);margin:0}
     // First pull the shared family state so a newly connected administrator can be peer-verified.
     await pullFamilyLocations(false);
     if(adminPeerVerificationRequired()&&!adminCanManageMembers()){
+      state.family.routeLibraryLastError='Confirme este aparelho como Jorge no outro dispositivo.';
       await pullFamilyStayHistory(false);
       return;
     }
     await pullDeviceRouteSync(false);
     await syncOwnRouteToFamilyIfChanged();
     await syncSavedRouteLibrary(false);
+    await refreshJorgeRouteDevices(false);
     await pushFamilyLocation(false);
     await pushFamilyBattery(false);
     await pullFamilyStayHistory(false);
@@ -6468,12 +6531,52 @@ body{min-height:var(--app-vh);margin:0}
   function routePresetClone(v){try{return JSON.parse(JSON.stringify(v))}catch(_){return null}}
   function routePresetSnapshot(r){if(!r)return null;const s={kind:r.kind||'road',mode:r.mode||'',routeMode:r.routeMode||'',name:r.name||'',routeString:r.routeString||'',from:routePresetClone(r.from),to:routePresetClone(r.to),aircraft:routePresetClone(r.aircraft),geometry:routePresetClone(r.geometry),path:routePresetClone(r.path),distance:Number(r.distance)||0,duration:Number(r.duration)||0,steps:routePresetClone(r.steps)||[],navpoints:routePresetClone(r.navpoints)||[],cruiseAltitudeFt:r.cruiseAltitudeFt||null,userSpeedLimitKmh:r.userSpeedLimitKmh||null,speedLimit:r.speedLimit||null,provider:r.provider||'',approx:!!r.approx};return s}
   function routePresetTypeLabel(p){const r=p?.route||{};if(r.kind==='flight')return '✈ VOO';if(r.mode==='walk')return '🚶 A PÉ';return '🚗 CARRO'}
-  function routePresetCardHTML(){const list=routePresetsRead();return `<div class="card" id="presetRoutesCard"><div class="page-head" style="margin-bottom:8px"><div><h3>★ Rotas pré-estabelecidas</h3><p>Crie uma rota uma vez, guarde-a e volte a carregá-la com um toque.</p></div><span class="badge info">${list.length}</span></div><div class="btn-row"><button class="primary-btn" id="createRoutePreset">＋ Criar pré-estabelecida</button><button class="secondary-btn" id="syncRoutesDevicesNow">⟳ Sincronizar iPhone/iPad</button></div><div style="margin-top:10px">${list.length?list.map(p=>`<div class="saved-route"><div><strong>${esc(p.name||'Rota')}</strong><small>${routePresetTypeLabel(p)} · ${esc(p.route?.from?.name||p.route?.from||'Origem')} → ${esc(p.route?.to?.name||p.route?.to||'Destino')}</small></div><div class="btn-row" style="margin:0"><button class="soft-btn" data-use-route-preset="${esc(p.id)}">▶ Usar</button><button class="soft-btn" data-rename-route-preset="${esc(p.id)}">✏️</button><button class="soft-btn" data-delete-route-preset="${esc(p.id)}">🗑</button></div></div>`).join(''):'<div class="empty">Ainda não existem rotas pré-estabelecidas.</div>'}</div></div>`}
+  function jorgeRouteDeviceStatusHTML(){
+    const f=state.family;
+    let label='',details='';
+    if(!navigator.onLine){label='Sem Internet — rotas locais preservadas';details='A sincronização retoma quando voltares a ligar.';}
+    else if(!familyConfigured()){
+      label='iPhone + iPad de Jorge: ainda não ligados ao mesmo perfil';
+      details='No segundo aparelho, abre Família, identifica-te como Jorge e usa o MESMO Código da Família. Não cries uma família nova.';
+    }else if(adminPeerVerificationRequired()&&!adminCanManageMembers()){
+      label='A aguardar confirmação do aparelho Jorge';
+      details='No outro aparelho, confirma que este iPhone/iPad também pertence ao Jorge.';
+    }else if(f.routeLibraryLastError||f.routeSyncLastError){
+      label='Falha ao sincronizar rotas';details=f.routeLibraryLastError||f.routeSyncLastError;
+    }else if(f.routeSyncPeers?.length){
+      label='Perfil Jorge ligado — '+f.routeSyncPeers.length+' outro aparelho online';
+      details='Rotas de voo, carro e pré-estabelecidas sincronizam no mesmo perfil.';
+    }else{
+      label='Este aparelho está no perfil Jorge';
+      details='Abre o AERONAV no outro aparelho com o mesmo Código da Família para confirmar a ligação.';
+    }
+    return '<div class="source-note" role="status" style="padding:10px;margin:9px 0;border:1px solid #345269;border-radius:10px">'+
+      '<strong>🔄 '+esc(label)+'</strong><div style="margin-top:4px">'+esc(details)+'</div></div>';
+  }
+  function routePresetCardHTML(){const list=routePresetsRead();return `<div class="card" id="presetRoutesCard"><div class="page-head" style="margin-bottom:8px"><div><h3>★ Rotas pré-estabelecidas</h3><p>Crie uma rota uma vez, guarde-a e volte a carregá-la com um toque.</p></div><span class="badge info">${list.length}</span></div><div class="btn-row"><button class="primary-btn" id="createRoutePreset">＋ Criar pré-estabelecida</button><button class="secondary-btn" id="syncRoutesDevicesNow">⟳ Sincronizar iPhone/iPad</button><button class="soft-btn" id="joinJorgeDeviceNow">🔗 Ligar iPhone/iPad</button></div>${jorgeRouteDeviceStatusHTML()}<div style="margin-top:10px">${list.length?list.map(p=>`<div class="saved-route"><div><strong>${esc(p.name||'Rota')}</strong><small>${routePresetTypeLabel(p)} · ${esc(p.route?.from?.name||p.route?.from||'Origem')} → ${esc(p.route?.to?.name||p.route?.to||'Destino')}</small></div><div class="btn-row" style="margin:0"><button class="soft-btn" data-use-route-preset="${esc(p.id)}">▶ Usar</button><button class="soft-btn" data-rename-route-preset="${esc(p.id)}">✏️</button><button class="soft-btn" data-delete-route-preset="${esc(p.id)}">🗑</button></div></div>`).join(''):'<div class="empty">Ainda não existem rotas pré-estabelecidas.</div>'}</div></div>`}
   function createCurrentRoutePreset(){if(!state.currentRoute)return toast('Crie ou carregue uma rota primeiro. Depois guarde-a como pré-estabelecida.');const def=state.currentRoute.name||`${state.currentRoute.from?.name||'Origem'} → ${state.currentRoute.to?.name||'Destino'}`,name=(prompt('Nome da rota pré-estabelecida:',def)||'').trim();if(!name)return;const snap=routePresetSnapshot(state.currentRoute);if(!snap?.geometry?.coordinates?.length&&!snap?.path?.length)return toast('A rota atual ainda não possui geometria válida.');const list=routePresetsRead();list.unshift({id:'preset-'+Date.now(),name,createdAt:Date.now(),route:snap});if(routePresetsWrite(list)){renderRouteScreen();toast(`Rota “${name}” guardada como pré-estabelecida.`)}}
   function useRoutePreset(id){const p=routePresetsRead().find(x=>String(x.id)===String(id));if(!p?.route)return toast('Rota pré-estabelecida não encontrada.');const r=routePresetClone(p.route);if(!r)return toast('Não foi possível carregar esta rota.');const now=Date.now();r.id=(r.kind==='flight'?'flight-':'road-')+now;r.name=p.name||r.name;r.createdAt=now;r.plannedStartAt=new Date(now).toISOString();r.actualStartAt=null;r.status='planned';r.navigationActive=false;r.cancelledAt=null;r.completedAt=null;r.sharedAt=null;r._mapOpened=true;if(Number(r.duration)>0)r.plannedArrivalAt=new Date(now+Number(r.duration)*1000).toISOString();state.currentRoute=r;state.routePlannerMode=r.kind==='flight'?'flight':'drive';localStorage.setItem('aeronav.routePlannerMode',state.routePlannerMode);activateRouteContext(r,{offlineWhenDisconnected:false});markRouteDeviceSyncDirty('preset-route-loaded');drawRouteOnMap();renderRouteScreen();toast(`Rota pré-estabelecida “${p.name||'Rota'}” carregada.`)}
   function renameRoutePreset(id){const list=routePresetsRead(),p=list.find(x=>String(x.id)===String(id));if(!p)return;const name=(prompt('Novo nome da rota:',p.name||'Rota')||'').trim();if(!name)return;p.name=name;routePresetsWrite(list);renderRouteScreen()}
   function deleteRoutePreset(id){const list=routePresetsRead(),p=list.find(x=>String(x.id)===String(id));if(!p)return;if(!confirm(`Apagar a rota pré-estabelecida “${p.name||'Rota'}”?`))return;routePresetsWrite(list.filter(x=>String(x.id)!==String(id)));renderRouteScreen();toast('Rota pré-estabelecida apagada.')}
-  function wireRoutePresets(){$('#syncRoutesDevicesNow')?.addEventListener('click',async()=>{const b=$('#syncRoutesDevicesNow');if(b){b.disabled=true;b.textContent='⟳ A sincronizar…'}try{await pullDeviceRouteSync(true);const r=await syncSavedRouteLibrary(true);if(r?.ok)toast('Rotas iPhone/iPad sincronizadas: '+r.received+' recebidas, '+r.sent+' enviadas.');else toast('Ative a mesma configuração Família no iPhone e no iPad para sincronizar.')}catch(e){toast('Sincronização de rotas: '+(e?.message||e))}finally{if(b){b.disabled=false;b.textContent='⟳ Sincronizar iPhone/iPad'}}});$('#createRoutePreset')?.addEventListener('click',createCurrentRoutePreset);document.querySelectorAll('[data-use-route-preset]').forEach(b=>b.addEventListener('click',()=>useRoutePreset(b.dataset.useRoutePreset)));document.querySelectorAll('[data-rename-route-preset]').forEach(b=>b.addEventListener('click',()=>renameRoutePreset(b.dataset.renameRoutePreset)));document.querySelectorAll('[data-delete-route-preset]').forEach(b=>b.addEventListener('click',()=>deleteRoutePreset(b.dataset.deleteRoutePreset)))}
+  function wireRoutePresets(){
+    $('#joinJorgeDeviceNow')?.addEventListener('click',()=>{setTab('family');setTimeout(()=>$('#familyKey')?.focus(),250)});
+    $('#syncRoutesDevicesNow')?.addEventListener('click',async()=>{
+      if(!familyConfigured()){toast('Liga o iPhone e o iPad ao MESMO Código da Família, com o perfil Jorge.');setTab('family');return}
+      if(adminPeerVerificationRequired()&&!adminCanManageMembers()){
+        toast('Confirma o segundo aparelho Jorge no primeiro, antes de sincronizar.');return;
+      }
+      const b=$('#syncRoutesDevicesNow');if(b){b.disabled=true;b.textContent='⟳ A sincronizar…'}
+      try{
+        await pullDeviceRouteSync(true);
+        const r=await syncSavedRouteLibrary(true);
+        await refreshJorgeRouteDevices(true);
+        if(familyConfigured()&&r?.ok&&!state.family.routeSyncLastError){
+          toast('Servidor confirmou rotas: '+r.received+' recebidas, '+r.sent+' enviadas.');
+        }else toast('Sincronização não concluída: '+(state.family.routeLibraryLastError||state.family.routeSyncLastError||'verifica Código da Família'));
+      }catch(e){toast('Sincronização: '+(e?.message||e))}
+      finally{if(b){b.disabled=false;b.textContent='⟳ Sincronizar iPhone/iPad'}if(state.activeTab==='route')renderRouteScreen()}
+    });
+    $('#createRoutePreset')?.addEventListener('click',createCurrentRoutePreset);document.querySelectorAll('[data-use-route-preset]').forEach(b=>b.addEventListener('click',()=>useRoutePreset(b.dataset.useRoutePreset)));document.querySelectorAll('[data-rename-route-preset]').forEach(b=>b.addEventListener('click',()=>renameRoutePreset(b.dataset.renameRoutePreset)));document.querySelectorAll('[data-delete-route-preset]').forEach(b=>b.addEventListener('click',()=>deleteRoutePreset(b.dataset.deleteRoutePreset)))}
   function routePlannerSelectorHTML(){
     return `<div class="card route-planner-selector"><div class="page-head" style="margin-bottom:8px"><div><h3>Rotas</h3><p>Escolha o submenu. Rota de avião e rota de carro permanecem completamente separadas.</p></div><span class="badge info">ROTAS</span></div><div class="segmented wide"><button class="seg ${state.routePlannerMode==='flight'?'active':''}" data-route-planner="flight">✈ ROTA DE AVIÃO</button><button class="seg ${state.routePlannerMode==='drive'?'active':''}" data-route-planner="drive">🚗 ROTA DE CARRO</button></div></div>`;
   }
