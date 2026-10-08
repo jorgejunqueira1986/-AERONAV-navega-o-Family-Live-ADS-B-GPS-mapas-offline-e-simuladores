@@ -1,4 +1,4 @@
-/* AERONAV RC12.37.19 — iPad PWA safe refresh / network-first navigation */
+/* AERONAV RC12.37.20 — iPad PWA safe refresh / network-first navigation */
 /* AERONAV RC12.32 — bounded UI work + versioned offline shell */
 /* AERONAV RC12.31.2 — Performance Recovery */
 /* AERONAV RC12.31 — Diagnostic + Recovery */
@@ -13,7 +13,7 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_37_19-autosync-20261008';
+const CACHE='aeronav-jorge-RC12_37_20-marker-size-20261008';
 const LOCAL=["./flight-angle-photo-renderer.js","./assets/flight-angle-renders/b777300/behind_rc123716.webp","./assets/flight-angle-renders/b777300/cockpit_rc123716.webp","./assets/flight-angle-renders/b777300/behind.webp","./assets/flight-angle-renders/b777300/left.webp","./assets/flight-angle-renders/b777300/right.webp","./assets/flight-angle-renders/b777300/top.webp","./assets/flight-angle-renders/b777300/inclined.webp","./assets/flight-angle-renders/b777300/cockpit_live.webp","./camera-map-behavior.js","./flight-camera-ui-fix.js","./aircraft-3d-models.js","./aircraft-perspective-viewer.js","./assets/aircraft3d/c152.glb","./assets/aircraft3d/c172.glb","./assets/aircraft3d/q400.glb","./assets/aircraft3d/b7377.glb","./assets/aircraft3d/a2203.glb","./assets/aircraft3d/b777300.glb","./assets/aircraft3d/b7879.glb","./assets/aircraft3d/b78710.glb","./aircraft-visual-profiles.js","./flight-camera-director.js","./photo3d-renderer.js","./terrain-photo3d-runtime.js","./photo3d-proxy.js","./drive-core.js","./cockpit-lite.js","./assets/people/mathia-avatar-rc12313.png","./assets/people/jorge-avatar-rc12313.png","./index.html","./manifest.json","./sw.js","./family-viewer.html","./wendler.html","./family-viewer-preview.html","./cockpit-audio.js","./family-call.js","./angola-offline-fragment.js","./vendor/pmtiles-3.2.1.js","./work-status-fragment.js","./meteo-visual-voo.js","./meteo-route-phase2.js","./meteo-altitude-phase3.js","./diagnostic-recovery.js","./gps-view-modes.js","./flight-ops-fragment.js","./","./vendor/maplibre-gl-5.24.0.js","./vendor/maplibre-gl-5.24.0.css","./vendor/fonts/Noto Sans Regular/0-255.pbf","./vendor/fonts/Noto Sans Regular/256-511.pbf"];
 const CRITICAL=['./index.html','./sw.js','./flight-angle-photo-renderer.js','./assets/flight-angle-renders/b777300/behind_rc123716.webp','./assets/flight-angle-renders/b777300/cockpit_rc123716.webp'];
 const REMOTE=[
@@ -102,7 +102,7 @@ async function networkFirst(request){
   }
 }
 
-/* RC12.37.19: install the next release after five critical files are ready.
+/* RC12.37.20: install the next release after five critical files are ready.
    Optional offline fonts, GLB, maps and libraries are warmed after activation.
    Never clear IndexedDB, localStorage or saved PMTiles. */
 self.addEventListener('install',event=>{
@@ -221,7 +221,7 @@ self.addEventListener('message',event=>{
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
         cacheVersion:CACHE,
-        release:'RC12.37.19'
+        release:'RC12.37.20'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){

@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.37.19</title>
+  <title>AERONAV — RC12.37.20</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -587,6 +587,23 @@ body{min-height:var(--app-vh);margin:0}
 @media(max-height:500px){#screen-map .map-wrap{min-height:160px!important}#screen-map #mapDataPanel{max-height:55dvh}}
 
 </style>
+<style id="aeronav-marker-size-style">
+/* RC12.37.20 · Ajuste independente dos ícones no mapa (não altera zoom) */
+.marker-size-overlay{position:fixed;inset:0;z-index:380;background:rgba(2,11,20,.76);display:flex;align-items:center;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));box-sizing:border-box;backdrop-filter:blur(5px)}
+.marker-size-panel{width:min(440px,100%);max-height:85dvh;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(165deg,#0a293c,#061623);color:#eafaff;border:1px solid #327699;border-radius:20px;box-shadow:0 24px 75px #000b;padding:18px;box-sizing:border-box}
+.marker-size-heading{display:flex;align-items:start;justify-content:space-between;gap:12px;margin-bottom:8px}
+.marker-size-heading h2{margin:0;font-size:19px;line-height:1.3}.marker-size-heading p{margin:6px 0;color:#9fc0d2;font-size:12px;line-height:1.5}
+.marker-size-dismiss{min-width:44px;min-height:44px;background:#10394f;color:white;border:1px solid #3b718d;border-radius:12px;font-weight:900}
+.marker-size-item{margin-top:10px;padding:12px;border:1px solid #235069;border-radius:13px;background:#081c2c}
+.marker-size-item.current{border-color:#51ccef;background:#0b3046}
+.marker-size-topline{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;font-size:14px}
+.marker-size-topline output{font-variant-numeric:tabular-nums;color:#94ebff;font-size:15px}
+.marker-size-tools{display:flex;align-items:center;gap:10px;margin-top:10px}
+.marker-size-tools button{min-width:44px;min-height:44px;border:1px solid #37728e;border-radius:12px;background:#0e3c56;color:#fff;font-size:21px;font-weight:900}
+.marker-size-tools input[type=range]{width:100%;min-width:0;accent-color:#47cfff;flex:1;touch-action:pan-y}
+.marker-size-tip{font-size:11px;color:#a0c2d2;margin:12px 0}
+.marker-size-reset{width:100%;min-height:44px;border:1px solid #37728e;border-radius:12px;background:#092a40;color:#eaffff;font-weight:800}
+</style>
 </head>
 <body>
   <div id="app">
@@ -637,6 +654,7 @@ body{min-height:var(--app-vh);margin:0}
             <button data-map-proxy="fitRouteBtn">⌘ Ver rota</button>
             <button data-map-proxy="offlineCenterBtn">⇩ Mapas offline</button>
             <button data-map-proxy="terrainOverlayBtn">⛰ Terreno</button>
+            <button type="button" id="mobileMarkerSizeBtn">⤢ Tamanho do ícone</button>
             <button data-map-proxy="refreshAllBtn">↻ Atualizar</button>
             <button data-map-proxy="navHudBtn">▣ HUD</button>
             <button data-map-proxy="navEmergencyBtn">⚠ Assistência</button>
@@ -656,6 +674,7 @@ body{min-height:var(--app-vh);margin:0}
           <button class="soft-btn" id="trafficQuickBtn">📡 Tráfego</button>
           <button class="soft-btn" id="terrainOverlayBtn">⛰ Terreno</button>
           <button class="soft-btn" id="refreshAllBtn">↻ Atualizar tudo</button>
+          <button class="soft-btn" type="button" id="markerSizeBtn">⤢ Tamanho do ícone</button>
           <button class="soft-btn" id="navHudBtn">▣ HUD</button><button class="soft-btn" id="navEmergencyBtn">⚠ Assistência</button><button class="soft-btn map-expand-btn" id="expandMapBtn">🗖 Aumentar mapa</button><button class="soft-btn" id="fullScreenBtn">⛶ Full screen</button>
           <div class="layer-segmented drive-view-toggle hidden" id="driveToolbar"><button class="layer-btn" id="driveMapTypeBtn">🗺 Tipo de mapa</button><button class="layer-btn" data-drive-view="2d">2D</button><button class="layer-btn" data-drive-view="3d">3D</button><button class="layer-btn" data-drive-view="perspective">Persp.</button><button class="layer-btn" id="driveTrafficBtn">🚦 Trânsito</button></div>
           <div class="mode-map-label" id="modeMapLabel">Aeronáutico</div>
@@ -824,7 +843,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = 'RC12.37.19 · Atualização segura iPad';
+  const APP_VERSION = 'RC12.37.20 · Atualização segura iPad';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -4352,7 +4371,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
 
-  // ---------- RC12.37.19 encrypted saved routes / presets sync ----------
+  // ---------- RC12.37.20 encrypted saved routes / presets sync ----------
   // Separate encrypted rows avoid overwriting unrelated iPhone/iPad routes.
   const ROUTE_LIBRARY_PREFIX='__AERONAV_ROUTE_LIB_';
   const ROUTE_LIBRARY_TOMBS='aeronav.routes.library.tombstones.v1';
@@ -5139,6 +5158,74 @@ body{min-height:var(--app-vh);margin:0}
   }
 
 
+  // ---------- RC12.37.20 marker dimensions: AVIÃO / CARRO / A PÉ ----------
+  // Marker DOM elements are sized; do not transform them because MapLibre uses
+  // transform for positioning and rotation. Settings are kept per device.
+  const OWN_MARKER_SIZES_KEY='aeronav.markerSizes.v1';
+  const OWN_MARKER_KINDS=['flight','drive','walk'];
+  const OWN_MARKER_BOUNDS={min:50,max:200,step:10};
+  const OWN_MARKER_BASE={flight:[120,88,120,86],drive:[58,58,54,54],walk:[65,65,65,65]};
+  function ownMarkerClamp(value){
+    const v=Number(value);
+    return Number.isFinite(v)?Math.max(OWN_MARKER_BOUNDS.min,Math.min(OWN_MARKER_BOUNDS.max,Math.round(v/OWN_MARKER_BOUNDS.step)*OWN_MARKER_BOUNDS.step)):100;
+  }
+  function ownMarkerReadSizes(){
+    let v={};try{v=JSON.parse(localStorage.getItem(OWN_MARKER_SIZES_KEY)||'{}')||{}}catch(_){}
+    return Object.fromEntries(OWN_MARKER_KINDS.map(k=>[k,ownMarkerClamp(v[k]??100)]));
+  }
+  const ownMarkerSizes=ownMarkerReadSizes();
+  function ownMarkerApplySize(){
+    const el=state.positionMarker?.getElement?.();
+    if(!el||!el.classList?.contains('position-marker'))return;
+    const kind=OWN_MARKER_KINDS.find(k=>el.classList.contains(k));if(!kind)return;
+    const scale=ownMarkerSizes[kind]/100,base=OWN_MARKER_BASE[kind];
+    el.style.width=Math.round(base[0]*scale)+'px';
+    el.style.height=Math.round(base[1]*scale)+'px';
+    const img=el.querySelector('img');
+    if(img){img.style.width=Math.round(base[2]*scale)+'px';img.style.height=Math.round(base[3]*scale)+'px'}
+    const fallback=el.querySelector('.avatar-fallback');
+    if(fallback)fallback.style.fontSize=Math.round(30*scale)+'px';
+  }
+  function ownMarkerSetSize(kind,value){
+    if(!OWN_MARKER_KINDS.includes(kind))return;
+    ownMarkerSizes[kind]=ownMarkerClamp(value);
+    try{localStorage.setItem(OWN_MARKER_SIZES_KEY,JSON.stringify(ownMarkerSizes))}catch(e){console.warn('AERONAV tamanho ícone: não foi possível guardar',e)}
+    ownMarkerApplySize();
+    const dialog=document.getElementById('aeronavMarkerSizeOverlay');
+    if(dialog){
+      const range=dialog.querySelector('[data-marker-range="'+kind+'"]');
+      const output=dialog.querySelector('[data-marker-output="'+kind+'"]');
+      if(range)range.value=String(ownMarkerSizes[kind]);
+      if(output)output.textContent=ownMarkerSizes[kind]+'%';
+    }
+  }
+  function openOwnMarkerSizePanel(){
+    const old=document.getElementById('aeronavMarkerSizeOverlay');if(old){old.querySelector('.marker-size-dismiss')?.focus();return}
+    const mobileMenu=document.getElementById('mobileMapMenu');
+    if(mobileMenu){mobileMenu.classList.remove('show');mobileMenu.setAttribute('aria-hidden','true')}
+    document.getElementById('mobileMapMenuBtn')?.setAttribute('aria-expanded','false');
+    const dialog=document.createElement('div');
+    dialog.id='aeronavMarkerSizeOverlay';dialog.className='marker-size-overlay';
+    dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-labelledby','markerSizeTitle');
+    const current=state.mode==='flight'?'flight':groundTransport();
+    const specs=[['flight','✈','AVIÃO'],['drive','🚗','CARRO'],['walk','🚶','A PÉ']];
+    dialog.innerHTML='<div class="marker-size-panel"><div class="marker-size-heading"><div><h2 id="markerSizeTitle">Tamanho dos ícones</h2><p>Aumenta ou reduz o avião, o carro e a pessoa no mapa. Sem mudar o zoom.</p></div><button type="button" class="marker-size-dismiss" aria-label="Fechar">✕</button></div>'+
+      specs.map(([k,icon,title])=>'<section class="marker-size-item'+(current===k?' current':'')+'"><div class="marker-size-topline"><span>'+icon+' '+title+'</span><output data-marker-output="'+k+'">'+ownMarkerSizes[k]+'%</output></div><div class="marker-size-tools"><button type="button" data-marker-adjust="'+k+'" data-amount="-10" aria-label="Reduzir '+title+'">−</button><input data-marker-range="'+k+'" type="range" min="50" max="200" step="10" value="'+ownMarkerSizes[k]+'" aria-label="Tamanho '+title+'"><button type="button" data-marker-adjust="'+k+'" data-amount="10" aria-label="Aumentar '+title+'">+</button></div></section>').join('')+
+      '<p class="marker-size-tip">50%–200% · cada modo tem o seu tamanho · a escolha fica guardada neste aparelho.</p><button type="button" class="marker-size-reset" id="markerSizeReset">Restaurar tamanhos normais (100%)</button></div>';
+    document.body.appendChild(dialog);
+    const close=()=>{dialog.remove();document.removeEventListener('keydown',onKey)};
+    const onKey=event=>{if(event.key==='Escape')close()};
+    dialog.querySelector('.marker-size-dismiss')?.addEventListener('click',close);
+    dialog.addEventListener('click',event=>{if(event.target===dialog)close()});
+    document.addEventListener('keydown',onKey);
+    dialog.querySelectorAll('[data-marker-range]').forEach(input=>input.addEventListener('input',()=>ownMarkerSetSize(input.dataset.markerRange,input.value)));
+    dialog.querySelectorAll('[data-marker-adjust]').forEach(button=>button.addEventListener('click',()=>ownMarkerSetSize(button.dataset.markerAdjust,ownMarkerSizes[button.dataset.markerAdjust]+Number(button.dataset.amount))));
+    dialog.querySelector('#markerSizeReset')?.addEventListener('click',()=>OWN_MARKER_KINDS.forEach(k=>ownMarkerSetSize(k,100)));
+    dialog.querySelector('.marker-size-dismiss')?.focus();
+  }
+  document.getElementById('markerSizeBtn')?.addEventListener('click',openOwnMarkerSizePanel);
+  document.getElementById('mobileMarkerSizeBtn')?.addEventListener('click',openOwnMarkerSizePanel);
+
   // ---------- Position marker: airplane / pearl Toyota Yaris 2014 ----------
   function markerElement(){
     const d=document.createElement('div');
@@ -5157,7 +5244,7 @@ body{min-height:var(--app-vh);margin:0}
       d.setAttribute('aria-label','Toyota Yaris LD-37-23-FM');
     }
     const img=d.querySelector('img');
-    if(img)img.onerror=()=>{if(flight)d.innerHTML=`<img src="${EMBEDDED_3D_PLANE_AVATAR}" alt="Aeronave 3D" draggable="false">`;else d.innerHTML=`<span class="avatar-fallback">🚗</span>`;};
+    if(img)img.onerror=()=>{if(flight)d.innerHTML=`<img src="${EMBEDDED_3D_PLANE_AVATAR}" alt="Aeronave 3D" draggable="false">`;else d.innerHTML=`<span class="avatar-fallback">🚗</span>`;ownMarkerApplySize();};
     return d;
   }
 
@@ -5176,6 +5263,7 @@ body{min-height:var(--app-vh);margin:0}
     const h=state.currentPosition.heading;
     if(state.mode!=='flight'&&Number.isFinite(h) && state.positionMarker.setRotation) state.positionMarker.setRotation(h);
     else if(state.mode==='flight'&&state.positionMarker.setRotation) state.positionMarker.setRotation(0);
+    ownMarkerApplySize();
     if(state.mode==='drive'&&Date.now()-(state.drive.lastNavCardAt||0)>2000){state.drive.lastNavCardAt=Date.now();renderDriveNavCard();}
     checkSavedPlaceArrivals();
   }
