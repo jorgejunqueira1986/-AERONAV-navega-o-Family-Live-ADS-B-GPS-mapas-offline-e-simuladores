@@ -21,7 +21,6 @@
     left:{offset:-90,pitch:-15,range:1.04},
     right:{offset:90,pitch:-15,range:1.04},
     top:{offset:180,pitch:-89,range:1.12},
-    front:{offset:0,pitch:-12,range:1.02},
     inclined:{offset:145,pitch:-27,range:.96},
     orbit:{offset:180,pitch:-20,range:1.08}
   };

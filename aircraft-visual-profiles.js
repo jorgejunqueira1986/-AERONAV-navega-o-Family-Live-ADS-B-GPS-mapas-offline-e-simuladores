@@ -93,7 +93,6 @@
   }
 
   function transformForPreset(preset) {
-    if (preset === 'front') return 'translate(-50%,-50%) scaleX(-1) scaleY(.93)';
     if (preset === 'left') return 'translate(-50%,-50%) rotate(-6deg) skewY(-2deg)';
     if (preset === 'right') return 'translate(-50%,-50%) rotate(6deg) skewY(2deg)';
     if (preset === 'inclined') return 'translate(-50%,-50%) rotate(3deg)';

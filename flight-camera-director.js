@@ -14,7 +14,6 @@
     left:     { label:'LADO ESQUERDO',  pitch:58, bearingOffset:90,  zoom:10.8, external:true,  planeY:64 },
     right:    { label:'LADO DIREITO',   pitch:58, bearingOffset:-90, zoom:10.8, external:true,  planeY:64 },
     top:      { label:'TOPO',           pitch:0,  bearingOffset:0,   zoom:10.2, external:true,  planeY:50 },
-    front:    { label:'FRENTE',         pitch:60, bearingOffset:180, zoom:11.0, external:true,  planeY:61 },
     inclined: { label:'INCLINADA',      pitch:72, bearingOffset:35,  zoom:11.4, external:true,  planeY:67 },
     orbit:    { label:'ÓRBITA 360°',    pitch:62, bearingOffset:0,   zoom:10.9, external:true,  planeY:62 },
     cockpit:  { label:'COCKPIT',        pitch:55, bearingOffset:0,   zoom:9.2,  external:false, planeY:0  }
@@ -361,8 +360,7 @@
     if (plane) {
       plane.style.top = `${preset.planeY || 64}%`;
       plane.style.width = prefs.preset === 'top' ? 'min(30vw,220px)' : 'min(42vw,310px)';
-      if (prefs.preset === 'front') plane.style.transform = 'translate(-50%,-50%) scaleX(-1)';
-      else if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-4deg)';
+      if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-4deg)';
       else if (prefs.preset === 'right') plane.style.transform = 'translate(-50%,-50%) rotate(4deg)';
       else plane.style.transform = 'translate(-50%,-50%)';
     }
