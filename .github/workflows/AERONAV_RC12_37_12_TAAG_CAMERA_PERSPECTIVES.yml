@@ -1,4 +1,4 @@
-name: AERONAV RC12.37.12 TAAG Camera Perspectives
+name: AERONAV RC12.37.12 TAAG Camera Perspectives (fixed)
 
 'on':
   workflow_dispatch: {}
@@ -9,154 +9,123 @@ permissions:
 jobs:
   compile_camera_perspectives:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
-
       - name: Apply RC12.37.12
         shell: bash
         run: |
           set -euo pipefail
-
           python3 - <<'PYCODE'
           from pathlib import Path
+          import re
 
-          # index.html
-          p = Path("index.html")
-          h = p.read_text(encoding="utf-8")
-          old_title = "<title>AERONAV — RC12.37.11</title>"
-          old_app = "const APP_VERSION = 'RC12.37.11 · Flight Angles Cleanup';"
-          if old_title not in h:
-              raise SystemExit("RC12.37.11 title not found")
-          if old_app not in h:
-              raise SystemExit("RC12.37.11 APP_VERSION not found")
-          h = h.replace(old_title, "<title>AERONAV — RC12.37.12</title>", 1)
-          h = h.replace(old_app, "const APP_VERSION = 'RC12.37.12 · TAAG Camera Perspectives';", 1)
+          VERSION = 'RC12.37.12'
 
-          tag_updates = {
-              '<script src="./flight-camera-director.js?v=RC12.37.6"></script>': '<script src="./flight-camera-director.js?v=RC12.37.12"></script>',
-              '<script src="./aircraft-visual-profiles.js?v=RC12.37.7"></script>': '<script src="./aircraft-visual-profiles.js?v=RC12.37.12"></script>',
-              '<script src="./aircraft-3d-models.js?v=RC12.37.8"></script>': '<script src="./aircraft-3d-models.js?v=RC12.37.12"></script>'
-          }
-          for old, new in tag_updates.items():
-              if old not in h:
-                  raise SystemExit("Script tag not found: " + old)
-              h = h.replace(old, new, 1)
-          p.write_text(h, encoding="utf-8")
+          def once(source, old, new, label):
+              if new in source:
+                  return source
+              if old not in source:
+                  raise SystemExit(f'{label}: original not found')
+              return source.replace(old, new, 1)
 
-          # flight-camera-director.js
-          p = Path("flight-camera-director.js")
-          c = p.read_text(encoding="utf-8")
+          def block(source, pattern, new, label):
+              result, n = re.subn(pattern, lambda _: new, source, count=1, flags=re.M | re.S)
+              if n != 1:
+                  raise SystemExit(f'{label}: expected 1 block; found {n}')
+              return result
 
-          old_presets = """  const PRESETS = {
-            behind:   { label:'ATRÁS',          pitch:68, bearingOffset:0,   zoom:11.2, external:true,  planeY:66 },
-            left:     { label:'LADO ESQUERDO',  pitch:58, bearingOffset:90,  zoom:10.8, external:true,  planeY:64 },
-            right:    { label:'LADO DIREITO',   pitch:58, bearingOffset:-90, zoom:10.8, external:true,  planeY:64 },
-            top:      { label:'TOPO',           pitch:0,  bearingOffset:0,   zoom:10.2, external:true,  planeY:50 },
-            inclined: { label:'INCLINADA',      pitch:72, bearingOffset:35,  zoom:11.4, external:true,  planeY:67 },
-            orbit:    { label:'ÓRBITA 360°',    pitch:62, bearingOffset:0,   zoom:10.9, external:true,  planeY:62 },
-            cockpit:  { label:'COCKPIT',        pitch:55, bearingOffset:0,   zoom:9.2,  external:false, planeY:0  }
-          };"""
-          new_presets = """  const PRESETS = {
-            behind:   { label:'ATRÁS',          pitch:72, bearingOffset:0,    zoom:11.4, external:true,  planeY:67 },
-            left:     { label:'LADO ESQUERDO',  pitch:60, bearingOffset:105,  zoom:10.9, external:true,  planeY:64 },
-            right:    { label:'LADO DIREITO',   pitch:60, bearingOffset:-105, zoom:10.9, external:true,  planeY:64 },
-            top:      { label:'TOPO',           pitch:0,  bearingOffset:0,    zoom:10.4, external:true,  planeY:50 },
-            front:    { label:'FRENTE',         pitch:62, bearingOffset:180,  zoom:11.0, external:true,  planeY:61 },
-            inclined: { label:'INCLINADA',      pitch:74, bearingOffset:40,   zoom:11.4, external:true,  planeY:66 },
-            orbit:    { label:'ÓRBITA 360°',    pitch:64, bearingOffset:0,    zoom:10.9, external:true,  planeY:62 },
-            cockpit:  { label:'COCKPIT',        pitch:55, bearingOffset:0,    zoom:9.2,  external:false, planeY:0  }
-          };"""
-          if old_presets not in c:
-              raise SystemExit("Camera presets baseline not found")
-          c = c.replace(old_presets, new_presets, 1)
+          # Application title, version and versioned script assets.
+          p = Path('index.html')
+          h = p.read_text(encoding='utf-8')
+          h = once(h, '<title>AERONAV — RC12.37.11</title>',
+                      '<title>AERONAV — RC12.37.12</title>', 'index title')
+          h = once(h, "const APP_VERSION = 'RC12.37.11 · Flight Angles Cleanup';",
+                      "const APP_VERSION = 'RC12.37.12 · TAAG Camera Perspectives';", 'app version')
+          for asset, prior in [('flight-camera-director.js', 'RC12.37.6'),
+                               ('aircraft-visual-profiles.js', 'RC12.37.7'),
+                               ('aircraft-3d-models.js', 'RC12.37.8')]:
+              h = once(h, f'./{asset}?v={prior}', f'./{asset}?v={VERSION}', asset)
+          p.write_text(h, encoding='utf-8')
 
-          old_transform = """      if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-4deg)';
-            else if (prefs.preset === 'right') plane.style.transform = 'translate(-50%,-50%) rotate(4deg)';
-            else plane.style.transform = 'translate(-50%,-50%)';"""
-          new_transform = """      if (prefs.preset === 'front') plane.style.transform = 'translate(-50%,-50%) scaleX(-1) scaleY(.94)';
-            else if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-6deg) skewY(-2deg)';
-            else if (prefs.preset === 'right') plane.style.transform = 'translate(-50%,-50%) rotate(6deg) skewY(2deg)';
-            else if (prefs.preset === 'inclined') plane.style.transform = 'translate(-50%,-50%) rotate(4deg)';
-            else if (prefs.preset === 'top') plane.style.transform = 'translate(-50%,-50%) scale(.95)';
-            else plane.style.transform = 'translate(-50%,-50%)';"""
-          if old_transform not in c:
-              raise SystemExit("Camera transform baseline not found")
-          c = c.replace(old_transform, new_transform, 1)
-          c = c.replace("/* AERONAV RC12.37.6 — Flight Camera Director: manual + automatic phase mode. */", "/* AERONAV RC12.37.12 — TAAG camera perspectives calibrated from visual reference. */", 1)
+          # Flight-camera settings. Do not reintroduce the disallowed FRONT option.
+          p = Path('flight-camera-director.js')
+          c = p.read_text(encoding='utf-8')
+          new_presets = '\n'.join([
+              '  const PRESETS = {',
+              "    behind:   { label:'ATRÁS',          pitch:72, bearingOffset:0,    zoom:11.4, external:true,  planeY:67 },",
+              "    left:     { label:'LADO ESQUERDO',  pitch:60, bearingOffset:105,  zoom:10.9, external:true,  planeY:64 },",
+              "    right:    { label:'LADO DIREITO',   pitch:60, bearingOffset:-105, zoom:10.9, external:true,  planeY:64 },",
+              "    top:      { label:'TOPO',           pitch:0,  bearingOffset:0,    zoom:10.4, external:true,  planeY:50 },",
+              "    inclined: { label:'INCLINADA',      pitch:74, bearingOffset:40,   zoom:11.4, external:true,  planeY:66 },",
+              "    orbit:    { label:'ÓRBITA 360°',    pitch:64, bearingOffset:0,    zoom:10.9, external:true,  planeY:62 },",
+              "    cockpit:  { label:'COCKPIT',        pitch:55, bearingOffset:0,    zoom:9.2,  external:false, planeY:0  }",
+              '  };'
+          ])
+          c = block(c, r'^  const PRESETS = \{\s*\n.*?^  \};', new_presets, 'flight presets')
+          new_transform = '\n'.join([
+              "      if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-6deg) skewY(-2deg)';",
+              "      else if (prefs.preset === 'right') plane.style.transform = 'translate(-50%,-50%) rotate(6deg) skewY(2deg)';",
+              "      else if (prefs.preset === 'inclined') plane.style.transform = 'translate(-50%,-50%) rotate(4deg)';",
+              "      else if (prefs.preset === 'top') plane.style.transform = 'translate(-50%,-50%) scale(.95)';",
+              "      else plane.style.transform = 'translate(-50%,-50%)';",
+          ])
+          c = block(c, r"^      if \(prefs\.preset === 'left'\) plane\.style\.transform = [^\n]*\n      else if \(prefs\.preset === 'right'\)[^\n]*\n(?:      else if \(prefs\.preset === '(?:inclined|top)'\)[^\n]*\n)*      else plane\.style\.transform = [^\n]*", new_transform, 'flight transform')
+          c = c.replace('/* AERONAV RC12.37.6 — Flight Camera Director: manual + automatic phase mode. */',
+                        '/* AERONAV RC12.37.12 — TAAG camera perspectives. */', 1)
           c = c.replace("release:'RC12.37.6'", "release:'RC12.37.12'")
-          p.write_text(c, encoding="utf-8")
+          p.write_text(c, encoding='utf-8')
 
-          # aircraft-visual-profiles.js
-          p = Path("aircraft-visual-profiles.js")
-          v = p.read_text(encoding="utf-8")
-          old_visual = """  function transformForPreset(preset) {
-            if (preset === 'left') return 'translate(-50%,-50%) rotate(-6deg) skewY(-2deg)';
-            if (preset === 'right') return 'translate(-50%,-50%) rotate(6deg) skewY(2deg)';
-            if (preset === 'inclined') return 'translate(-50%,-50%) rotate(3deg)';
-            if (preset === 'top') return 'translate(-50%,-50%) scale(.96)';
-            return 'translate(-50%,-50%)';
-          }"""
-          new_visual = """  function transformForPreset(preset) {
-            if (preset === 'front') return 'translate(-50%,-50%) scaleX(-1) scaleY(.94)';
-            if (preset === 'left') return 'translate(-50%,-50%) rotate(-6deg) skewY(-2deg)';
-            if (preset === 'right') return 'translate(-50%,-50%) rotate(6deg) skewY(2deg)';
-            if (preset === 'inclined') return 'translate(-50%,-50%) rotate(4deg)';
-            if (preset === 'top') return 'translate(-50%,-50%) scale(.95)';
-            return 'translate(-50%,-50%)';
-          }"""
-          if old_visual not in v:
-              raise SystemExit("Visual profiles baseline not found")
-          v = v.replace(old_visual, new_visual, 1)
-          v = v.replace("/* AERONAV RC12.37.7 — Aircraft Visual Profiles overlay. */", "/* AERONAV RC12.37.12 — TAAG fleet visual profiles + calibrated perspectives. */", 1)
+          # TAAG aircraft visual profiles: retain all available fleet profiles.
+          p = Path('aircraft-visual-profiles.js')
+          v = p.read_text(encoding='utf-8')
+          new_visual = '\n'.join([
+              '  function transformForPreset(preset) {',
+              "    if (preset === 'left') return 'translate(-50%,-50%) rotate(-6deg) skewY(-2deg)';",
+              "    if (preset === 'right') return 'translate(-50%,-50%) rotate(6deg) skewY(2deg)';",
+              "    if (preset === 'inclined') return 'translate(-50%,-50%) rotate(4deg)';",
+              "    if (preset === 'top') return 'translate(-50%,-50%) scale(.95)';",
+              "    return 'translate(-50%,-50%)';",
+              '  }'
+          ])
+          v = block(v, r'^  function transformForPreset\(preset\) \{\n.*?^  \}', new_visual, 'visual transforms')
+          v = v.replace('/* AERONAV RC12.37.7 — Aircraft Visual Profiles overlay. */',
+                        '/* AERONAV RC12.37.12 — TAAG fleet visual profiles. */', 1)
           v = v.replace("release:'RC12.37.7'", "release:'RC12.37.12'")
-          p.write_text(v, encoding="utf-8")
+          p.write_text(v, encoding='utf-8')
 
-          # aircraft-3d-models.js
-          p = Path("aircraft-3d-models.js")
-          m = p.read_text(encoding="utf-8")
-          old_camera = """  const CAMERA={
-            behind:{offset:180,pitch:-18,range:1},
-            left:{offset:-90,pitch:-15,range:1.04},
-            right:{offset:90,pitch:-15,range:1.04},
-            top:{offset:180,pitch:-89,range:1.12},
-            inclined:{offset:145,pitch:-27,range:.96},
-            orbit:{offset:180,pitch:-20,range:1.08}
-          };"""
-          new_camera = """  const CAMERA={
-            behind:{offset:180,pitch:-24,range:1.12},
-            left:{offset:-105,pitch:-18,range:1.08},
-            right:{offset:105,pitch:-18,range:1.08},
-            top:{offset:180,pitch:-82,range:1.18},
-            front:{offset:0,pitch:-16,range:1.10},
-            inclined:{offset:145,pitch:-32,range:1.00},
-            orbit:{offset:180,pitch:-22,range:1.10}
-          };"""
-          if old_camera not in m:
-              raise SystemExit("3D camera baseline not found")
-          m = m.replace(old_camera, new_camera, 1)
-          m = m.replace("/* AERONAV RC12.37.8 — True 3D aircraft models for Photo3D/Cesium. */", "/* AERONAV RC12.37.12 — TAAG true 3D fleet + calibrated camera perspectives. */", 1)
+          # Three-dimensional camera: behind, both sides, overhead, inclined, orbital.
+          p = Path('aircraft-3d-models.js')
+          m = p.read_text(encoding='utf-8')
+          new_camera = '\n'.join([
+              '  const CAMERA={',
+              '    behind:{offset:180,pitch:-24,range:1.12},',
+              '    left:{offset:-105,pitch:-18,range:1.08},',
+              '    right:{offset:105,pitch:-18,range:1.08},',
+              '    top:{offset:180,pitch:-82,range:1.18},',
+              '    inclined:{offset:145,pitch:-32,range:1.00},',
+              '    orbit:{offset:180,pitch:-22,range:1.10}',
+              '  };',
+          ])
+          m = block(m, r'^  const CAMERA=\{\n.*?^  \};', new_camera, '3D camera')
+          m = m.replace('/* AERONAV RC12.37.8 — True 3D aircraft models for Photo3D/Cesium. */',
+                        '/* AERONAV RC12.37.12 — TAAG 3D aircraft views. */', 1)
           m = m.replace("release:'RC12.37.8'", "release:'RC12.37.12'")
-          p.write_text(m, encoding="utf-8")
+          p.write_text(m, encoding='utf-8')
 
-          # sw.js
-          p = Path("sw.js")
-          s = p.read_text(encoding="utf-8")
-          old_header = "/* AERONAV RC12.37.11 — Flight Angles Cleanup + versioned offline shell */"
-          old_cache = "const CACHE='aeronav-jorge-RC12_37_11-flight-angles-cleanup-20261008';"
-          old_release = "release:'RC12.37.11'"
-          if old_header not in s or old_cache not in s or old_release not in s:
-              raise SystemExit("RC12.37.11 SW baseline mismatch")
-          s = s.replace(old_header, "/* AERONAV RC12.37.12 — TAAG Camera Perspectives + versioned offline shell */", 1)
-          s = s.replace(old_cache, "const CACHE='aeronav-jorge-RC12_37_12-taag-camera-perspectives-20261008';", 1)
-          s = s.replace(old_release, "release:'RC12.37.12'", 1)
-          p.write_text(s, encoding="utf-8")
+          # Offline cache release. Do not touch routing, ADS-B, GPS or PMTiles logic.
+          p = Path('sw.js')
+          s = p.read_text(encoding='utf-8')
+          s = once(s, '/* AERONAV RC12.37.11 — Flight Angles Cleanup + versioned offline shell */',
+                   '/* AERONAV RC12.37.12 — TAAG Camera Perspectives + versioned offline shell */', 'service worker header')
+          s = once(s, "const CACHE='aeronav-jorge-RC12_37_11-flight-angles-cleanup-20261008';",
+                   "const CACHE='aeronav-jorge-RC12_37_12-taag-camera-perspectives-20261008';", 'service worker cache')
+          s = s.replace("release:'RC12.37.11'", "release:'RC12.37.12'")
+          p.write_text(s, encoding='utf-8')
           PYCODE
-
       - name: Validate RC12.37.12
         shell: bash
         run: |
@@ -165,29 +134,28 @@ jobs:
           node --check aircraft-visual-profiles.js
           node --check aircraft-3d-models.js
           node --check sw.js
-          grep -Fq "<title>AERONAV — RC12.37.12</title>" index.html
-          grep -Fq "RC12.37.12 · TAAG Camera Perspectives" index.html
-          grep -Fq "label:'FRENTE'" flight-camera-director.js
+          grep -Fq '<title>AERONAV — RC12.37.12</title>' index.html
           grep -Fq "label:'ATRÁS'" flight-camera-director.js
+          grep -Fq "label:'LADO ESQUERDO'" flight-camera-director.js
+          grep -Fq "label:'LADO DIREITO'" flight-camera-director.js
           grep -Fq "label:'TOPO'" flight-camera-director.js
           grep -Fq "label:'INCLINADA'" flight-camera-director.js
           grep -Fq "label:'ÓRBITA 360°'" flight-camera-director.js
           grep -Fq "label:'COCKPIT'" flight-camera-director.js
-          grep -Fq "front:{offset:0,pitch:-16,range:1.10}" aircraft-3d-models.js
-          grep -Fq "behind:{offset:180,pitch:-24,range:1.12}" aircraft-3d-models.js
-          grep -Fq "aeronav-jorge-RC12_37_12-taag-camera-perspectives-20261008" sw.js
-          grep -Fq "release:'RC12.37.12'" sw.js
-
+          ! grep -Fq "label:'FRENTE'" flight-camera-director.js
+          ! grep -Fq 'front:' aircraft-3d-models.js
+          ! grep -Fq "preset === 'front'" aircraft-visual-profiles.js
+          grep -Fq 'RC12_37_12-taag-camera-perspectives' sw.js
       - name: Commit RC12.37.12
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "AERONAV Update"
-          git config user.email "actions@users.noreply.github.com"
+          git config user.name 'AERONAV Update'
+          git config user.email 'actions@users.noreply.github.com'
           git add index.html sw.js flight-camera-director.js aircraft-visual-profiles.js aircraft-3d-models.js
           if git diff --cached --quiet; then
-            echo "No changes required."
+            echo 'No changes required.'
             exit 0
           fi
-          git commit -m "RC12.37.12 calibrate TAAG camera perspectives and restore front"
+          git commit -m 'RC12.37.12 TAAG camera calibration without front view'
           git push origin HEAD:main
