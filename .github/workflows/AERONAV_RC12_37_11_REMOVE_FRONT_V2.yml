@@ -1,0 +1,149 @@
+name: AERONAV RC12.37.11 Remove Front
+
+'on':
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  remove_front:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply RC12.37.11
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # index.html
+          p = Path("index.html")
+          h = p.read_text(encoding="utf-8")
+          old_title = "<title>AERONAV — RC12.37.10</title>"
+          old_app = "const APP_VERSION = 'RC12.37.10 · Vistas + Auto Zoom + Single Aircraft';"
+          if old_title not in h:
+              raise SystemExit("RC12.37.10 title not found")
+          if old_app not in h:
+              raise SystemExit("RC12.37.10 APP_VERSION not found")
+          h = h.replace(old_title, "<title>AERONAV — RC12.37.11</title>", 1)
+          h = h.replace(old_app, "const APP_VERSION = 'RC12.37.11 · Flight Angles Cleanup';", 1)
+          p.write_text(h, encoding="utf-8")
+
+          # flight-camera-director.js
+          p = Path("flight-camera-director.js")
+          c = p.read_text(encoding="utf-8")
+
+          front_preset = "    front:    { label:'FRENTE',         pitch:60, bearingOffset:180, zoom:11.0, external:true,  planeY:61 },\n"
+          if front_preset not in c:
+              raise SystemExit("FRENTE preset not found")
+          c = c.replace(front_preset, "", 1)
+
+          old_transform = "      if (prefs.preset === 'front') plane.style.transform = 'translate(-50%,-50%) scaleX(-1)';\n      else if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-4deg)';\n"
+          new_transform = "      if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-4deg)';\n"
+          if old_transform not in c:
+              raise SystemExit("FRENTE transform not found")
+          c = c.replace(old_transform, new_transform, 1)
+          p.write_text(c, encoding="utf-8")
+
+          # aircraft-visual-profiles.js
+          p = Path("aircraft-visual-profiles.js")
+          v = p.read_text(encoding="utf-8")
+          front_visual = "    if (preset === 'front') return 'translate(-50%,-50%) scaleX(-1) scaleY(.93)';\n"
+          if front_visual not in v:
+              raise SystemExit("FRENTE visual transform not found")
+          v = v.replace(front_visual, "", 1)
+          p.write_text(v, encoding="utf-8")
+
+          # aircraft-3d-models.js
+          p = Path("aircraft-3d-models.js")
+          m = p.read_text(encoding="utf-8")
+          front_3d = "    front:{offset:0,pitch:-12,range:1.02},\n"
+          if front_3d not in m:
+              raise SystemExit("FRENTE 3D preset not found")
+          m = m.replace(front_3d, "", 1)
+          p.write_text(m, encoding="utf-8")
+
+          # sw.js
+          p = Path("sw.js")
+          s = p.read_text(encoding="utf-8")
+          old_header = "/* AERONAV RC12.37.10 — Vistas + Auto Zoom + Single Aircraft + versioned offline shell */"
+          old_cache = "const CACHE='aeronav-jorge-RC12_37_10-map-view-controls-20261008';"
+          old_release = "release:'RC12.37.10'"
+
+          if old_header not in s:
+              raise SystemExit("RC12.37.10 SW header not found")
+          if old_cache not in s:
+              raise SystemExit("RC12.37.10 SW cache not found")
+          if old_release not in s:
+              raise SystemExit("RC12.37.10 SW release not found")
+
+          s = s.replace(
+              old_header,
+              "/* AERONAV RC12.37.11 — Flight Angles Cleanup + versioned offline shell */",
+              1
+          )
+          s = s.replace(
+              old_cache,
+              "const CACHE='aeronav-jorge-RC12_37_11-flight-angles-cleanup-20261008';",
+              1
+          )
+          s = s.replace(old_release, "release:'RC12.37.11'", 1)
+          p.write_text(s, encoding="utf-8")
+          PY
+
+      - name: Validate RC12.37.11
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node --check flight-camera-director.js
+          node --check aircraft-visual-profiles.js
+          node --check aircraft-3d-models.js
+          node --check sw.js
+
+          grep -Fq "<title>AERONAV — RC12.37.11</title>" index.html
+          grep -Fq "RC12.37.11 · Flight Angles Cleanup" index.html
+
+          if grep -Fq "label:'FRENTE'" flight-camera-director.js; then
+            echo "FRENTE still present"
+            exit 1
+          fi
+
+          if grep -Fq "preset === 'front'" aircraft-visual-profiles.js; then
+            echo "front visual still present"
+            exit 1
+          fi
+
+          if grep -Fq "front:{offset:" aircraft-3d-models.js; then
+            echo "front 3D still present"
+            exit 1
+          fi
+
+          grep -Fq "release:'RC12.37.11'" sw.js
+
+      - name: Commit RC12.37.11
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "AERONAV Update"
+          git config user.email "actions@users.noreply.github.com"
+
+          git add index.html sw.js flight-camera-director.js aircraft-visual-profiles.js aircraft-3d-models.js
+
+          if git diff --cached --quiet; then
+            echo "No changes required."
+            exit 0
+          fi
+
+          git commit -m "RC12.37.11 remove front flight angle"
+          git push origin HEAD:main
