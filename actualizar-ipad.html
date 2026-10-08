@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AERONAV | Atualizar iPad</title><style>
+body{background:#071725;color:#ecf9ff;font-family:system-ui,-apple-system,sans-serif;margin:0;padding:30px 22px;line-height:1.5}
+main{max-width:580px;margin:10vh auto}h1{font-size:26px}button{background:#087edb;border:1px solid #6ecaff;color:white;padding:16px;border-radius:13px;font-weight:800;font-size:17px;width:100%;margin:12px 0}p{color:#b6d9eb}.status{padding:14px;background:#10283b;border-radius:12px}
+</style></head><body><main><h1>✈ AERONAV — atualizar no iPad</h1><p>Atualize os ficheiros da aplicação sem apagar mapas PMTiles, rotas ou dados do dispositivo.</p><button id="go" type="button">Verificar e atualizar</button><p class="status" id="status">Aguardando confirmação.</p><p>Não escolha «Limpar dados de websites» nem elimine o ícone da aplicação.</p></main>
+<script>
+const go=document.getElementById('go'),status=document.getElementById('status');
+go.onclick=async()=>{
+ go.disabled=true;status.textContent='A verificar a atualização…';
+ try{
+  if('serviceWorker'in navigator){
+   const reg=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
+   await reg.update();
+   if(reg.installing){
+    status.textContent='A preparar a nova versão. Aguarde…';
+    await Promise.race([new Promise(resolve=>{let w=reg.installing;if(!w)return resolve();w.addEventListener('statechange',()=>{if(w.state==='activated'||w.state==='redundant')resolve();});}),new Promise(resolve=>setTimeout(resolve,20000))]);
+   }
+  }
+  status.textContent='A abrir o AERONAV atualizado…';
+  const url=new URL('./index.html',location.href);url.searchParams.set('atualizar',String(Date.now()));
+  location.replace(url.href);
+ }catch(e){status.textContent='Não foi possível atualizar: '+String(e?.message||e);go.disabled=false;}
+};
+</script></body></html>

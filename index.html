@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.37.16</title>
+  <title>AERONAV — RC12.37.17</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -824,7 +824,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = 'RC12.37.16 · Vista traseira e cockpit dinamico';
+  const APP_VERSION = 'RC12.37.17 · Atualização segura iPad';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -7453,6 +7453,47 @@ body{min-height:var(--app-vh);margin:0}
 <script src="./flight-angle-photo-renderer.js?v=RC12.37.16"></script>
 <script src="./terrain-photo3d-runtime.js?v=RC12.37.3"></script>
 <script src="./drive-core.js?v=RC12.37.2"></script>
+<script id="aeronav-ipad-safe-update-3717">
+(()=>{
+  'use strict';
+  let busy=false,swReloaded=false;
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{
+      if(swReloaded)return;
+      swReloaded=true;
+      const key='aeronav.ipad.sw-reloaded.RC12.37.17';
+      try{if(sessionStorage.getItem(key))return;sessionStorage.setItem(key,'1');}catch(_){ }
+      location.reload();
+    });
+  }
+  function setup(){
+    const menu=document.getElementById('mobileMapMenu');
+    if(!menu||document.getElementById('aeronavIpadSafeUpdateBtn3717'))return;
+    const button=document.createElement('button');
+    button.type='button';button.id='aeronavIpadSafeUpdateBtn3717';
+    button.textContent='♻ Atualizar aplicação (sem apagar mapas)';
+    button.addEventListener('click',async()=>{
+      if(busy)return;busy=true;button.disabled=true;button.textContent='♻ A verificar atualização…';
+      try{
+        if('serviceWorker' in navigator){
+          const reg=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
+          await reg.update();
+        }
+        const url=new URL('./index.html',location.href);
+        url.searchParams.set('aeronav-refresh',String(Date.now()));
+        location.replace(url.href);
+      }catch(e){
+        busy=false;button.disabled=false;button.textContent='♻ Tentar atualização novamente';
+        const toast=document.getElementById('toast');
+        if(toast){toast.textContent='Atualização: '+String(e?.message||e);toast.classList.add('show');}
+      }
+    });
+    menu.appendChild(button);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});
+  else setup();
+})();
+</script>
 </body>
 </html>
 

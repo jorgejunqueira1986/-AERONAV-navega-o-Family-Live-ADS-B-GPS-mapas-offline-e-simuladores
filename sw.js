@@ -1,4 +1,4 @@
-/* AERONAV RC12.37.14 — plane-only perspectives; offline GLB cache */
+/* AERONAV RC12.37.17 — iPad PWA safe refresh / network-first navigation */
 /* AERONAV RC12.32 — bounded UI work + versioned offline shell */
 /* AERONAV RC12.31.2 — Performance Recovery */
 /* AERONAV RC12.31 — Diagnostic + Recovery */
@@ -13,8 +13,9 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_37_16-rear-and-live-cockpit-20261008';
+const CACHE='aeronav-jorge-RC12_37_17-ipad-safe-update-20261008';
 const LOCAL=["./flight-angle-photo-renderer.js","./assets/flight-angle-renders/b777300/behind_rc123716.webp","./assets/flight-angle-renders/b777300/cockpit_rc123716.webp","./assets/flight-angle-renders/b777300/behind.webp","./assets/flight-angle-renders/b777300/left.webp","./assets/flight-angle-renders/b777300/right.webp","./assets/flight-angle-renders/b777300/top.webp","./assets/flight-angle-renders/b777300/inclined.webp","./assets/flight-angle-renders/b777300/cockpit_live.webp","./camera-map-behavior.js","./flight-camera-ui-fix.js","./aircraft-3d-models.js","./aircraft-perspective-viewer.js","./assets/aircraft3d/c152.glb","./assets/aircraft3d/c172.glb","./assets/aircraft3d/q400.glb","./assets/aircraft3d/b7377.glb","./assets/aircraft3d/a2203.glb","./assets/aircraft3d/b777300.glb","./assets/aircraft3d/b7879.glb","./assets/aircraft3d/b78710.glb","./aircraft-visual-profiles.js","./flight-camera-director.js","./photo3d-renderer.js","./terrain-photo3d-runtime.js","./photo3d-proxy.js","./drive-core.js","./cockpit-lite.js","./assets/people/mathia-avatar-rc12313.png","./assets/people/jorge-avatar-rc12313.png","./index.html","./manifest.json","./sw.js","./family-viewer.html","./wendler.html","./family-viewer-preview.html","./cockpit-audio.js","./family-call.js","./angola-offline-fragment.js","./vendor/pmtiles-3.2.1.js","./work-status-fragment.js","./meteo-visual-voo.js","./meteo-route-phase2.js","./meteo-altitude-phase3.js","./diagnostic-recovery.js","./gps-view-modes.js","./flight-ops-fragment.js","./","./vendor/maplibre-gl-5.24.0.js","./vendor/maplibre-gl-5.24.0.css","./vendor/fonts/Noto Sans Regular/0-255.pbf","./vendor/fonts/Noto Sans Regular/256-511.pbf"];
+const CRITICAL=['./index.html','./sw.js','./flight-angle-photo-renderer.js','./assets/flight-angle-renders/b777300/behind_rc123716.webp','./assets/flight-angle-renders/b777300/cockpit_rc123716.webp'];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js',
@@ -101,20 +102,37 @@ async function networkFirst(request){
   }
 }
 
+/* RC12.37.17: install the next release after five critical files are ready.
+   Optional offline fonts, GLB, maps and libraries are warmed after activation.
+   Never clear IndexedDB, localStorage or saved PMTiles. */
 self.addEventListener('install',event=>{
-  event.waitUntil(warm().then(result=>{if(!result.localReady)throw new Error('Núcleo offline incompleto; versão anterior preservada.');return self.skipWaiting();}));
+  event.waitUntil((async()=>{
+    const c=await caches.open(CACHE);
+    const ok=await Promise.all(CRITICAL.map(async u=>{
+      try{
+        const r=await fetchTimed(u,{cache:'reload'},15000);
+        if(!r.ok)return false;
+        await c.put(u,r.clone());return true;
+      }catch(_){return false;}
+    }));
+    if(ok.some(x=>!x))throw new Error('Ficheiros essenciais incompletos; cache antigo preservado.');
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate',event=>{
   event.waitUntil((async()=>{
-    const keys=await caches.keys();
-    await Promise.all(keys.filter(k=>k!==CACHE &&
-      (k.startsWith('app-nav-')||(k.startsWith('aeronav-')&&!k.startsWith('aeronav-mathia-')&&!k.startsWith('aeronav-wendler-')&&!k.startsWith('aeronav-family-'))))
-      .map(k=>caches.delete(k)));
     await self.clients.claim();
+    const result=await warm().catch(()=>({localReady:false}));
+    // Delete ONLY outdated AERONAV Jorge app-shell caches after a full warmup.
+    // Other cache stores (including map packs) and all IndexedDB data are untouched.
+    if(result.localReady){
+      const keys=await caches.keys();
+      await Promise.all(keys.filter(k=>k!==CACHE&&k.startsWith('aeronav-jorge-RC12_'))
+        .map(k=>caches.delete(k)));
+    }
   })());
 });
-
 
 async function injectAngolaMapsIntoMainNavigation(response,request){
   const fallback=response?.clone?.()||response;
@@ -174,7 +192,7 @@ self.addEventListener('fetch',event=>{
   if(/\/mathia\//.test(p)||/\/wendler\//.test(p))return;
 
   if(req.mode==='navigate'){
-    event.respondWith((async()=>injectAngolaMapsIntoMainNavigation(await shellFirst(req),req))());
+    event.respondWith((async()=>injectAngolaMapsIntoMainNavigation(await networkFirst(req),req))());
     return;
   }
   if(REMOTE_SET.has(req.url)){
@@ -203,7 +221,7 @@ self.addEventListener('message',event=>{
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
         cacheVersion:CACHE,
-        release:'RC12.37.16'
+        release:'RC12.37.17'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){
