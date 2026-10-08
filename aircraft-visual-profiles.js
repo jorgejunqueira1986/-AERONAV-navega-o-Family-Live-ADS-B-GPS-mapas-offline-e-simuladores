@@ -1,4 +1,4 @@
-/* AERONAV RC12.37.7 — Aircraft Visual Profiles overlay. */
+/* AERONAV RC12.37.12 — TAAG fleet visual profiles. */
 (() => {
   'use strict';
   if (window.__AERONAV_AIRCRAFT_VISUALS_RC12377__) return;
@@ -95,8 +95,8 @@
   function transformForPreset(preset) {
     if (preset === 'left') return 'translate(-50%,-50%) rotate(-6deg) skewY(-2deg)';
     if (preset === 'right') return 'translate(-50%,-50%) rotate(6deg) skewY(2deg)';
-    if (preset === 'inclined') return 'translate(-50%,-50%) rotate(3deg)';
-    if (preset === 'top') return 'translate(-50%,-50%) scale(.96)';
+    if (preset === 'inclined') return 'translate(-50%,-50%) rotate(4deg)';
+    if (preset === 'top') return 'translate(-50%,-50%) scale(.95)';
     return 'translate(-50%,-50%)';
   }
 
@@ -128,14 +128,14 @@
   }
 
   window.AERONAVAircraftVisuals = {
-    release:'RC12.37.7',
+    release:'RC12.37.12',
     profiles:() => ({...PROFILES}),
     sync,
     status:() => {
       const id = aircraftId();
       const cam = cameraStatus();
       return {
-        release:'RC12.37.7',
+        release:'RC12.37.12',
         aircraft:id,
         aircraftName:PROFILES[id].name,
         preset:cam.preset || 'behind',

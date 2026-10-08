@@ -1,4 +1,4 @@
-/* AERONAV RC12.37.6 — Flight Camera Director: manual + automatic phase mode. */
+/* AERONAV RC12.37.12 — TAAG camera perspectives. */
 (() => {
   'use strict';
   if (window.__AERONAV_FLIGHT_CAMERA_RC12376__) return;
@@ -10,13 +10,13 @@
   const $ = s => document.querySelector(s);
 
   const PRESETS = {
-    behind:   { label:'ATRÁS',          pitch:68, bearingOffset:0,   zoom:11.2, external:true,  planeY:66 },
-    left:     { label:'LADO ESQUERDO',  pitch:58, bearingOffset:90,  zoom:10.8, external:true,  planeY:64 },
-    right:    { label:'LADO DIREITO',   pitch:58, bearingOffset:-90, zoom:10.8, external:true,  planeY:64 },
-    top:      { label:'TOPO',           pitch:0,  bearingOffset:0,   zoom:10.2, external:true,  planeY:50 },
-    inclined: { label:'INCLINADA',      pitch:72, bearingOffset:35,  zoom:11.4, external:true,  planeY:67 },
-    orbit:    { label:'ÓRBITA 360°',    pitch:62, bearingOffset:0,   zoom:10.9, external:true,  planeY:62 },
-    cockpit:  { label:'COCKPIT',        pitch:55, bearingOffset:0,   zoom:9.2,  external:false, planeY:0  }
+    behind:   { label:'ATRÁS',          pitch:72, bearingOffset:0,    zoom:11.4, external:true,  planeY:67 },
+    left:     { label:'LADO ESQUERDO',  pitch:60, bearingOffset:105,  zoom:10.9, external:true,  planeY:64 },
+    right:    { label:'LADO DIREITO',   pitch:60, bearingOffset:-105, zoom:10.9, external:true,  planeY:64 },
+    top:      { label:'TOPO',           pitch:0,  bearingOffset:0,    zoom:10.4, external:true,  planeY:50 },
+    inclined: { label:'INCLINADA',      pitch:74, bearingOffset:40,   zoom:11.4, external:true,  planeY:66 },
+    orbit:    { label:'ÓRBITA 360°',    pitch:64, bearingOffset:0,    zoom:10.9, external:true,  planeY:62 },
+    cockpit:  { label:'COCKPIT',        pitch:55, bearingOffset:0,    zoom:9.2,  external:false, planeY:0  }
   };
 
   const AUTO_MAP = {
@@ -360,8 +360,10 @@
     if (plane) {
       plane.style.top = `${preset.planeY || 64}%`;
       plane.style.width = prefs.preset === 'top' ? 'min(30vw,220px)' : 'min(42vw,310px)';
-      if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-4deg)';
-      else if (prefs.preset === 'right') plane.style.transform = 'translate(-50%,-50%) rotate(4deg)';
+      if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-6deg) skewY(-2deg)';
+      else if (prefs.preset === 'right') plane.style.transform = 'translate(-50%,-50%) rotate(6deg) skewY(2deg)';
+      else if (prefs.preset === 'inclined') plane.style.transform = 'translate(-50%,-50%) rotate(4deg)';
+      else if (prefs.preset === 'top') plane.style.transform = 'translate(-50%,-50%) scale(.95)';
       else plane.style.transform = 'translate(-50%,-50%)';
     }
 
@@ -439,7 +441,7 @@
           source,
           phase:runtime.autoPhase,
           automatic:prefs.automatic,
-          release:'RC12.37.6'
+          release:'RC12.37.12'
         }
       }));
       runtime.lastApply = Date.now();
@@ -522,7 +524,7 @@
   }
 
   window.AERONAVFlightCamera = {
-    release:'RC12.37.6',
+    release:'RC12.37.12',
     presets:() => Object.fromEntries(Object.entries(PRESETS).map(([k,v]) => [k,v.label])),
     autoMap:() => ({ ...AUTO_MAP }),
     set:(id) => setPreset(id, { manual:true }),
@@ -531,7 +533,7 @@
     apply:() => applyPreset({ instant:false, source:prefs.automatic ? 'automatic' : 'manual' }),
     open:() => { ensureUi(); runtime.menuOpen=false; toggleMenu(); },
     status:() => ({
-      release:'RC12.37.6',
+      release:'RC12.37.12',
       enabled:prefs.enabled,
       preset:prefs.preset,
       label:(PRESETS[prefs.preset] || PRESETS.behind).label,

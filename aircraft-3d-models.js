@@ -1,4 +1,4 @@
-/* AERONAV RC12.37.8 — True 3D aircraft models for Photo3D/Cesium. */
+/* AERONAV RC12.37.12 — TAAG 3D aircraft views. */
 (() => {
   'use strict';
   if (window.__AERONAV_AIRCRAFT_3D_RC12378__) return;
@@ -17,12 +17,12 @@
   };
 
   const CAMERA={
-    behind:{offset:180,pitch:-18,range:1},
-    left:{offset:-90,pitch:-15,range:1.04},
-    right:{offset:90,pitch:-15,range:1.04},
-    top:{offset:180,pitch:-89,range:1.12},
-    inclined:{offset:145,pitch:-27,range:.96},
-    orbit:{offset:180,pitch:-20,range:1.08}
+    behind:{offset:180,pitch:-24,range:1.12},
+    left:{offset:-105,pitch:-18,range:1.08},
+    right:{offset:105,pitch:-18,range:1.08},
+    top:{offset:180,pitch:-82,range:1.18},
+    inclined:{offset:145,pitch:-32,range:1.00},
+    orbit:{offset:180,pitch:-22,range:1.10}
   };
 
   const runtime={model:null,modelId:'',loading:false,error:'',active:false,orbit:0,lastUpdate:0};
@@ -126,9 +126,9 @@
   }
 
   window.AERONAV3DAircraft={
-    release:'RC12.37.8',activate,deactivate,sync:tick,
+    release:'RC12.37.12',activate,deactivate,sync:tick,
     models:()=>Object.fromEntries(Object.entries(MODELS).map(([k,v])=>[k,{name:v.name,url:v.url}])),
-    status:()=>({release:'RC12.37.8',active:runtime.active,loading:runtime.loading,error:runtime.error,aircraft:selectedId(),aircraftName:MODELS[selectedId()].name,modelLoaded:!!runtime.model,modelId:runtime.modelId,preset:preset()})
+    status:()=>({release:'RC12.37.12',active:runtime.active,loading:runtime.loading,error:runtime.error,aircraft:selectedId(),aircraftName:MODELS[selectedId()].name,modelLoaded:!!runtime.model,modelId:runtime.modelId,preset:preset()})
   };
 
   ensureStyle();
