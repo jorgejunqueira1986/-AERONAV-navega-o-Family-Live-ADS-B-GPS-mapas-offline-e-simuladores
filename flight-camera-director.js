@@ -1,4 +1,4 @@
-/* AERONAV RC12.37.12 — TAAG camera perspectives. */
+/* AERONAV RC12.37.14 — Aircraft-only GLB camera, map stays stable. */
 (() => {
   'use strict';
   if (window.__AERONAV_FLIGHT_CAMERA_RC12376__) return;
@@ -360,11 +360,7 @@
     if (plane) {
       plane.style.top = `${preset.planeY || 64}%`;
       plane.style.width = prefs.preset === 'top' ? 'min(30vw,220px)' : 'min(42vw,310px)';
-      if (prefs.preset === 'left') plane.style.transform = 'translate(-50%,-50%) rotate(-6deg) skewY(-2deg)';
-      else if (prefs.preset === 'right') plane.style.transform = 'translate(-50%,-50%) rotate(6deg) skewY(2deg)';
-      else if (prefs.preset === 'inclined') plane.style.transform = 'translate(-50%,-50%) rotate(4deg)';
-      else if (prefs.preset === 'top') plane.style.transform = 'translate(-50%,-50%) scale(.95)';
-      else plane.style.transform = 'translate(-50%,-50%)';
+      plane.style.transform = 'translate(-50%,-50%)';
     }
 
     $('#flightCameraMenu')?.querySelectorAll('[data-flight-camera]').forEach(b => {
@@ -387,68 +383,22 @@
     $('#flightCameraMenu')?.classList.remove('show');
   }
 
-  function targetFor(presetId, m, instant = false) {
-    const p = PRESETS[presetId] || PRESETS.behind;
-    const center = centerFor(m);
-    const hdg = headingFor(m);
-    const currentZoom = Number(m.getZoom?.() || p.zoom);
-    let bearing = (hdg + p.bearingOffset + 360) % 360;
-
-    if (presetId === 'orbit') {
-      runtime.orbitAngle = (runtime.orbitAngle + 6) % 360;
-      bearing = (hdg + runtime.orbitAngle) % 360;
-    }
-
-    const target = {
-      center: center || undefined,
-      pitch: p.pitch,
-      bearing,
-      duration: instant ? 0 : (presetId === 'orbit' ? 260 : 700),
-      padding: p.external
-        ? { top:70, bottom:175, left:14, right:14 }
-        : { top:55, bottom:75, left:12, right:12 }
-    };
-    if (localStorage.getItem('aeronav.map.autozoom') !== '0') {
-      target.zoom = Math.max(currentZoom, p.zoom);
-    }
-    return target;
-  }
-
+  /* RC12.37.14: flight-camera presets control the aircraft, NOT MapLibre. */
   function applyPreset({ instant = false, source = 'manual' } = {}) {
     ensureUi();
     syncSelectedAircraftImage();
     syncUi();
-
     if (!prefs.enabled || !modeFlight() || !mapActive()) return false;
-    const m = mapObject();
-    if (!m) return false;
-
-    const preset = PRESETS[prefs.preset] || PRESETS.behind;
-
-    if (prefs.preset === 'cockpit') {
-      window.__AERONAV_COCKPIT_PITCH__ = 55;
-      try { window.AERONAVCockpit?.camera?.(55); } catch (_) {}
-    }
-
-    try {
-      m.setMaxPitch?.(80);
-      m.easeTo(targetFor(prefs.preset, m, instant));
-      window.AERONAVPhoto3DRenderer?.sync?.();
-      window.dispatchEvent(new CustomEvent('aeronav:camera-change', {
-        detail: {
-          preset:prefs.preset,
-          label:preset.label,
-          source,
-          phase:runtime.autoPhase,
-          automatic:prefs.automatic,
-          release:'RC12.37.12'
-        }
-      }));
-      runtime.lastApply = Date.now();
-      return true;
-    } catch (_) {
-      return false;
-    }
+    const selected = PRESETS[prefs.preset] || PRESETS.behind;
+    // GLB renderer listens to this event. No calls to map.easeTo, setPitch,
+    // setBearing, camera fitting or Cesium photographic map positioning.
+    window.dispatchEvent(new CustomEvent('aeronav:camera-change', {
+      detail: {preset:prefs.preset,label:selected.label,source,
+        phase:runtime.autoPhase,automatic:prefs.automatic,
+        aircraftOnly:true,release:'RC12.37.14'}
+    }));
+    runtime.lastApply = Date.now();
+    return true;
   }
 
   function setPreset(id, { manual = false, instant = false } = {}) {
@@ -514,7 +464,7 @@
     if (!prefs.enabled || !modeFlight() || !mapActive()) return;
 
     const now = Date.now();
-    const cadence = prefs.preset === 'orbit' ? 280 : 1200;
+    const cadence = 1200; // Orbit is animated in the aircraft GLB viewer.
     if (now - runtime.lastApply >= cadence) {
       applyPreset({
         instant:false,
@@ -524,7 +474,7 @@
   }
 
   window.AERONAVFlightCamera = {
-    release:'RC12.37.12',
+    release:'RC12.37.14',
     presets:() => Object.fromEntries(Object.entries(PRESETS).map(([k,v]) => [k,v.label])),
     autoMap:() => ({ ...AUTO_MAP }),
     set:(id) => setPreset(id, { manual:true }),
@@ -533,7 +483,7 @@
     apply:() => applyPreset({ instant:false, source:prefs.automatic ? 'automatic' : 'manual' }),
     open:() => { ensureUi(); runtime.menuOpen=false; toggleMenu(); },
     status:() => ({
-      release:'RC12.37.12',
+      release:'RC12.37.14',
       enabled:prefs.enabled,
       preset:prefs.preset,
       label:(PRESETS[prefs.preset] || PRESETS.behind).label,

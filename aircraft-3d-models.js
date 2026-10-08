@@ -54,6 +54,8 @@
   function preset(){const p=cameraStatus().preset||'behind';return p==='cockpit'?null:p;}
 
   function shouldRun(){
+    // Independent aircraft camera supersedes the Cesium aircraft model.
+    if(window.AERONAVAircraftPerspective?.status?.().active)return false;
     const p=photoStatus(),c=cameraStatus();
     return !!(p.enabled&&p.ready&&c.active&&preset()&&document.querySelector('#screen-map')?.classList.contains('active')&&localStorage.getItem('aeronav.mode')==='flight');
   }
