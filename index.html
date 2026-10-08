@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#071725" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>AERONAV — RC12.37.20</title>
+  <title>AERONAV — RC12.37.21</title>
   <script id="aeronav-client-scope-guard">
   (()=>{
     const p=location.pathname.toLowerCase();
@@ -92,7 +92,7 @@ main{max-width:1120px;margin:0 auto}.screen{display:none;min-height:calc(100dvh 
 /* ---------- X-Plane 12 Bridge ---------- */
 .source-picker{margin:12px 0}.bridge-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.bridge-kpi{padding:11px;border-radius:12px;background:#061823;border:1px solid #18394d}.bridge-kpi span{display:block;color:#89a4b5;font-size:10px;font-weight:850}.bridge-kpi strong{display:block;font-size:16px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bridge-status{display:flex;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;border:1px solid #214c63;border-radius:11px;background:#071a25}.bridge-status .dot{width:10px;height:10px;border-radius:50%;background:#657987}.bridge-status.ok .dot{background:#57e6b4;box-shadow:0 0 10px #57e6b477}.bridge-status.warn .dot{background:#ffca63}.bridge-status.bad .dot{background:#ff6f7d}.bridge-status strong{font-size:12px}.bridge-status small{display:block;color:#9fb6c6;margin-top:2px}.bridge-help{margin-top:10px;padding:11px 12px;border-radius:12px;background:#09273a;border:1px solid #1d4e68;color:#bcecff;font-size:12px;line-height:1.5}.source-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:999px;background:#153d55;color:#76ddff;font-size:10px;font-weight:900}.source-pill.sim{background:#3d2d12;color:#ffdc8c}.source-pill.real{background:#0f4638;color:#81f2c8}
 @media(max-width:720px){.bridge-grid{grid-template-columns:1fr 1fr}}
-@media (max-width:720px){.mode-map-label{margin-left:0}.decea-legend{grid-template-columns:1fr}.position-marker{transform:scale(.92)}}
+@media (max-width:720px){.mode-map-label{margin-left:0}.decea-legend{grid-template-columns:1fr}}
 
 
 /* ---------- AERONAV Family Live ---------- */
@@ -588,7 +588,7 @@ body{min-height:var(--app-vh);margin:0}
 
 </style>
 <style id="aeronav-marker-size-style">
-/* RC12.37.20 · Ajuste independente dos ícones no mapa (não altera zoom) */
+/* RC12.37.21 · Ajuste independente dos ícones no mapa (não altera zoom) */
 .marker-size-overlay{position:fixed;inset:0;z-index:380;background:rgba(2,11,20,.76);display:flex;align-items:center;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom));box-sizing:border-box;backdrop-filter:blur(5px)}
 .marker-size-panel{width:min(440px,100%);max-height:85dvh;overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(165deg,#0a293c,#061623);color:#eafaff;border:1px solid #327699;border-radius:20px;box-shadow:0 24px 75px #000b;padding:18px;box-sizing:border-box}
 .marker-size-heading{display:flex;align-items:start;justify-content:space-between;gap:12px;margin-bottom:8px}
@@ -598,6 +598,7 @@ body{min-height:var(--app-vh);margin:0}
 .marker-size-item.current{border-color:#51ccef;background:#0b3046}
 .marker-size-topline{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:800;font-size:14px}
 .marker-size-topline output{font-variant-numeric:tabular-nums;color:#94ebff;font-size:15px}
+.marker-size-preview-wrap{height:112px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#061621,#071e2d);border:1px solid #1a3d52;border-radius:12px;margin:9px 0 6px}.marker-size-preview-wrap img{max-width:none;max-height:none;object-fit:contain;display:block;filter:drop-shadow(0 4px 6px #000a)}
 .marker-size-tools{display:flex;align-items:center;gap:10px;margin-top:10px}
 .marker-size-tools button{min-width:44px;min-height:44px;border:1px solid #37728e;border-radius:12px;background:#0e3c56;color:#fff;font-size:21px;font-weight:900}
 .marker-size-tools input[type=range]{width:100%;min-width:0;accent-color:#47cfff;flex:1;touch-action:pan-y}
@@ -843,7 +844,7 @@ body{min-height:var(--app-vh);margin:0}
 (async () => {
   'use strict';
 
-  const APP_VERSION = 'RC12.37.20 · Atualização segura iPad';
+  const APP_VERSION = 'RC12.37.21 · Atualização segura iPad';
   const AERONAV_CLIENT_ROLE = 'admin-jorge';
 
   const AIRLINE_DIRECTORY = [
@@ -4371,7 +4372,7 @@ body{min-height:var(--app-vh);margin:0}
   }
 
 
-  // ---------- RC12.37.20 encrypted saved routes / presets sync ----------
+  // ---------- RC12.37.21 encrypted saved routes / presets sync ----------
   // Separate encrypted rows avoid overwriting unrelated iPhone/iPad routes.
   const ROUTE_LIBRARY_PREFIX='__AERONAV_ROUTE_LIB_';
   const ROUTE_LIBRARY_TOMBS='aeronav.routes.library.tombstones.v1';
@@ -4928,6 +4929,7 @@ body{min-height:var(--app-vh);margin:0}
       marker.setLngLat([dlon,dlat]);const node=marker.getElement();node.className='family-marker transport-'+av.kind+(age>120000?' stale':'');node.innerHTML=av.src?`<img src="${av.src}" alt="${esc(av.label)}" draggable="false">`:familyInitials(name);node.title=`${name} · ${m._source||'GPS'} · ${age>120000?'posição alternativa/antiga':'ao vivo'}`;
       const popup=new maplibregl.Popup({offset:34,closeButton:true,closeOnClick:true}).setDOMContent(familyMapPopupFor(m));marker.setPopup(popup);node.style.cursor='pointer';
       if(av.kind!=='walk'&&Number.isFinite(Number(m.heading))&&marker.setRotation)marker.setRotation(Number(m.heading));else if(marker.setRotation)marker.setRotation(0);
+      ownMarkerApplyFamilyNode(node);
     }
     for(const [key,mk] of [...state.family.markers]){if(!active.has(key)){try{mk.remove()}catch(_){}state.family.markers.delete(key);}}
   }
@@ -5158,13 +5160,13 @@ body{min-height:var(--app-vh);margin:0}
   }
 
 
-  // ---------- RC12.37.20 marker dimensions: AVIÃO / CARRO / A PÉ ----------
-  // Marker DOM elements are sized; do not transform them because MapLibre uses
-  // transform for positioning and rotation. Settings are kept per device.
+  // ---------- RC12.37.21 — tamanhos reais: ownship, Family Live, tráfego ADS-B ----------
+  // Não tocar em transform: o MapLibre utiliza-o para posicionar e rodar marcadores.
   const OWN_MARKER_SIZES_KEY='aeronav.markerSizes.v1';
   const OWN_MARKER_KINDS=['flight','drive','walk'];
   const OWN_MARKER_BOUNDS={min:50,max:200,step:10};
   const OWN_MARKER_BASE={flight:[120,88,120,86],drive:[58,58,54,54],walk:[65,65,65,65]};
+  const FAMILY_MARKER_BASE={flight:[94,70],drive:[52,52],walk:[55,55]};
   function ownMarkerClamp(value){
     const v=Number(value);
     return Number.isFinite(v)?Math.max(OWN_MARKER_BOUNDS.min,Math.min(OWN_MARKER_BOUNDS.max,Math.round(v/OWN_MARKER_BOUNDS.step)*OWN_MARKER_BOUNDS.step)):100;
@@ -5174,30 +5176,73 @@ body{min-height:var(--app-vh);margin:0}
     return Object.fromEntries(OWN_MARKER_KINDS.map(k=>[k,ownMarkerClamp(v[k]??100)]));
   }
   const ownMarkerSizes=ownMarkerReadSizes();
-  function ownMarkerApplySize(){
-    const el=state.positionMarker?.getElement?.();
-    if(!el||!el.classList?.contains('position-marker'))return;
-    const kind=OWN_MARKER_KINDS.find(k=>el.classList.contains(k));if(!kind)return;
-    const scale=ownMarkerSizes[kind]/100,base=OWN_MARKER_BASE[kind];
-    el.style.width=Math.round(base[0]*scale)+'px';
-    el.style.height=Math.round(base[1]*scale)+'px';
+  function ownMarkerApplyNode(el,kind,source='own'){
+    if(!el||!OWN_MARKER_KINDS.includes(kind))return false;
+    const factor=ownMarkerSizes[kind]/100;
+    const base=source==='family'?FAMILY_MARKER_BASE[kind]:OWN_MARKER_BASE[kind];
+    el.style.width=Math.round(base[0]*factor)+'px';
+    el.style.height=Math.round(base[1]*factor)+'px';
     const img=el.querySelector('img');
-    if(img){img.style.width=Math.round(base[2]*scale)+'px';img.style.height=Math.round(base[3]*scale)+'px'}
+    if(img){
+      img.style.width=Math.round((source==='family'?base[0]:base[2])*factor)+'px';
+      img.style.height=Math.round((source==='family'?base[1]:base[3])*factor)+'px';
+    }
     const fallback=el.querySelector('.avatar-fallback');
-    if(fallback)fallback.style.fontSize=Math.round(30*scale)+'px';
+    if(fallback)fallback.style.fontSize=Math.round(30*factor)+'px';
+    if(source==='family'&&!img)el.style.fontSize=Math.round(12*factor)+'px';
+    el.dataset.aeronavMarkerScaled=kind+':'+ownMarkerSizes[kind];
+    return true;
+  }
+  function ownMarkerApplyFamilyNode(el){
+    if(!el||!el.classList?.contains('family-marker'))return false;
+    const kind=OWN_MARKER_KINDS.find(k=>el.classList.contains('transport-'+k))||'walk';
+    return ownMarkerApplyNode(el,kind,'family');
+  }
+  function ownMarkerApplyTrafficNode(el){
+    if(!el||!el.classList?.contains('adsb-dom-marker'))return false;
+    const side=Math.round(44*ownMarkerSizes.flight/100);
+    el.style.width=side+'px';el.style.height=side+'px';
+    const svg=el.querySelector('svg');
+    if(svg){svg.style.width=side+'px';svg.style.height=side+'px';}
+    el.dataset.aeronavMarkerScaled='flight:'+ownMarkerSizes.flight;
+    return true;
+  }
+  function ownMarkerApplySize(){
+    let changed=0;
+    const own=state.positionMarker?.getElement?.();
+    if(own?.classList?.contains('position-marker')){
+      const kind=OWN_MARKER_KINDS.find(k=>own.classList.contains(k));
+      if(kind&&ownMarkerApplyNode(own,kind,'own'))changed++;
+    }
+    for(const marker of state.family?.markers?.values?.()||[]){
+      if(ownMarkerApplyFamilyNode(marker.getElement?.()))changed++;
+    }
+    for(const marker of state.traffic?.domMarkers?.values?.()||[]){
+      if(ownMarkerApplyTrafficNode(marker.getElement?.()))changed++;
+    }
+    return changed;
+  }
+  function ownMarkerRefreshPanel(){
+    const dialog=document.getElementById('aeronavMarkerSizeOverlay');if(!dialog)return;
+    for(const kind of OWN_MARKER_KINDS){
+      const range=dialog.querySelector('[data-marker-range="'+kind+'"]');
+      const output=dialog.querySelector('[data-marker-output="'+kind+'"]');
+      const preview=dialog.querySelector('[data-marker-preview="'+kind+'"]');
+      if(range)range.value=String(ownMarkerSizes[kind]);
+      if(output)output.textContent=ownMarkerSizes[kind]+'%';
+      if(preview){
+        const [w,h]=kind==='flight'?[76,55]:kind==='drive'?[49,49]:[55,55];
+        preview.style.width=Math.round(w*ownMarkerSizes[kind]/100)+'px';
+        preview.style.height=Math.round(h*ownMarkerSizes[kind]/100)+'px';
+      }
+    }
   }
   function ownMarkerSetSize(kind,value){
     if(!OWN_MARKER_KINDS.includes(kind))return;
     ownMarkerSizes[kind]=ownMarkerClamp(value);
     try{localStorage.setItem(OWN_MARKER_SIZES_KEY,JSON.stringify(ownMarkerSizes))}catch(e){console.warn('AERONAV tamanho ícone: não foi possível guardar',e)}
     ownMarkerApplySize();
-    const dialog=document.getElementById('aeronavMarkerSizeOverlay');
-    if(dialog){
-      const range=dialog.querySelector('[data-marker-range="'+kind+'"]');
-      const output=dialog.querySelector('[data-marker-output="'+kind+'"]');
-      if(range)range.value=String(ownMarkerSizes[kind]);
-      if(output)output.textContent=ownMarkerSizes[kind]+'%';
-    }
+    ownMarkerRefreshPanel();
   }
   function openOwnMarkerSizePanel(){
     const old=document.getElementById('aeronavMarkerSizeOverlay');if(old){old.querySelector('.marker-size-dismiss')?.focus();return}
@@ -5208,11 +5253,19 @@ body{min-height:var(--app-vh);margin:0}
     dialog.id='aeronavMarkerSizeOverlay';dialog.className='marker-size-overlay';
     dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-labelledby','markerSizeTitle');
     const current=state.mode==='flight'?'flight':groundTransport();
-    const specs=[['flight','✈','AVIÃO'],['drive','🚗','CARRO'],['walk','🚶','A PÉ']];
-    dialog.innerHTML='<div class="marker-size-panel"><div class="marker-size-heading"><div><h2 id="markerSizeTitle">Tamanho dos ícones</h2><p>Aumenta ou reduz o avião, o carro e a pessoa no mapa. Sem mudar o zoom.</p></div><button type="button" class="marker-size-dismiss" aria-label="Fechar">✕</button></div>'+
-      specs.map(([k,icon,title])=>'<section class="marker-size-item'+(current===k?' current':'')+'"><div class="marker-size-topline"><span>'+icon+' '+title+'</span><output data-marker-output="'+k+'">'+ownMarkerSizes[k]+'%</output></div><div class="marker-size-tools"><button type="button" data-marker-adjust="'+k+'" data-amount="-10" aria-label="Reduzir '+title+'">−</button><input data-marker-range="'+k+'" type="range" min="50" max="200" step="10" value="'+ownMarkerSizes[k]+'" aria-label="Tamanho '+title+'"><button type="button" data-marker-adjust="'+k+'" data-amount="10" aria-label="Aumentar '+title+'">+</button></div></section>').join('')+
-      '<p class="marker-size-tip">50%–200% · cada modo tem o seu tamanho · a escolha fica guardada neste aparelho.</p><button type="button" class="marker-size-reset" id="markerSizeReset">Restaurar tamanhos normais (100%)</button></div>';
+    const specs=[['flight','✈','AVIÃO'],['drive','🚗','CARRO'],['walk','🚶','A PÉ / AVATARES']];
+    dialog.innerHTML='<div class="marker-size-panel"><div class="marker-size-heading"><div><h2 id="markerSizeTitle">Tamanho dos ícones</h2><p>Aplica-se ao mapa principal, à família e às aeronaves ADS-B. Pré-visualização imediata mesmo sem GPS.</p></div><button type="button" class="marker-size-dismiss" aria-label="Fechar">✕</button></div>'+
+      specs.map(([k,icon,title])=>'<section class="marker-size-item'+(current===k?' current':'')+'"><div class="marker-size-topline"><span>'+icon+' '+title+'</span><output data-marker-output="'+k+'">'+ownMarkerSizes[k]+'%</output></div><div class="marker-size-preview-wrap"><img data-marker-preview="'+k+'" alt="Pré-visualização '+title+'" draggable="false"></div><div class="marker-size-tools"><button type="button" data-marker-adjust="'+k+'" data-amount="-10" aria-label="Reduzir '+title+'">−</button><input data-marker-range="'+k+'" type="range" min="50" max="200" step="10" value="'+ownMarkerSizes[k]+'" aria-label="Tamanho '+title+'"><button type="button" data-marker-adjust="'+k+'" data-amount="10" aria-label="Aumentar '+title+'">+</button></div></section>').join('')+
+      '<p class="marker-size-tip">50%–200% · AVIÃO também ajusta ADS-B e aeronaves da família. A PÉ ajusta avatares da família. Guardado neste aparelho.</p><button type="button" class="marker-size-reset" id="markerSizeReset">Restaurar tamanhos normais (100%)</button></div>';
     document.body.appendChild(dialog);
+    // As imagens reais utilizadas no mapa servem de pré-visualização.
+    const currentAircraft=AIRCRAFT.find(x=>x.id===state.aircraftPref)||AIRCRAFT[0];
+    const images={flight:aircraftAvatarFor(currentAircraft.id),drive:EMBEDDED_VEHICLE_AVATAR,walk:currentDevicePersonAvatar()};
+    for(const kind of OWN_MARKER_KINDS){
+      const img=dialog.querySelector('[data-marker-preview="'+kind+'"]');
+      if(img){img.src=images[kind]||'';img.onerror=()=>{img.style.display='none';}}
+    }
+    ownMarkerRefreshPanel();
     const close=()=>{dialog.remove();document.removeEventListener('keydown',onKey)};
     const onKey=event=>{if(event.key==='Escape')close()};
     dialog.querySelector('.marker-size-dismiss')?.addEventListener('click',close);
@@ -5701,6 +5754,7 @@ body{min-height:var(--app-vh);margin:0}
         if(!old||old.lon!==a.lon||old.lat!==a.lat||old.track!==trk){const pos=mk.getLngLat(),heading=mk.getRotation();mk.trafficMotion={at:performance.now(),lon:pos.lng,lat:pos.lat,dlon:((a.lon-pos.lng+540)%360)-180,dlat:a.lat-pos.lat,track:heading,dtrack:((trk-heading+540)%360)-180};}
       }
       mk.trafficTarget={lon:a.lon,lat:a.lat,track:trk};mk.trafficProps=props;el.setAttribute('aria-label',`${airline?.name||'Aeronave'} ${label}`);
+      ownMarkerApplyTrafficNode(el);
     }
     for(const [key,mk] of state.traffic.domMarkers){if(!active.has(key)){try{mk.remove()}catch(_){}state.traffic.domMarkers.delete(key);}}
     if([...state.traffic.domMarkers.values()].some(mk=>mk.trafficMotion))animateTrafficMarkers();
