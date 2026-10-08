@@ -1,3 +1,4 @@
+/* AERONAV RC12.37.13 — fix visible Vistas menu with TAAG external cameras. */
 /* AERONAV RC12.32 — compact cockpit, shared live state, no network/GPS owner. */
 (()=>{
 'use strict';
@@ -12,7 +13,7 @@ const num=v=>typeof v==='number'&&Number.isFinite(v);
 const val=(v,unit='',digits=0)=>num(v)?v.toFixed(digits)+unit:'—';
 const endpoint=x=>String(x||'—');
 function save(){try{localStorage.setItem(KEY,JSON.stringify(prefs));}catch(_){}}
-function closeMenu(){if(menu)menu.hidden=true;if(button)button.setAttribute('aria-expanded','false');}
+function closeMenu(){if(menu){menu.hidden=true;menu.setAttribute('aria-hidden','true');}if(button)button.setAttribute('aria-expanded','false');}
 function viewPitch(){return prefs.view==='aerial'?45:prefs.view==='cockpit'?55:0;}
 function applyView(move=true){
  window.__AERONAV_COCKPIT_PITCH__=viewPitch();
@@ -74,7 +75,7 @@ function start(){
  .cl-metrics{position:absolute;bottom:10px;left:9px;right:9px;padding:9px 6px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0}
  .cl-metrics>div{min-width:0;padding:0 8px;border-right:1px solid #24516d}.cl-metrics>div:last-child{border:0}.cl-metrics small{display:block;color:#8ab9d1;font-size:8px;letter-spacing:.04em;white-space:nowrap}.cl-metrics strong{display:block;font-size:15px;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  #clEstimate{position:absolute;bottom:75px;right:12px;padding:3px 6px;border-radius:5px;background:#041b2bd9;color:#b2cbdc;font-size:8px}
- #clViewMenu{position:absolute;z-index:50;top:9px;left:9px;right:9px;padding:12px;border:1px solid #56c9ed;border-radius:15px;background:#031627;box-shadow:0 12px 30px #0008}
+ #clViewMenu{position:absolute;z-index:150;top:9px;left:9px;right:9px;padding:12px;border:1px solid #56c9ed;border-radius:15px;background:#031627;box-shadow:0 12px 30px #0008;max-height:min(72dvh,480px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
  .cl-menu-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;font-weight:800}.cl-menu-head button{border:0;border-radius:8px;background:#163b51;color:white;width:36px;height:36px}
  .cl-views{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.cl-views button{min-height:62px;border:1px solid #27526f;border-radius:10px;background:linear-gradient(#123b55,#051727);color:#d4eefe;font-size:11px;font-weight:700}.cl-views button b{display:block;font-size:23px;margin-bottom:3px}.cl-views button[aria-pressed=true]{border-color:#54e4ff;box-shadow:inset 0 0 0 1px #54e4ff;color:#65e6ff}
  .cl-plane-size{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:12px;color:#aad0e1;font-size:11px}.cl-plane-size select{font-size:13px;color:#ecf9ff;background:#102d43;border:1px solid #326789;border-radius:8px;padding:9px}
@@ -96,8 +97,22 @@ function start(){
  <div class="cl-metrics cl-glass"><div><small>GROUND SPEED</small><strong id="clGs">—</strong></div><div><small>TRUE AIRSPEED</small><strong id="clTas">—</strong></div><div><small>DTG DIRETO</small><strong id="clDistance">—</strong></div><div><small>ETE EST.</small><strong id="clEte">—</strong></div><div><small>ETA EST. UTC</small><strong id="clEta">—</strong></div></div><small id="clEstimate" hidden>Estimativa direta ao destino</small>
  <section id="clViewMenu" aria-label="Vistas de navegação" hidden><div class="cl-menu-head">VISTA DE NAVEGAÇÃO<button type="button" id="clCloseViews" aria-label="Fechar vistas">✕</button></div><div class="cl-views"><button type="button" data-cl-view="aerial"><b>✈</b>Aérea</button><button type="button" data-cl-view="cockpit"><b>◉</b>Cockpit</button><button type="button" data-cl-view="clean"><b>◇</b>Mapa limpo</button></div><label class="cl-plane-size">Tamanho da aeronave<select id="clPlaneSize"><option value="64">Pequena</option><option value="96">Média</option><option value="128">Grande</option></select></label></section>`;
  host.appendChild(root);menu=$('clViewMenu');
+ /* O modo de câmara externa oculta #cockpitLite: o menu deve ser seu irmão. */
+ host.appendChild(menu);menu.setAttribute('aria-hidden','true');
  button=document.createElement('button');button.id='clViews';button.type='button';button.textContent='VISTAS';button.setAttribute('aria-expanded','false');button.setAttribute('aria-controls','clViewMenu');controls.insertBefore(button,$('mobileFullBtn'));
- button.addEventListener('click',()=>{menu.hidden=!menu.hidden;button.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden)$('clCloseViews')?.focus();});
+ button.addEventListener('click',e=>{
+  e.preventDefault();e.stopPropagation();
+  const opening=menu.hidden;
+  menu.hidden=!opening;
+  menu.setAttribute('aria-hidden',String(!opening));
+  button.setAttribute('aria-expanded',String(opening));
+  if(opening){
+   $('flightCameraMenu')?.classList.remove('show');
+   $('mobileMapMenu')?.classList.remove('show');
+   $('mobileMapMenuBtn')?.setAttribute('aria-expanded','false');
+   $('clCloseViews')?.focus({preventScroll:true});
+  }
+ });
  $('clCloseViews').addEventListener('click',()=>{closeMenu();button.focus();});
  $('clPlaneSize').value=String(prefs.plane);
  $('clPlaneSize').addEventListener('change',e=>{const n=Number(e.target.value);if([64,96,128].includes(n)){prefs.plane=n;save();applyView(false);}});
