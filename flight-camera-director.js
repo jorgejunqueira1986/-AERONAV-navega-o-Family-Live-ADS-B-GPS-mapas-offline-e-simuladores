@@ -399,9 +399,8 @@
       bearing = (hdg + runtime.orbitAngle) % 360;
     }
 
-    return {
+    const target = {
       center: center || undefined,
-      zoom: Math.max(currentZoom, p.zoom),
       pitch: p.pitch,
       bearing,
       duration: instant ? 0 : (presetId === 'orbit' ? 260 : 700),
@@ -409,6 +408,10 @@
         ? { top:70, bottom:175, left:14, right:14 }
         : { top:55, bottom:75, left:12, right:12 }
     };
+    if (localStorage.getItem('aeronav.map.autozoom') !== '0') {
+      target.zoom = Math.max(currentZoom, p.zoom);
+    }
+    return target;
   }
 
   function applyPreset({ instant = false, source = 'manual' } = {}) {

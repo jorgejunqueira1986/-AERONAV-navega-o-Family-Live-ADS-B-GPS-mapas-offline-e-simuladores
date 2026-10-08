@@ -250,6 +250,7 @@
     }
 
     if(mode==='flight'&&Number.isFinite(window.__AERONAV_COCKPIT_PITCH__)){target.pitch=window.__AERONAV_COCKPIT_PITCH__;target.padding={top:55,bottom:70,left:10,right:10};}
+    if(localStorage.getItem('aeronav.map.autozoom')==='0')delete target.zoom;
     try{m.easeTo(target);}catch(_){}
   }
 

@@ -1,4 +1,4 @@
-/* AERONAV RC12.37.9 — Camera Menu Fix + versioned offline shell */
+/* AERONAV RC12.37.10 — Vistas + Auto Zoom + Single Aircraft + versioned offline shell */
 /* AERONAV RC12.32 — bounded UI work + versioned offline shell */
 /* AERONAV RC12.31.2 — Performance Recovery */
 /* AERONAV RC12.31 — Diagnostic + Recovery */
@@ -13,8 +13,8 @@
    - Dynamic/API/data requests: network-only (never stale from SW cache).
    This prevents live GPS-family, ADS-B, weather and other feeds from being
    silently served from an old service-worker cache. */
-const CACHE='aeronav-jorge-RC12_37_9-camera-menu-fix-20261008';
-const LOCAL=["./flight-camera-ui-fix.js","./aircraft-3d-models.js", "./assets/aircraft3d/c152.glb", "./assets/aircraft3d/c172.glb", "./assets/aircraft3d/q400.glb", "./assets/aircraft3d/b7377.glb", "./assets/aircraft3d/a2203.glb", "./assets/aircraft3d/b777300.glb", "./assets/aircraft3d/b7879.glb", "./assets/aircraft3d/b78710.glb", "./aircraft-visual-profiles.js", "./flight-camera-director.js", "./photo3d-renderer.js", "./terrain-photo3d-runtime.js", "./photo3d-proxy.js", "./drive-core.js", "./cockpit-lite.js", "./assets/people/mathia-avatar-rc12313.png", "./assets/people/jorge-avatar-rc12313.png", "./index.html", "./manifest.json", "./sw.js", "./family-viewer.html", "./wendler.html", "./family-viewer-preview.html", "./cockpit-audio.js", "./family-call.js", "./angola-offline-fragment.js", "./vendor/pmtiles-3.2.1.js", "./work-status-fragment.js", "./meteo-visual-voo.js", "./meteo-route-phase2.js", "./meteo-altitude-phase3.js", "./diagnostic-recovery.js", "./gps-view-modes.js", "./flight-ops-fragment.js", "./", "./vendor/maplibre-gl-5.24.0.js", "./vendor/maplibre-gl-5.24.0.css", "./vendor/fonts/Noto Sans Regular/0-255.pbf", "./vendor/fonts/Noto Sans Regular/256-511.pbf"];
+const CACHE='aeronav-jorge-RC12_37_10-map-view-controls-20261008';
+const LOCAL=["./camera-map-behavior.js","./flight-camera-ui-fix.js","./aircraft-3d-models.js", "./assets/aircraft3d/c152.glb", "./assets/aircraft3d/c172.glb", "./assets/aircraft3d/q400.glb", "./assets/aircraft3d/b7377.glb", "./assets/aircraft3d/a2203.glb", "./assets/aircraft3d/b777300.glb", "./assets/aircraft3d/b7879.glb", "./assets/aircraft3d/b78710.glb", "./aircraft-visual-profiles.js", "./flight-camera-director.js", "./photo3d-renderer.js", "./terrain-photo3d-runtime.js", "./photo3d-proxy.js", "./drive-core.js", "./cockpit-lite.js", "./assets/people/mathia-avatar-rc12313.png", "./assets/people/jorge-avatar-rc12313.png", "./index.html", "./manifest.json", "./sw.js", "./family-viewer.html", "./wendler.html", "./family-viewer-preview.html", "./cockpit-audio.js", "./family-call.js", "./angola-offline-fragment.js", "./vendor/pmtiles-3.2.1.js", "./work-status-fragment.js", "./meteo-visual-voo.js", "./meteo-route-phase2.js", "./meteo-altitude-phase3.js", "./diagnostic-recovery.js", "./gps-view-modes.js", "./flight-ops-fragment.js", "./", "./vendor/maplibre-gl-5.24.0.js", "./vendor/maplibre-gl-5.24.0.css", "./vendor/fonts/Noto Sans Regular/0-255.pbf", "./vendor/fonts/Noto Sans Regular/256-511.pbf"];
 const REMOTE=[
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css',
   'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js',
@@ -203,7 +203,7 @@ self.addEventListener('message',event=>{
         remoteReady:remote===REMOTE.length,
         remoteCount:remote,
         cacheVersion:CACHE,
-        release:'RC12.37.9'
+        release:'RC12.37.10'
       });
     });
   }else if(event.data?.type==='WARM_OFFLINE_CACHE'){
